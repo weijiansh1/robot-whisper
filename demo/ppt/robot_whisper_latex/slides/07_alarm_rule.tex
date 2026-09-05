@@ -1,0 +1,106 @@
+\begin{frame}[plain]
+\begin{whisperslide}{7}
+  \SlideTitle[19]{\resizebox{14.42cm}{!}{A Self-Normalized Routing Speed Turns Freeze into an Alarm}}
+
+  % Consecutive Top-4 sets and their Jaccard turnover.
+  \node[text=navy,font=\fontsize{7.2}{7.8}\selectfont\bfseries,align=center]
+    at (1.98,7.52) {Control $t-1$\\Top-4 expert set $I$};
+  \node[text=navy,font=\fontsize{7.2}{7.8}\selectfont\bfseries,align=center]
+    at (4.28,7.52) {Control $t$\\Top-4 expert set $J$};
+  \draw[brandblue,line width=1.05pt] (2.14,6.15) circle (1.03);
+  \draw[accentgreen,line width=1.05pt] (4.08,6.15) circle (1.03);
+  \foreach \nodex/\nodey/\nodetext in {
+    1.72/6.56/1,1.38/6.15/2,1.84/5.70/3,2.96/6.15/4,
+    4.22/6.56/5,4.64/6.15/6,4.22/5.70/7
+  }{
+    \fill[brandblue] (\nodex,\nodey) circle (.19);
+    \node[text=white,font=\fontsize{9}{9}\selectfont\bfseries] at (\nodex,\nodey) {\nodetext};
+  }
+  \draw[dashed,ink,line width=.75pt,-{Latex[length=1.8mm]}] (5.18,6.15)--(6.38,6.15);
+  \node[anchor=north,font=\fontsize{9}{9.5}\selectfont,align=center] at (5.78,5.92)
+    {Jaccard\\distance};
+  \draw[lineblue,line width=.40pt] (.42,4.98)--(7.85,4.98);
+
+  % Three definitions.
+  \node[anchor=east,text=navy,font=\fontsize{6.2}{6.7}\selectfont\bfseries,
+    align=right] at (1.82,4.57) {Per-$(\ell,u)$\\Jaccard distance};
+  \Panel[rounded corners=.05cm]{1.95}{4.22}{3.70}{.70}
+  \node[font=\fontsize{8.4}{8.4}\selectfont] at (3.80,4.57)
+    {$\displaystyle \delta_{t,\ell,u}=1-\frac{|I\cap J|}{|I\cup J|}$};
+
+  \node[anchor=east,text=navy,font=\fontsize{6.2}{6.7}\selectfont\bfseries,
+    align=right] at (1.82,3.74) {Average across\\layers and users};
+  \Panel[rounded corners=.05cm]{1.95}{3.34}{3.78}{.80}
+  \node[font=\fontsize{7.5}{7.5}\selectfont] at (3.84,3.74)
+    {$\displaystyle d_t=\frac{1}{LU}\sum_{\ell=1}^{L}\sum_{u=1}^{U}\delta_{t,\ell,u}$};
+
+  \node[anchor=east,text=navy,font=\fontsize{6.2}{6.7}\selectfont\bfseries,
+    align=right] at (1.82,2.85) {Self-normalized\\routing speed};
+  \Panel[rounded corners=.05cm]{1.95}{2.45}{3.78}{.80}
+  \node[font=\fontsize{7.2}{7.2}\selectfont] at (3.84,2.85)
+    {$\displaystyle r(t)=\frac{\operatorname{mean}(d_{t-W+1:t})}{\operatorname{mean}(d_{1:W_0})}$};
+  \node[text=navy,font=\fontsize{8.5}{8.5}\selectfont\bfseries]
+    at (3.84,2.22) {Window sizes: $W=4$, $W_0=8$};
+
+  \Panel[fill=panelblue,line width=.75pt]{5.95}{2.45}{1.84}{2.47}
+  \node[text=navy,font=\fontsize{10}{10}\selectfont\bfseries] at (6.87,4.55) {Alarm rule};
+  \node[font=\fontsize{9.3}{10.2}\selectfont,align=center] at (6.87,3.55)
+    {Alarm if\\$r(t)<\theta$ for\\$K=3$ steps,\\$\theta=0.95$};
+
+  \draw[lineblue,line width=.45pt] (8.12,2.08)--(8.12,7.47);
+
+  % Example self-normalized routing-speed trace.
+  \node[text=navy,font=\fontsize{13}{13}\selectfont\bfseries] at (12.10,7.02) {Example $r(t)$};
+  \begin{axis}[
+    at={(9.05cm,2.67cm)},anchor=south west,width=6.02cm,height=4.08cm,
+    xmin=0,xmax=100,ymin=.75,ymax=1.10,
+    xtick={0,10,...,100},ytick={.75,.80,.85,.90,.95,1.00,1.05,1.10},
+    grid=both,grid style={gridgray,dashed,line width=.28pt},
+    axis line style={ink,line width=.45pt},tick style={ink,line width=.35pt},
+    tick label style={font=\fontsize{6.4}{6.4}\selectfont},
+    xlabel={Control step $t$},ylabel={$r(t)$},
+    xlabel style={font=\fontsize{9}{9}\selectfont},
+    ylabel style={font=\fontsize{10}{10}\selectfont},
+    clip=false
+  ]
+    \addplot[lineblue,line width=1.25pt,smooth] coordinates {
+      (0,1.018) (3,1.022) (6,1.019) (10,1.015) (14,1.012) (18,1.014)
+      (22,1.009) (26,1.003) (30,.996) (34,.985) (38,.974) (42,.956)
+      (46,.941) (50,.929) (54,.924) (58,.918) (62,.910) (66,.900)
+      (70,.889) (74,.876) (78,.861) (82,.845) (86,.835) (90,.823)
+      (94,.812) (98,.801) (100,.802)
+    };
+    \addplot[accentred,dashed,line width=.75pt] coordinates {(0,.95) (100,.95)};
+  \end{axis}
+  \node[anchor=east,text=accentred,font=\fontsize{7.5}{7.5}\selectfont\bfseries]
+    at (14.88,5.13) {Threshold $\theta=0.95$};
+
+  % Three implementation properties.
+  \Panel{.62}{.43}{4.52}{1.20}
+  \begin{scope}[shift={(1.45,1.03)}]
+    \draw[lineblue,line width=1.0pt] (0,0) circle (.42);
+    \draw[lineblue,line width=1.0pt] (-.30,.30)--(.30,-.30);
+    \draw[lineblue,line width=.9pt] (-.18,-.10)--(.16,.22) (-.15,.16)--(.19,-.18);
+  \end{scope}
+  \node[text=navy,font=\fontsize{10.5}{10.5}\selectfont\bfseries] at (3.25,1.03) {No learned probe};
+
+  \Panel{5.39}{.43}{4.34}{1.20}
+  \begin{scope}[shift={(6.24,1.03)}]
+    \draw[lineblue,line width=.9pt,-{Latex[length=1.4mm]}] (-.34,.08) arc[start angle=160,end angle=-70,radius=.35];
+    \fill[lineblue] (0,0) circle (.11);
+    \draw[lineblue,line width=.9pt] (-.20,-.29) arc[start angle=210,end angle=330,radius=.24];
+  \end{scope}
+  \node[text=navy,font=\fontsize{10.2}{10.5}\selectfont\bfseries,align=center]
+    at (8.10,1.03) {Self-normalized\\per rollout};
+
+  \Panel{9.98}{.43}{5.40}{1.20}
+  \foreach \boxx/\boxy/\boxtext in {10.56/1.18/7,10.98/1.18/2,10.56/.78/5,10.98/.78/9,
+                                      12.02/1.18/2,12.44/1.18/7,12.02/.78/9,12.44/.78/5}{
+    \draw[lineblue,line width=.55pt,rounded corners=.03cm] ({\boxx-.17},{\boxy-.17}) rectangle ({\boxx+.17},{\boxy+.17});
+    \node[text=navy,font=\fontsize{8}{8}\selectfont\bfseries] at (\boxx,\boxy) {\boxtext};
+  }
+  \draw[<->,lineblue,line width=1.0pt] (11.28,1.00)--(11.72,1.00);
+  \node[anchor=west,text=navy,font=\fontsize{9.5}{10}\selectfont\bfseries,align=left]
+    at (12.82,1.02) {Invariant to\\expert renumbering};
+\end{whisperslide}
+\end{frame}

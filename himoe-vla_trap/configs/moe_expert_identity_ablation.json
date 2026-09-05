@@ -1,0 +1,48 @@
+{
+  "schema": "himoe.moe_expert_identity_ablation.config.v1",
+  "experiment_name": "moe_expert_identity_ablation",
+  "training": false,
+  "gradient_optimization": false,
+  "learned_feature_weights": false,
+  "failure_labels_used_for_features_or_thresholds": false,
+  "base_config": "himoe-vla_trap/configs/moe_structured_alarm_two_runs.json",
+  "base_result": "himoe-vla_trap/results/moe_structured_alarm_two_runs",
+  "variants": {
+    "soft_coordinate": "full-softmax probability with the fixed expert coordinate system; it does not read stored top-4 IDs but still retains expert identity",
+    "actual_support": "Jaccard recurrence of the actually selected top-4 expert IDs",
+    "selected_weight": "weighted Jaccard recurrence of actual IDs and selected combine probabilities",
+    "rank_shape": "sort all 32 probabilities at every position; retains probability shape but removes expert identity",
+    "reconstructed_support": "top-4 support deterministically reconstructed from float16 full-softmax probabilities",
+    "tie_resolved_support": "actual top-4 support, evaluated only when both compared positions have strictly separated fourth and fifth probabilities",
+    "chunk_relabel_soft": "apply a different deterministic permutation of all 32 expert coordinates to every replan before soft recurrence",
+    "chunk_relabel_support": "apply the same per-replan permutation to selected IDs before support recurrence"
+  },
+  "scoring": {
+    "tokens": "action token groups only",
+    "layer_groups": "front and back",
+    "recurrence_lags": [1, 2, 3, 4],
+    "cell_aggregation": "75th percentile over 2 layer groups x 3 action-token groups",
+    "self_baseline": "for lag k, subtract the median at queries k through k+2",
+    "healthy_calibration": "upper empirical CDF from source-run successful healthy-reference episodes, stratified by query bin",
+    "lag_union": "maximum confidence over lag 1 through 4",
+    "temporal_persistence": "second-highest score among current and previous two consecutive replans"
+  },
+  "tie_filter": {
+    "criterion": "float16 p_(4) > p_(5) at both compared positions",
+    "minimum_valid_fraction_per_layer_token_cell": 0.5
+  },
+  "threshold_confirmation": {
+    "target_success_episode_false_alarm_rate": 0.01,
+    "selection": "maximum of eight task-specific thresholds",
+    "failure_labels_used": false
+  },
+  "runtime_excluded_inputs": [
+    "task identity as a detector feature",
+    "action values",
+    "physical state or distance",
+    "reward",
+    "failure labels",
+    "future route rows",
+    "episode length"
+  ]
+}

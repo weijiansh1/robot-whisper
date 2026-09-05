@@ -1,0 +1,81 @@
+{
+  "schema": "himoe.trainfree_trap_probability.config.v1",
+  "training": false,
+  "gradient_optimization": false,
+  "learned_feature_weights": false,
+  "labeled_probability_calibration": true,
+  "runtime_inputs": [
+    "current and historical HB MoE router probabilities"
+  ],
+  "runtime_task_identity_used": false,
+  "runtime_action_values_used": false,
+  "runtime_physical_state_used": false,
+  "runtime_outcome_used": false,
+  "corpora": {
+    "A": "dense physical loop/static onset",
+    "B": "A-validated query-resolution onset proxy"
+  },
+  "directions": [
+    "A_to_B",
+    "B_to_A"
+  ],
+  "minimum_query": 12,
+  "self_reference_queries": [4, 12],
+  "horizons": [0, 2, 4],
+  "event_types": [
+    "loop",
+    "static",
+    "trap"
+  ],
+  "route_features": [
+    "late_flow_volatility_w4",
+    "route_acceleration_w4",
+    "lag_periodicity_w4"
+  ],
+  "phenotype_scores": {
+    "loop": "min(percentile(self-normalized late-flow volatility), percentile(self-normalized route acceleration))",
+    "static": "percentile(self-normalized lag periodicity)",
+    "trap": "max(loop score, static score)"
+  },
+  "score_bins": [
+    0.0,
+    0.5,
+    0.75,
+    0.9,
+    0.95,
+    0.975,
+    0.99,
+    0.995,
+    1.0000001
+  ],
+  "persistence_score_threshold": 0.95,
+  "persistence_cap": 3,
+  "minimum_probability_cell_support": 30,
+  "beta_prior": {
+    "alpha": 0.5,
+    "beta": 0.5,
+    "name": "Jeffreys"
+  },
+  "alarm_probability": 0.75,
+  "reported_probability_thresholds": [0.1, 0.2, 0.25, 0.35, 0.5, 0.75],
+  "confidence_interval": 0.9,
+  "primary_evaluation": {
+    "event_type": "trap",
+    "horizon_queries": 2,
+    "interpretation": "currently at onset or entering a physical Trap within two replanning queries"
+  },
+  "evaluation_modes": {
+    "onset_hazard": "evaluate only the pre-onset risk set through onset",
+    "onset_absorbing_proxy": "label every query from onset minus H through episode end; this is not an active-duration ground truth"
+  },
+  "controls": [
+    "source prevalence constant probability",
+    "query-index-only Bayesian clock probability"
+  ],
+  "notes": [
+    "Feature values and direction-specific route states are materialized before onset labels are loaded.",
+    "Calibration labels are used only to estimate state-conditional event frequencies; this is calibration, not an unlabeled method.",
+    "Target probabilities are written without target labels and evaluated in a separate join step.",
+    "The 0.75 threshold is evaluated as proposed, not selected to optimize these corpora."
+  ]
+}

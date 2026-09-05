@@ -1,0 +1,108 @@
+\begin{frame}[plain]
+\begin{whisperslide}{4}
+  \SlideTitle[19]{Why Can't We Detect the Failure from the Output?}
+
+  % Three explanatory panels.
+  \Panel{0.22}{2.48}{5.18}{5.24}
+  \PanelHeader{0.22}{7.14}{5.18}{0.58}
+  \node[text=white,font=\fontsize{14}{14}\selectfont\bfseries] at (2.81,7.43) {Actions keep coming};
+
+  % Stacked action-component traces.
+  \foreach \lab/\idx in {$\Delta x$/0,$\Delta y$/1,$\Delta z$/2,$\Delta\mathrm{roll}$/3,$\Delta\mathrm{pitch}$/4,$\Delta\mathrm{yaw}$/5}{
+    \pgfmathsetmacro{\yy}{6.78-0.44*\idx}
+    \node[anchor=east,font=\fontsize{6.6}{6.6}\selectfont] at (0.82,\yy) {\lab};
+    \draw[gray!70,line width=0.25pt] (1.02,{\yy-0.16})--(4.94,{\yy-0.16});
+    \draw[gray!65,dashed,line width=0.22pt] (1.02,\yy)--(4.94,\yy);
+    \draw[lineblue,line width=0.65pt]
+      plot[domain=0:3.92,samples=55,smooth]
+      ({1.02+\x},{\yy+0.055*sin((85+11*\idx)*\x)+0.030*cos((165-8*\idx)*\x)+0.018*sin(350*\x)});
+  }
+  \node[anchor=east,font=\fontsize{6.6}{6.6}\selectfont] at (0.82,4.09) {gripper};
+  \draw[gray!65,line width=0.25pt] (1.02,3.90)--(4.94,3.90);
+  \draw[gray!65,line width=0.25pt] (1.02,4.25)--(4.94,4.25);
+  \draw[lineblue,line width=0.70pt]
+    (1.02,3.90)--(1.31,3.90)--(1.31,4.25)--(1.79,4.25)--(1.79,3.90)--
+    (2.10,3.90)--(2.10,4.25)--(2.48,4.25)--(2.48,3.90)--(2.83,3.90)--
+    (2.83,4.25)--(3.43,4.25)--(3.43,3.90)--(3.70,3.90)--(3.70,4.25)--
+    (4.31,4.25)--(4.31,3.90)--(4.62,3.90)--(4.62,4.25)--(4.86,4.25)--(4.86,3.90);
+  \node[font=\fontsize{7}{7}\selectfont] at (3.00,3.63) {Step};
+  \node[font=\fontsize{9}{9.5}\selectfont,align=center,text width=4.68cm] at (2.81,2.93)
+    {Each control step still outputs\\a valid action chunk.};
+
+  \Panel{5.52}{2.48}{4.96}{5.24}
+  \PanelHeader{5.52}{7.14}{4.96}{0.58}
+  \node[text=white,font=\fontsize{14}{14}\selectfont\bfseries] at (8.00,7.43) {Motion is not progress};
+  % Top-down vector workbench with a looping trajectory.
+  \begin{scope}
+    \clip[rounded corners=0.05cm] (5.66,3.52) rectangle (10.34,7.02);
+    \fill[brown!22] (5.66,3.52) rectangle (10.34,7.02);
+    \foreach \y in {3.85,4.21,4.57,4.93,5.29,5.65,6.01,6.37,6.73}{
+      \draw[brown!36,line width=0.25pt] (5.66,\y)--(10.34,\y);
+    }
+    % Robot wrist entering from the top.
+    \draw[gray!65,line width=8.8pt,line cap=round] (7.88,7.15)--(7.88,6.30);
+    \draw[white,line width=6.4pt,line cap=round] (7.88,7.15)--(7.88,6.30);
+    \fill[gray!72] (7.88,6.22) circle (0.25);
+    \fill[ink] (7.80,5.65) rectangle (7.96,6.18);
+    \draw[ink,line width=0.9pt] (7.80,5.67)--(7.68,5.45) (7.96,5.67)--(8.08,5.45);
+    % Mug, bowl, and central peg.
+    \fill[deepblue!80,draw=ink,line width=0.35pt] (6.08,5.84) ellipse (0.30 and 0.20);
+    \fill[deepblue!80,draw=ink,line width=0.35pt] (5.80,5.86) rectangle (6.36,6.36);
+    \draw[ink,line width=0.55pt] (5.80,6.19) arc[start angle=90,end angle=270,radius=0.20];
+    \fill[accentgreen!18,draw=gray!70,line width=0.4pt] (9.08,5.72) ellipse (0.47 and 0.24);
+    \draw[gray!70,line width=0.35pt] (8.65,5.78) arc[start angle=190,end angle=350,radius=0.46];
+    \fill[brown!45,draw=brown!80,line width=0.35pt] (7.25,4.30)--(7.72,4.02)--(8.18,4.30)--(7.72,4.56)--cycle;
+    \fill[brown!65] (7.65,4.42) rectangle (7.79,5.35);
+    % Motion continues in a closed, non-progressing loop.
+    \draw[brightblue,densely dashed,line width=0.9pt,-{Latex[length=1.7mm]}]
+      plot[smooth,tension=0.7] coordinates {(6.10,3.96)(6.35,4.90)(7.20,5.10)(7.55,5.38)(7.35,5.70)(7.76,5.84)(8.35,5.55)(8.84,5.18)(9.02,4.42)(8.52,3.95)(7.93,4.18)};
+    \fill[brandblue] (6.10,3.96) circle (0.10);
+  \end{scope}
+  \node[font=\fontsize{9}{9.5}\selectfont,align=center,text width=4.48cm] at (8.00,2.93)
+    {The robot may still move while\\task progress has stopped.};
+
+  \Panel{10.60}{2.48}{5.18}{5.24}
+  \PanelHeader{10.60}{7.14}{5.18}{0.58}
+  \node[text=white,font=\fontsize{14}{14}\selectfont\bfseries] at (13.19,7.43) {Reward arrives too late};
+  % Delayed terminal success signal.
+  \draw[ink,line width=0.45pt,-{Latex[length=1.2mm]}] (11.45,3.90)--(15.47,3.90);
+  \draw[ink,line width=0.45pt,-{Latex[length=1.2mm]}] (11.45,3.88)--(11.45,6.76);
+  \foreach \x/\lab in {11.45/0,12.12/50,12.79/100,13.46/150,14.13/200,14.80/250,15.47/300}{
+    \draw[ink,line width=0.3pt] (\x,3.86)--(\x,3.94);
+    \node[font=\fontsize{6}{6}\selectfont] at (\x,3.70) {\lab};
+  }
+  \foreach \y/\lab in {3.90/0.0,5.18/0.5,6.46/1.0}{
+    \draw[ink,line width=0.3pt] (11.41,\y)--(11.49,\y);
+    \node[anchor=east,font=\fontsize{6}{6}\selectfont] at (11.35,\y) {\lab};
+  }
+  \node[font=\fontsize{7}{7}\selectfont] at (13.46,3.48) {Step};
+  \node[rotate=90,font=\fontsize{7}{7}\selectfont] at (10.93,5.28) {Success (terminal)};
+  \draw[lineblue,line width=0.9pt] (11.45,3.91)--(15.27,3.91)--(15.27,6.46)--(15.47,6.46);
+  \draw[accentred,dashed,line width=0.65pt] (15.44,3.78)--(15.44,6.55);
+  \draw[-{Latex[length=1.4mm]},accentred,line width=0.65pt] (14.72,4.76)--(15.25,4.20);
+  \node[text=accentred,font=\fontsize{8}{8.5}\selectfont,align=center] at (13.93,4.82)
+    {Timeout / Termination\\(control budget exhausted)};
+  \draw[-{Latex[length=1.4mm]},lineblue,line width=0.65pt] (14.72,6.73)--(15.24,6.48);
+  \node[text=lineblue,font=\fontsize{8}{8.5}\selectfont,align=center] at (13.79,6.73)
+    {Success known\\only at the end};
+  \node[font=\fontsize{9}{9.5}\selectfont,align=center,text width=4.68cm] at (13.19,2.93)
+    {Timeout confirms failure only after\\the control budget is exhausted.};
+
+  % Causal chain.
+  \Panel{0.22}{1.50}{15.56}{0.72}
+  \node[text=navy,font=\fontsize{13}{13}\selectfont\bfseries] at (2.86,1.86) {Normal actions};
+  \draw[flow arrow,line width=2.1pt] (5.10,1.86)--(5.90,1.86);
+  \node[text=navy,font=\fontsize{13}{13}\selectfont\bfseries] at (7.80,1.86) {continued motion};
+  \draw[flow arrow,line width=2.1pt] (9.64,1.86)--(10.44,1.86);
+  \node[text=navy,font=\fontsize{13}{13}\selectfont\bfseries] at (13.00,1.86) {late terminal signal};
+
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=0.10cm] (0.22,0.20) rectangle (15.78,1.20);
+  \begin{scope}[shift={(1.72,0.70)}]
+    \draw[white,line width=0.8pt] (0,-0.20)--(0,0.04);
+    \draw[white,line width=0.9pt] (-0.18,0.12) arc[start angle=200,end angle=-20,radius=0.20];
+    \foreach \a in {35,75,105,145}{\draw[white,line width=0.6pt] ({0.33*cos(\a)},{0.33*sin(\a)})--({0.44*cos(\a)},{0.44*sin(\a)});}
+  \end{scope}
+  \node[text=white,font=\fontsize{11.8}{12.2}\selectfont\bfseries,align=center,text width=13.0cm]
+    at (8.35,0.70) {So we turn from what the model says to how its internal state moves.};
+\end{whisperslide}
+\end{frame}

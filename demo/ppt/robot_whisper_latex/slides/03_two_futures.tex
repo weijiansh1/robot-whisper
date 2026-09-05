@@ -1,0 +1,128 @@
+\begin{frame}[plain]
+\begin{whisperslide}{3}
+  \SlideTitle[19]{Same Model, Same State, Two Different Futures}
+  \node[anchor=west,text=muted,font=\fontsize{11}{11}\selectfont\itshape]
+    at (1.34,7.86) {Only the diffusion sampling noise changes.};
+
+  \node[text=navy,font=\fontsize{11.5}{12}\selectfont\bfseries] at (2.72,7.17) {Shared simulator state};
+  \node[font=\fontsize{9}{9}\selectfont] at (2.72,6.88) {(after first pot placed)};
+
+  % Shared state: a complete vector workbench scene.
+  \begin{scope}
+    \clip[rounded corners=0.08cm] (0.78,3.92) rectangle (4.72,6.65);
+    \fill[gray!15] (0.78,3.92) rectangle (4.72,6.65);
+    \fill[brown!28] (0.78,3.92) rectangle (4.72,4.87);
+    \draw[brown!55,line width=1pt] (0.78,4.84)--(4.72,4.84);
+    \draw[gray!55,line width=1.1pt] (1.04,3.92)--(1.04,4.70) (4.43,3.92)--(4.43,4.70);
+    \fill[brown!12,draw=brown!55,line width=0.5pt] (1.48,4.55) rectangle (4.05,4.74);
+    \Plant{2.00}{4.69}{0.72}
+    \fill[deepblue!85,draw=ink,line width=0.4pt] (3.53,4.67) ellipse (0.24 and 0.16);
+    \fill[deepblue!75,draw=ink,line width=0.35pt] (3.30,4.69) rectangle (3.76,5.09);
+    \draw[white,line width=0.35pt] (3.34,5.06)--(3.72,5.06);
+    \fill[gray!45] (1.05,4.77) rectangle (1.75,5.01);
+    \RobotArm{1.28}{4.98}{1.25}
+  \end{scope}
+  \draw[lineblue,line width=0.65pt,rounded corners=0.08cm] (0.78,3.92) rectangle (4.72,6.65);
+  \node[font=\fontsize{8}{8.5}\selectfont\itshape,align=center]
+    at (2.75,3.63) {Same model, same state,\\same task.};
+
+  % One branching point, with two alternative futures.
+  \draw[lineblue,line width=1.15pt] (4.72,5.30)--(5.33,5.30);
+  \fill[lineblue] (5.33,5.30) circle (0.075);
+  \draw[orange arrow] (5.33,5.30) .. controls (5.70,5.75) and (5.65,6.33) .. (6.48,6.33);
+  \draw[flow arrow] (5.33,5.30) .. controls (5.78,4.72) and (5.48,3.20) .. (6.48,3.20);
+
+  \node[text=accentorange,font=\fontsize{11}{11}\selectfont\bfseries] at (9.55,7.16) {Original noise $\rightarrow$ failure};
+  \node[text=lineblue,font=\fontsize{11}{11}\selectfont\bfseries] at (9.55,4.48) {Alternative noise $\rightarrow$ success};
+
+  \begin{axis}[
+    at={(7.12cm,5.00cm)},anchor=south west,width=4.45cm,height=1.55cm,scale only axis,
+    xmin=0,xmax=55,ymin=-0.10,ymax=0.30,
+    xtick={0,20,40},ytick={0,0.2},
+    tick label style={font=\fontsize{5.5}{5.5}\selectfont},
+    label style={font=\fontsize{6.2}{6.2}\selectfont},
+    xlabel={Control step},
+    grid=none,axis line style={line width=0.35pt},
+    every axis plot/.append style={line width=0.85pt},
+  ]
+    \addplot[accentorange,mark=*,mark size=1.0pt]
+      coordinates {(2,.18)(4,.195)(6,.205)(8,.210)(10,.215)(12,.217)(14,.214)(16,.216)(18,.214)(20,.216)(22,.218)(24,.217)(26,.215)(28,.210)(30,.201)(32,.195)(34,.192)(36,.190)(38,.187)(40,.183)(42,.176)(44,.172)(46,.169)(48,.170)(51,.178)};
+    \draw[gray,dashed,line width=0.35pt] (axis cs:0,0)--(axis cs:55,0);
+    \node[text=accentorange,font=\fontsize{6.5}{6.8}\selectfont\bfseries,anchor=east] at (axis cs:53,0.105) {FAILURE};
+    \node[text=accentorange,font=\fontsize{6}{6}\selectfont] at (axis cs:27,0.255) {52 steps / 26.0 s};
+  \end{axis}
+  \node[rotate=90,font=\fontsize{6}{6}\selectfont] at (6.72,5.77) {End-effector height (m)};
+  \draw[accentorange,line width=0.6pt,rounded corners=0.08cm] (6.84,4.80) rectangle (11.82,6.90);
+
+  \begin{axis}[
+    at={(7.12cm,2.36cm)},anchor=south west,width=4.45cm,height=1.55cm,scale only axis,
+    xmin=0,xmax=55,ymin=-0.10,ymax=0.30,
+    xtick={0,20,40},ytick={0,0.2},
+    tick label style={font=\fontsize{5.5}{5.5}\selectfont},
+    label style={font=\fontsize{6.2}{6.2}\selectfont},
+    xlabel={Control step},
+    grid=none,axis line style={line width=0.35pt},
+    every axis plot/.append style={line width=0.85pt},
+  ]
+    \addplot[lineblue,mark=*,mark size=1.0pt]
+      coordinates {(2,.18)(4,.195)(6,.205)(8,.210)(10,.214)(12,.217)(14,.216)(16,.213)(18,.205)(20,.192)(22,.176)(24,.155)(26,.132)(28,.105)(30,.073)(32,.045)(34,.026)(36,.012)(39,.002)};
+    \draw[gray,dashed,line width=0.35pt] (axis cs:0,0)--(axis cs:55,0);
+    \node[text=lineblue,font=\fontsize{6.5}{6.8}\selectfont\bfseries,anchor=east] at (axis cs:53,0.036) {SUCCESS};
+    \node[text=lineblue,font=\fontsize{6}{6}\selectfont] at (axis cs:27,0.255) {38 steps / 19.0 s};
+  \end{axis}
+  \node[rotate=90,font=\fontsize{6}{6}\selectfont] at (6.72,3.13) {End-effector height (m)};
+  \draw[lineblue,line width=0.6pt,rounded corners=0.08cm] (6.84,2.16) rectangle (11.82,4.26);
+
+  % Vector video stills.
+  \node[text=accentred,font=\fontsize{9.5}{10}\selectfont\bfseries] at (13.75,7.25) {Stalled above second pot};
+  \begin{scope}
+    \clip[rounded corners=0.08cm] (12.18,5.06) rectangle (15.42,7.02);
+    \fill[gray!17] (12.18,5.06) rectangle (15.42,7.02);
+    \fill[brown!25] (12.18,5.06) rectangle (15.42,5.77);
+    \fill[brown!11,draw=brown!55] (12.65,5.58) rectangle (15.03,5.73);
+    \Plant{13.12}{5.70}{0.50}
+    \fill[deepblue!78,draw=ink,line width=0.3pt] (14.34,5.65) rectangle (14.70,5.98);
+    \fill[gray!42] (12.46,5.70) rectangle (13.05,5.90);
+    \RobotArm{12.64}{5.88}{0.92}
+    \fill[ink] (12.18,5.06) rectangle (15.42,5.38);
+    \node[text=white,font=\fontsize{7}{7}\selectfont] at (12.43,5.22) {$\blacktriangleright$};
+    \node[anchor=west,text=white,font=\fontsize{5.8}{6}\selectfont] at (12.65,5.22) {00:26 / 00:26};
+    \draw[accentorange,line width=1.1pt] (13.66,5.20)--(15.13,5.20);
+    \fill[white] (15.16,5.20) circle (0.055);
+  \end{scope}
+  \draw[accentorange,line width=0.6pt,rounded corners=0.08cm] (12.18,5.06) rectangle (15.42,7.02);
+
+  \node[text=lineblue,font=\fontsize{9.5}{10}\selectfont\bfseries] at (13.75,4.55) {Successful completion};
+  \begin{scope}
+    \clip[rounded corners=0.08cm] (12.18,2.37) rectangle (15.42,4.34);
+    \fill[gray!17] (12.18,2.37) rectangle (15.42,4.34);
+    \fill[brown!25] (12.18,2.37) rectangle (15.42,3.08);
+    \fill[brown!11,draw=brown!55] (12.65,2.89) rectangle (15.03,3.04);
+    \Plant{13.13}{3.02}{0.48}
+    \fill[deepblue!78,draw=ink,line width=0.3pt] (14.33,2.96) rectangle (14.71,3.31);
+    \Plant{14.52}{3.28}{0.40}
+    \fill[gray!42] (12.45,3.01) rectangle (13.02,3.20);
+    \RobotArm{12.62}{3.18}{0.88}
+    \fill[ink] (12.18,2.37) rectangle (15.42,2.69);
+    \node[text=white,font=\fontsize{7}{7}\selectfont] at (12.43,2.53) {$\blacktriangleright$};
+    \node[anchor=west,text=white,font=\fontsize{5.8}{6}\selectfont] at (12.65,2.53) {00:19 / 00:19};
+    \draw[lineblue,line width=1.1pt] (13.66,2.51)--(15.13,2.51);
+    \fill[white] (15.16,2.51) circle (0.055);
+  \end{scope}
+  \draw[lineblue,line width=0.6pt,rounded corners=0.08cm] (12.18,2.37) rectangle (15.42,4.34);
+
+  \SoftPanel{0.72}{1.47}{4.08}{1.24}
+  \fill[brandblue] (1.25,2.10) circle (0.34);
+  \draw[white,line width=0.8pt] (1.25,1.92)--(1.25,2.13);
+  \draw[white,line width=0.8pt] (1.13,2.17) arc[start angle=200,end angle=-20,radius=0.14];
+  \draw[white,line width=0.7pt] (1.16,1.89)--(1.34,1.89);
+  \node[anchor=west,text=navy,font=\fontsize{10}{10}\selectfont\bfseries] at (1.83,2.30) {One state, two futures.};
+  \node[anchor=west,font=\fontsize{8.7}{9}\selectfont] at (1.83,1.86) {The action stream never};
+  \node[anchor=west,font=\fontsize{8.7}{9}\selectfont] at (1.83,1.55) {emits an explicit error.};
+
+  \draw[lineblue,line width=0.45pt] (0.25,0.85)--(15.75,0.85);
+  \TargetIcon{1.65}{0.45}{0.82}
+  \node[text=navy,font=\fontsize{9.6}{10}\selectfont\bfseries,align=center,text width=13.2cm]
+    at (8.65,0.45) {Closed-loop failure can emerge even when the model, state, and task are otherwise identical.};
+\end{whisperslide}
+\end{frame}

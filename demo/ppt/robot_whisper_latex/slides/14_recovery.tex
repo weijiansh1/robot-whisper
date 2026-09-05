@@ -1,0 +1,156 @@
+\begin{frame}[plain]
+\begin{whisperslide}{14}
+  \SlideTitle[19]{\scalebox{.72}[1]{The Alarm Can Trigger Recovery by Resampling the Action Noise}}
+
+  % Six-step procedure.
+  \Panel{0.42}{2.18}{3.58}{5.58}
+  \PanelHeader{0.42}{7.24}{3.58}{.52}
+  \node[text=white,font=\fontsize{12}{12}\selectfont\bfseries] at (2.21,7.50) {Procedure};
+  \foreach \stepnum/\rowy/\steptext in {
+    1/6.78/Run a new rollout,
+    2/5.94/Detector fires online,
+    3/5.10/q32 alarm triggers,
+    4/4.26/Save simulator state,
+    5/3.42/Resample 8 new\\noise streams,
+    6/2.58/Compare futures
+  }{
+    \fill[deepblue] (.78,\rowy) circle (.21);
+    \node[text=white,font=\fontsize{10}{10}\selectfont\bfseries] at (.78,\rowy) {\stepnum};
+    \node[anchor=west,font=\fontsize{7.5}{8.4}\selectfont,align=left] at (1.98,\rowy) {\steptext};
+  }
+  \foreach \y in {6.36,5.52,4.68,3.84,3.00}{\draw[lineblue!35,line width=.4pt] (.56,\y)--(3.84,\y);}
+  % Procedure icons.
+  \draw[lineblue,line width=.85pt] (1.50,6.78) circle (.23);
+  \fill[lineblue] (1.46,6.65)--(1.46,6.91)--(1.65,6.78)--cycle;
+  \AlarmIcon{1.50}{5.94}{.68}
+  \begin{scope}[shift={(1.50,5.10)}]
+    \draw[lineblue,line width=.75pt] (-.26,-.22)--(-.26,.24) (-.26,-.22)--(.30,-.22);
+    \foreach \barx/\barh in {-.18/.15,-.06/.34,.06/.18,.18/.27}{\draw[lineblue,line width=1.5pt] (\barx,-.20)--(\barx,{-.20+\barh});}
+    \draw[accentorange,dashed,line width=.6pt] (.05,-.22)--(.05,.35);
+    \node[anchor=south,font=\fontsize{5.5}{5.5}\selectfont] at (.15,.24) {q32};
+  \end{scope}
+  \begin{scope}[shift={(1.50,4.26)}]
+    \draw[lineblue,line width=.9pt] (-.23,-.25) rectangle (.23,.25);
+    \draw[lineblue,line width=.7pt] (-.13,.05) rectangle (.10,.23);
+    \draw[lineblue,line width=.7pt] (-.13,-.18) rectangle (.13,-.02);
+  \end{scope}
+  \begin{scope}[shift={(1.50,3.42)}]
+    \draw[lineblue,line width=.85pt] (-.24,-.14)--(0,-.28)--(.24,-.14)--(.24,.15)--(0,.29)--(-.24,.15)--cycle;
+    \draw[lineblue,line width=.55pt] (-.24,.15)--(0,0)--(.24,.15) (0,0)--(0,-.28);
+    \foreach \markpos in {(-.11,.11),(.11,.12),(-.11,-.08),(.11,-.12),(0,.19)}{\fill[lineblue] \markpos circle (.025);}
+  \end{scope}
+  \begin{scope}[shift={(1.50,2.58)}]
+    \draw[lineblue,line width=.9pt] (0,-.28)--(0,.15) (0,.15)--(-.23,.31) (0,.15)--(.23,.31);
+    \foreach \markpos in {(0,-.28),(-.23,.31),(.23,.31)}{\fill[white] \markpos circle (.05);\draw[lineblue,line width=.8pt] \markpos circle (.05);}
+  \end{scope}
+
+  % Recovery progress plot.
+  \node[font=\fontsize{10}{10}\selectfont\bfseries] at (8.70,7.44) {Progress (Task Metric)};
+  \begin{axis}[
+    at={(4.68cm,2.70cm)},anchor=south west,
+    width=7.65cm,height=4.55cm,
+    xmin=0,xmax=60,ymin=0,ymax=1,
+    axis lines=box,
+    xtick={0,10,20,30,40,50,60},
+    ytick={0,.2,.4,.6,.8,1},
+    xlabel={Control Step},ylabel={Task Progress},
+    xlabel style={font=\fontsize{8}{8}\selectfont,yshift=2pt},
+    ylabel style={font=\fontsize{8}{8}\selectfont,yshift=-2pt},
+    tick label style={font=\fontsize{7}{7}\selectfont},
+    axis line style={black,line width=.45pt},
+    tick style={black,line width=.4pt},
+    clip=false
+  ]
+    \addplot[accentorange,line width=1.0pt] coordinates {
+      (0,0)(3,.08)(6,.15)(9,.21)(12,.27)(15,.34)(18,.42)(21,.51)
+      (24,.59)(27,.68)(30,.74)(32,.79)(35,.83)(38,.85)(41,.88)(45,.88)
+      (48,.90)(52,.92)(55,.93)
+    };
+    \addplot[accentorange,dashed,line width=.8pt] coordinates {(32,0)(32,1)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.77)(36,.73)(39,.69)(42,.67)(46,.76)(50,.81)(55,.82)(58,.84)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.75)(36,.70)(39,.65)(42,.64)(46,.70)(50,.77)(54,.80)(58,.81)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.72)(36,.68)(39,.61)(42,.59)(46,.62)(50,.73)(54,.76)(58,.74)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.68)(36,.58)(39,.52)(42,.58)(46,.60)(50,.63)(54,.61)(58,.58)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.64)(36,.51)(39,.41)(42,.43)(46,.39)(50,.37)(54,.38)(58,.37)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.70)(36,.61)(39,.57)(42,.55)(46,.51)(50,.46)(54,.43)(58,.42)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.73)(36,.64)(39,.59)(42,.55)(46,.50)(50,.45)(54,.44)(58,.40)};
+    \addplot[lineblue,line width=.75pt] coordinates {(32,.79)(34,.69)(36,.59)(39,.53)(42,.56)(46,.56)(50,.55)(54,.50)(58,.49)};
+    \node[text=accentorange,font=\fontsize{9}{10}\selectfont\bfseries,anchor=west,align=left]
+      at (axis cs:3,0.90) {Original Noise $\rightarrow$ Failure\\52 control steps (26.0 s)};
+    \draw[orange arrow] (axis cs:10,.74)--(axis cs:27,.74);
+    \node[text=lineblue,font=\fontsize{8}{9}\selectfont\bfseries,anchor=west,align=left]
+      at (axis cs:34,.18) {\scalebox{.78}[1]{\shortstack[l]{Resampled 8 Noises $\rightarrow$ 3 Successes\\Best: 8 steps (3.9 s)}}};
+    \draw[flow arrow] (axis cs:42,.28)--(axis cs:55,.28);
+    \node[fill=white,fill opacity=.92,text opacity=1,text=accentorange,
+      font=\fontsize{7.5}{7.5}\selectfont\bfseries,anchor=south,inner sep=1pt]
+      at (axis cs:32,.015) {q32};
+    \node[text=accentorange,font=\fontsize{16}{16}\selectfont\bfseries] at (axis cs:56,.93) {$\times$};
+    \node[text=lineblue,font=\fontsize{11}{11}\selectfont\bfseries] at (axis cs:59,.84) {$\checkmark$};
+    \node[text=lineblue,font=\fontsize{11}{11}\selectfont\bfseries] at (axis cs:59,.81) {$\checkmark$};
+    \node[text=lineblue,font=\fontsize{11}{11}\selectfont\bfseries] at (axis cs:59,.74) {$\checkmark$};
+    \node[text=lineblue,font=\fontsize{12}{12}\selectfont\bfseries] at (axis cs:59,.58) {$\times$};
+    \node[text=lineblue,font=\fontsize{12}{12}\selectfont\bfseries] at (axis cs:59,.49) {$\times$};
+    \node[text=lineblue,font=\fontsize{12}{12}\selectfont\bfseries] at (axis cs:59,.42) {$\times$};
+    \node[text=lineblue,font=\fontsize{12}{12}\selectfont\bfseries] at (axis cs:59,.40) {$\times$};
+    \node[text=lineblue,font=\fontsize{12}{12}\selectfont\bfseries] at (axis cs:59,.37) {$\times$};
+  \end{axis}
+
+  % Fully vector robot-scene thumbnails.
+  \node[text=accentorange,font=\fontsize{9}{9}\selectfont\bfseries]
+    at (14.12,7.52) {Original noise (failure)};
+  \Panel[draw=accentorange]{12.87}{5.05}{2.53}{2.18}
+  \begin{scope}
+    \clip[rounded corners=.08cm] (12.89,5.07) rectangle (15.38,7.21);
+    \fill[softgray] (12.89,5.07) rectangle (15.38,7.21);
+    \fill[orange!18] (12.89,5.07) rectangle (15.38,5.70);
+    \foreach \x in {13.0,13.45,13.90,14.35,14.80,15.25}{\draw[orange!30!black,line width=.25pt] (\x,5.07)--(\x,5.70);}
+    \draw[ink!55,line width=.6pt] (14.82,5.72)--(14.82,6.85)--(15.32,6.85)--(15.32,5.72)
+      (14.82,6.22)--(15.32,6.22) (14.82,6.54)--(15.32,6.54);
+    \Plant{15.08}{6.93}{.45}
+    \RobotArm{13.28}{5.63}{.92}
+    % Kettle and cookware.
+    \path[fill=green!35!gray,draw=ink!70,line width=.45pt] (13.63,5.53)
+      .. controls (13.58,5.84) and (13.98,5.93) .. (14.05,5.58)
+      .. controls (13.91,5.43) and (13.73,5.43) .. cycle;
+    \draw[ink!70,line width=.45pt] (13.73,5.82) arc[start angle=180,end angle=0,x radius=.12,y radius=.20];
+    \fill[deepblue] (13.12,5.24) ellipse (.28 and .09);
+    \draw[ink,line width=.55pt] (13.92,5.16) rectangle (14.32,5.38);
+  \end{scope}
+  \fill[black,opacity=.70] (12.98,5.13) circle (.17);
+  \fill[white] (12.94,5.04)--(12.94,5.22)--(13.07,5.13)--cycle;
+  \path[fill=black,opacity=.74,rounded corners=.04cm] (14.77,5.11) rectangle (15.31,5.39);
+  \node[text=white,font=\fontsize{7}{7}\selectfont\bfseries] at (15.04,5.25) {26.0 s};
+
+  \node[text=lineblue,font=\fontsize{8}{8}\selectfont\bfseries]
+    at (14.12,4.75) {Resampled noise (success)};
+  \Panel{12.87}{2.22}{2.53}{2.27}
+  \begin{scope}
+    \clip[rounded corners=.08cm] (12.89,2.24) rectangle (15.38,4.47);
+    \fill[softgray] (12.89,2.24) rectangle (15.38,4.47);
+    \fill[orange!18] (12.89,2.24) rectangle (15.38,2.88);
+    \foreach \x in {13.0,13.45,13.90,14.35,14.80,15.25}{\draw[orange!30!black,line width=.25pt] (\x,2.24)--(\x,2.88);}
+    \draw[ink!55,line width=.6pt] (14.82,2.90)--(14.82,4.04)--(15.32,4.04)--(15.32,2.90)
+      (14.82,3.40)--(15.32,3.40) (14.82,3.72)--(15.32,3.72);
+    \Plant{15.08}{4.12}{.45}
+    \RobotArm{13.28}{2.79}{.92}
+    \path[fill=yellow!50!orange,draw=ink!70,line width=.45pt] (13.98,3.28)
+      .. controls (13.93,3.58) and (14.32,3.66) .. (14.40,3.32)
+      .. controls (14.26,3.17) and (14.07,3.17) .. cycle;
+    \draw[ink!70,line width=.45pt] (14.08,3.56) arc[start angle=180,end angle=0,x radius=.12,y radius=.20];
+    \fill[deepblue] (13.12,2.42) ellipse (.28 and .09);
+    \draw[ink,line width=.55pt] (13.92,2.34) rectangle (14.32,2.56);
+  \end{scope}
+  \fill[black,opacity=.70] (12.98,2.32) circle (.17);
+  \fill[white] (12.94,2.23)--(12.94,2.41)--(13.07,2.32)--cycle;
+  \path[fill=black,opacity=.74,rounded corners=.04cm] (14.86,2.30) rectangle (15.31,2.58);
+  \node[text=white,font=\fontsize{7}{7}\selectfont\bfseries] at (15.08,2.44) {3.9 s};
+
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=.10cm]
+    (0.42,.98) rectangle (15.40,1.89);
+  \CheckCircle{1.05}{1.435}
+  \node[text=white,font=\fontsize{14}{14}\selectfont\bfseries]
+    at (8.38,1.435) {\scalebox{.73}[1]{3 / 8 Succeeded \quad $\bullet$ \quad Best: 8 steps (3.9 s)
+      \quad $\bullet$ \quad Original: 52 steps (26.0 s)}};
+  \Footer{Robot-Whisper \quad $\bullet$ \quad HiMoE-VLA \quad $\bullet$ \quad LIBERO-10}
+\end{whisperslide}
+\end{frame}

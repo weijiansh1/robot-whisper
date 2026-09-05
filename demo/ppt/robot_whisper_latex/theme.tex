@@ -1,0 +1,206 @@
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[scaled=0.94]{helvet}
+\usepackage{CJKutf8}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{qrcode}
+\usetikzlibrary{arrows.meta,calc,decorations.markings,fit,intersections,patterns,positioning,shapes.geometric}
+\pgfplotsset{compat=1.18}
+
+\renewcommand{\familydefault}{\sfdefault}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{}
+\setbeamertemplate{headline}{}
+\setbeamersize{text margin left=0pt,text margin right=0pt}
+\setlength{\parindent}{0pt}
+
+\definecolor{navy}{HTML}{082B70}
+\definecolor{deepblue}{HTML}{063C9C}
+\definecolor{brandblue}{HTML}{0756C5}
+\definecolor{brightblue}{HTML}{1576E8}
+\definecolor{skyblue}{HTML}{EAF4FF}
+\definecolor{panelblue}{HTML}{F4F8FE}
+\definecolor{lineblue}{HTML}{0B4EB5}
+\definecolor{accentorange}{HTML}{EE5A0A}
+\definecolor{accentred}{HTML}{D92720}
+\definecolor{accentgreen}{HTML}{2F9B34}
+\definecolor{accentpurple}{HTML}{7A2FA5}
+\definecolor{ink}{HTML}{111318}
+\definecolor{muted}{HTML}{50545A}
+\definecolor{gridgray}{HTML}{D4D8DE}
+\definecolor{softgray}{HTML}{F2F3F5}
+\definecolor{heatA}{HTML}{382A78}
+\definecolor{heatB}{HTML}{2056A5}
+\definecolor{heatC}{HTML}{1689A3}
+\definecolor{heatD}{HTML}{35B778}
+\definecolor{heatE}{HTML}{A5D84A}
+\definecolor{heatF}{HTML}{F2DF35}
+
+\tikzset{
+  whisper line/.style={draw=lineblue,line width=0.55pt},
+  whisper panel/.style={draw=lineblue,line width=0.55pt,fill=white,rounded corners=0.10cm},
+  soft panel/.style={draw=lineblue,line width=0.50pt,fill=panelblue,rounded corners=0.10cm},
+  flow arrow/.style={-{Latex[length=2.1mm,width=1.5mm]},draw=lineblue,line width=1.15pt},
+  fine arrow/.style={-{Latex[length=1.5mm,width=1.1mm]},draw=lineblue,line width=0.60pt},
+  orange arrow/.style={-{Latex[length=2mm,width=1.4mm]},draw=accentorange,line width=1.05pt},
+  dot/.style={circle,inner sep=0pt,minimum size=0.09cm},
+  every node/.style={text=ink,inner sep=0pt,outer sep=0pt}
+}
+
+\newenvironment{whisperslide}[1]{%
+  \begin{tikzpicture}[remember picture,overlay,x=1cm,y=1cm]
+  \begin{scope}[shift={(current page.south west)}]
+  \fill[white] (0,0) rectangle (16,9);
+  \draw[lineblue,line width=0.35pt] (0.01,0.01) rectangle (15.99,8.99);
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=0.09cm]
+    (0.16,8.20) rectangle (0.82,8.80);
+  \node[text=white,font=\fontsize{19}{19}\selectfont\bfseries] at (0.49,8.50) {#1};
+}{%
+  \end{scope}
+  \end{tikzpicture}
+}
+
+\newcommand{\SlideTitle}[2][22]{%
+  \node[anchor=west,text=navy,font=\fontsize{#1}{#1}\selectfont\bfseries]
+    at (1.08,8.51) {#2};
+}
+
+\newcommand{\SlideSubtitle}[2][12]{%
+  \node[anchor=west,text=navy,font=\fontsize{#1}{#1}\selectfont\itshape]
+    at (1.28,7.90) {#2};
+}
+
+\newcommand{\Panel}[5][]{%
+  \path[whisper panel,#1] (#2,#3) rectangle ++(#4,#5);
+}
+
+\newcommand{\SoftPanel}[5][]{%
+  \path[soft panel,#1] (#2,#3) rectangle ++(#4,#5);
+}
+
+\newcommand{\PanelHeader}[5][]{%
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=0.09cm,#1]
+    (#2,#3) rectangle ++(#4,#5);
+}
+
+\newcommand{\Footer}[1]{%
+  \draw[lineblue,line width=0.45pt] (0.38,0.58) -- (15.62,0.58);
+  \node[text=lineblue,font=\fontsize{10}{10}\selectfont] at (8,0.28) {#1};
+}
+
+\newcommand{\BlueBanner}[2][1.00]{%
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=0.10cm]
+    (0.35,0.25) rectangle (15.65,#1);
+  \node[text=white,font=\fontsize{15}{16}\selectfont\bfseries,align=center]
+    at (8,{(#1+0.25)/2}) {#2};
+}
+
+\newcommand{\MetricCard}[5]{%
+  \pgfmathsetlengthmacro{\metrictextwidth}{#3cm-0.20cm}%
+  \Panel[fill=white]{#1}{#2}{#3}{1.48}
+  \node[text=brandblue,font=\fontsize{16.5}{17}\selectfont\bfseries] at ({#1+#3/2},{#2+0.78}) {#4};
+  \node[text=ink,font=\fontsize{8.5}{9.3}\selectfont,align=center,text width=\metrictextwidth]
+    at ({#1+#3/2},{#2+0.33}) {#5};
+}
+
+\newcommand{\Bullet}[4][brandblue]{%
+  \fill[#1] (#2,#3) circle (0.055);
+  \node[anchor=west,font=\fontsize{#4}{#4}\selectfont,align=left] at ({#2+0.20},#3) {};
+}
+
+\newcommand{\CheckCircle}[3][white]{%
+  \begin{scope}[shift={(#2,#3)}]
+    \draw[#1,line width=1.0pt] (0,0) circle (0.27);
+    \draw[#1,line width=1.15pt,line cap=round,line join=round] (-0.12,0.00) -- (-0.03,-0.09) -- (0.15,0.12);
+  \end{scope}
+}
+
+\newcommand{\EyeIcon}[3]{%
+  \begin{scope}[shift={(#1,#2)},scale=#3]
+    \draw[lineblue,line width=1.0pt] (-0.42,0) .. controls (-0.18,0.32) and (0.18,0.32) .. (0.42,0)
+      .. controls (0.18,-0.32) and (-0.18,-0.32) .. cycle;
+    \fill[lineblue] (0,0) circle (0.11);
+    \fill[white] (-0.035,0.04) circle (0.025);
+  \end{scope}
+}
+
+\newcommand{\AlarmIcon}[3]{%
+  \begin{scope}[shift={(#1,#2)},scale=#3]
+    \draw[lineblue,line width=0.95pt,rounded corners=0.06cm] (-0.25,-0.17) -- (-0.25,0.13)
+      arc[start angle=180,end angle=0,radius=0.25] -- (0.25,-0.17) -- cycle;
+    \draw[lineblue,line width=0.95pt] (-0.31,-0.19) -- (0.31,-0.19);
+    \draw[lineblue,line width=0.95pt] (-0.08,-0.24) arc[start angle=190,end angle=350,radius=0.08];
+    \foreach \a in {35,90,145}{\draw[lineblue,line width=0.8pt] ({0.40*cos(\a)},{0.40*sin(\a)}) -- ({0.54*cos(\a)},{0.54*sin(\a)});}
+  \end{scope}
+}
+
+\newcommand{\LoopIcon}[3]{%
+  \begin{scope}[shift={(#1,#2)},scale=#3]
+    \draw[flow arrow] (-0.30,0.02) arc[start angle=180,end angle=15,radius=0.30];
+    \draw[flow arrow] (0.30,-0.02) arc[start angle=0,end angle=-165,radius=0.30];
+  \end{scope}
+}
+
+\newcommand{\TargetIcon}[3]{%
+  \begin{scope}[shift={(#1,#2)},scale=#3]
+    \draw[lineblue,line width=0.85pt] (0,0) circle (0.34);
+    \draw[lineblue,line width=0.85pt] (0,0) circle (0.13);
+    \draw[lineblue,line width=0.85pt] (-0.48,0)--(0.48,0) (0,-0.48)--(0,0.48);
+    \fill[lineblue] (0,0) circle (0.035);
+  \end{scope}
+}
+
+\newcommand{\ChartIcon}[3]{%
+  \begin{scope}[shift={(#1,#2)},scale=#3]
+    \draw[lineblue,line width=0.85pt] (-0.38,-0.30)--(-0.38,0.34) (-0.38,-0.30)--(0.42,-0.30);
+    \draw[lineblue,line width=1.0pt] (-0.28,-0.12)--(-0.08,0.00)--(0.08,-0.04)--(0.31,0.25);
+    \foreach \p in {(-0.28,-0.12),(-0.08,0.00),(0.08,-0.04),(0.31,0.25)}{\fill[lineblue] \p circle (0.035);}
+  \end{scope}
+}
+
+\newcommand{\ShieldIcon}[3]{%
+  \begin{scope}[shift={(#1,#2)},scale=#3]
+    \draw[lineblue,line width=0.95pt] (0,0.42)--(0.32,0.27)--(0.29,-0.08)
+      .. controls (0.24,-0.31) and (0.08,-0.45) .. (0,-0.52)
+      .. controls (-0.08,-0.45) and (-0.24,-0.31) .. (-0.29,-0.08)--(-0.32,0.27)--cycle;
+    \draw[lineblue,line width=0.95pt] (-0.13,-0.03)--(-0.03,-0.14)--(0.17,0.10);
+  \end{scope}
+}
+
+\newcommand{\RobotArm}[4][lineblue]{%
+  \begin{scope}[shift={(#2,#3)},scale=#4,line cap=round,line join=round]
+    \fill[softgray] (-0.35,-0.12) rectangle (0.35,0.04);
+    \draw[#1,line width=5.2pt] (0,0.04)--(0.12,0.55)--(0.55,0.92)--(0.92,0.74);
+    \draw[white,line width=3.4pt] (0,0.04)--(0.12,0.55)--(0.55,0.92)--(0.92,0.74);
+    \foreach \p in {(0,0.04),(0.12,0.55),(0.55,0.92),(0.92,0.74)}{
+      \fill[gray!70] \p circle (0.095); \fill[white] \p circle (0.055);
+    }
+    \draw[#1,line width=1.4pt] (0.92,0.74)--(0.94,0.46);
+    \draw[#1,line width=1.1pt] (0.89,0.46)--(0.86,0.27) (0.99,0.46)--(1.02,0.27);
+  \end{scope}
+}
+
+\newcommand{\Plant}[3]{%
+  \begin{scope}[shift={(#1,#2)},scale=#3]
+    \path[fill=accentgreen!28!black] (-0.16,0) -- (0.16,0) -- (0.11,-0.22) -- (-0.11,-0.22) -- cycle;
+    \draw[accentgreen!60!black,line width=0.8pt] (0,-0.01)--(0,0.37);
+    \fill[accentgreen] (0.00,0.25) ellipse (0.08 and 0.20);
+    \fill[accentgreen!75!black,rotate around={-42:(-0.02,0.20)}] (-0.02,0.20) ellipse (0.07 and 0.18);
+    \fill[accentgreen!85,rotate around={42:(0.02,0.20)}] (0.02,0.20) ellipse (0.07 and 0.18);
+  \end{scope}
+}
+
+\newcommand{\HeatColor}[1]{%
+  \ifcase#1 heatA\or heatB\or heatC\or heatD\or heatE\or heatF\else heatC\fi
+}
+
+\newcommand{\ArrowBetween}[4]{%
+  \draw[flow arrow] (#1,#2)--(#3,#4);
+}
+
+\newcommand{\StarMark}[3]{%
+  \node[star,star points=5,star point ratio=2.25,fill=yellow,draw=ink,line width=0.35pt,
+    minimum size=#3cm] at (#1,#2) {};
+}

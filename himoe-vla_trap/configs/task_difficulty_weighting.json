@@ -1,0 +1,54 @@
+{
+  "schema": "himoe.task_difficulty_weighting.config.v1",
+  "training": false,
+  "gradient_optimization": false,
+  "data": {
+    "atlas": "himoe-vla_trap/results/hub_phenotype_atlas_50x8/episode_features_and_heads.csv",
+    "route_cache": "VLA_MUI_HUB/cache_new/HiMoE-VLA",
+    "run_id": "right-50x8-20260903",
+    "tasks": 37,
+    "episodes_per_task": 400,
+    "noise_seeds": [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007]
+  },
+  "difficulty": {
+    "definition": "empirical failure probability conditional on checkpoint, rollout distribution, controller, and horizon",
+    "crossfit": [
+      "seeds 1000-1003 calibrate and seeds 1004-1007 evaluate",
+      "seeds 1004-1007 calibrate and seeds 1000-1003 evaluate"
+    ],
+    "jeffreys_prior": true
+  },
+  "first_query_moe": {
+    "input": "hb_router_probs only",
+    "layers": 8,
+    "flow_steps": 10,
+    "tokens": 11,
+    "experts": 32,
+    "embedding": "final-flow mean action-token route distribution, retained per layer",
+    "outcomes_loaded_after_features_materialized": true
+  },
+  "alarm_allocation": {
+    "detector": "fixed equal mean of instability and lock-in percentile heads",
+    "episode_window": [0.5, 0.9],
+    "target_calibration_success_false_alarm_rate": 0.05,
+    "minimum_task_allocation": 0.005,
+    "maximum_task_allocation": 0.2,
+    "variants": [
+      "uniform",
+      "empirical_sqrt",
+      "empirical_linear",
+      "route_knn5_sqrt"
+    ]
+  },
+  "inference_limits": {
+    "online_early_warning_validated": false,
+    "task_intrinsic_difficulty_claimed": false,
+    "new_task_generalization_claimed": false,
+    "moe_only_difficulty_estimator_validated": false
+  },
+  "statistics": {
+    "permutations": 5000,
+    "task_cluster_bootstrap": 5000,
+    "multiple_testing": "Benjamini-Hochberg over 15 first-query scalar tests"
+  }
+}

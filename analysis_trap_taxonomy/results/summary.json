@@ -1,0 +1,127 @@
+{
+  "schema": "himoe.trainfree_trap_taxonomy_holdout.v1",
+  "training": false,
+  "failure_thresholds_used": false,
+  "inventory": {
+    "seed1000_1007": {
+      "episodes": 16000,
+      "success": 15468,
+      "failure": 532,
+      "failure_first_event": {
+        "loop_first": 273,
+        "no_event": 131,
+        "static_first": 128
+      },
+      "all_first_event": {
+        "loop_first": {
+          "n": 512,
+          "success": 239,
+          "failure": 273,
+          "escape_rate": 0.466796875
+        },
+        "no_event": {
+          "n": 15344,
+          "success": 15213,
+          "failure": 131,
+          "escape_rate": 0.9914624608967675
+        },
+        "static_first": {
+          "n": 144,
+          "success": 16,
+          "failure": 128,
+          "escape_rate": 0.1111111111111111
+        }
+      },
+      "failure_with_any_event": 401,
+      "right_censored_no_event": 131,
+      "right_censored_fraction_of_failure": 0.2462406015037594
+    },
+    "seed1008_1015": {
+      "episodes": 16000,
+      "success": 15436,
+      "failure": 564,
+      "failure_first_event": {
+        "loop_first": 302,
+        "no_event": 133,
+        "static_first": 129
+      },
+      "all_first_event": {
+        "loop_first": {
+          "n": 577,
+          "success": 275,
+          "failure": 302,
+          "escape_rate": 0.47660311958405543
+        },
+        "no_event": {
+          "n": 15286,
+          "success": 15153,
+          "failure": 133,
+          "escape_rate": 0.9912992280518121
+        },
+        "static_first": {
+          "n": 137,
+          "success": 8,
+          "failure": 129,
+          "escape_rate": 0.058394160583941604
+        }
+      },
+      "failure_with_any_event": 431,
+      "right_censored_no_event": 133,
+      "right_censored_fraction_of_failure": 0.23581560283687944
+    }
+  },
+  "termination_audit": {
+    "seed1000_1007": {
+      "failures": 532,
+      "failures_ending_exactly_at_max_steps": 532,
+      "all_failures_are_horizon_censored": true,
+      "successes_at_or_past_max_steps": 0,
+      "interpretation": "success=false means the task was unfinished when the evaluator reached max_steps; it is not a separately observed failure cause"
+    },
+    "seed1008_1015": {
+      "failures": 564,
+      "failures_ending_exactly_at_max_steps": 564,
+      "all_failures_are_horizon_censored": true,
+      "successes_at_or_past_max_steps": 0,
+      "interpretation": "success=false means the task was unfinished when the evaluator reached max_steps; it is not a separately observed failure cause"
+    }
+  },
+  "candidate_overlap_development_run": {
+    "wrong_manifold_failures": 108,
+    "wrong_manifold_with_loop_or_static": 91,
+    "wrong_manifold_without_loop_or_static": 17,
+    "no_event_failures_in_atlas": 127,
+    "no_event_candidate_label_counts": {
+      "stagnation": 18,
+      "gripper_cycling": 14,
+      "goal_regression": 34,
+      "goal_approach_leave": 5,
+      "subtask_undo": 17,
+      "regrasp_or_drop": 52
+    },
+    "no_event_with_no_candidate_label": 50,
+    "note": "candidate labels overlap and were not confirmed as independent MoE types"
+  },
+  "architecture": {
+    "as_moe": "layers 0,1,16,17; 1-of-3; gate input is the action-space data_mask",
+    "hb_moe": "layers 2-5 and 12-15; top-4-of-32 routed experts plus one shared expert",
+    "hb_gate": "softmax(W @ RMS-normalized hidden), unsorted top-k, selected weights renormalized",
+    "analysis_scope": "deep HB layers 12-15, action tokens 1-10, full 32-way probabilities",
+    "source_files": [
+      "himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA/src/moevla/models/himoe.py",
+      "himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA/src/moevla/models/modeling_moe.py"
+    ],
+    "expert_identity_rule": "no fixed expert-ID trap switch is assumed; rules are distribution dynamics"
+  },
+  "route_effect_columns": {
+    "effect_auc_minus_half": "within task+scene+absolute-query event-vs-no-same-event controls",
+    "ci": "task-scene cell bootstrap",
+    "sign_p": "two-sided exact sign test across non-tied task-scene cells"
+  },
+  "limitations": [
+    "loop/static are query-boundary kinematic proxies, not contact/video truth",
+    "no-event failures are right-censored, not proven behaviorally normal",
+    "wrong-manifold and old physical labels are candidate modifiers, not confirmed extra types",
+    "cached route features validate V/A/recurrence; entropy/consensus evidence remains development-run only"
+  ]
+}

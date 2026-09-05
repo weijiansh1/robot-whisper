@@ -1,0 +1,34 @@
+{
+  "schema": "himoe.counterfactual_open_loop_alarm.config.v1",
+  "selector_version": "counterfactual_open_loop_dominance_v1",
+  "training": false,
+  "learned_parameters": false,
+  "runtime_normal_trajectory_reference_used": false,
+  "runtime_outcome_labels_used": false,
+  "runtime_physical_state_used": false,
+  "runtime_action_values_used": false,
+  "runtime_task_identity_used": false,
+  "development_smoke_inspected": true,
+  "development_smoke": {
+    "failed_candidate": 6,
+    "success_candidate": 3,
+    "relative_queries": [-1, 0, 2]
+  },
+  "route_tensor": "HB router probabilities [8 layers, 10 flow steps, 11 suffix tokens, 32 experts]",
+  "primary_layers": [12, 13, 14, 15],
+  "flow_steps": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "action_tokens": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "noise_draws": 4,
+  "inference_calls_per_decision": 8,
+  "score": "median_m H(route(V_t, xi_m), route(V_t-1, xi_m)) / median_{V,i<j} H(route(V, xi_i), route(V, xi_j))",
+  "alarm_operator": "<",
+  "alarm_threshold": 1.0,
+  "threshold_rationale": "Dimensionless equality boundary: alarm exactly when changing flow noise moves back-layer action routing more than replacing the previous input version with the current one.",
+  "minimal_ablation": {
+    "noise_draws": 2,
+    "inference_calls_per_decision": 4,
+    "status": "worse specificity in the mechanism-case controls"
+  },
+  "validation_status": "mechanism_case_only_not_population_validated",
+  "interpretation_guard": "The alarm measures relative feedback sensitivity of the action routing path. It does not identify semantic belief content or a failed-grasp type."
+}

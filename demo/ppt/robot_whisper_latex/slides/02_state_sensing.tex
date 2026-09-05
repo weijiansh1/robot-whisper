@@ -1,0 +1,134 @@
+\begin{frame}[plain]
+\begin{whisperslide}{2}
+  \SlideTitle[18]{From Neuron Agreement to Embodied State Sensing}
+  \node[anchor=west,text=muted,font=\fontsize{8.4}{9}\selectfont\itshape]
+    at (1.45,7.92) {From deciding whether a reasoning trajectory is reliable to sensing whether a robot is still making progress.};
+
+  % Left: neuron agreement diagrams.
+  \Panel{0.22}{3.05}{5.82}{4.48}
+  \PanelHeader{1.52}{7.35}{3.30}{0.40}
+  \node[text=white,font=\fontsize{8.6}{8.8}\selectfont\bfseries] at (3.17,7.55) {NAD (Reasoning LLMs)};
+  \Panel[rounded corners=0.06cm]{1.18}{6.82}{3.98}{0.42}
+  \node[font=\fontsize{8.7}{9}\selectfont\bfseries] at (3.17,7.03) {Question: What is the capital of France?};
+  \coordinate (q) at (3.17,6.82);
+  \foreach \x in {1.28,2.48,3.68,4.88}{
+    \draw[-{Latex[length=1.25mm]},navy,line width=0.45pt] (q)--(\x,6.25);
+  }
+  \foreach \n/\x in {1/1.28,2/2.48,3/3.68,4/4.88}{
+    \path[soft panel] ({\x-0.28},5.91) rectangle ({\x+0.28},6.27);
+    \node[text=navy,font=\fontsize{8}{8}\selectfont\bfseries] at (\x,6.09) {$R_{\n}$};
+    \node[font=\fontsize{6.6}{7}\selectfont] at (\x,5.70) {Trajectory \n};
+    \foreach \i in {0,...,7}{
+      \foreach \j in {0,...,4}{
+        \draw[gray!52,line width=0.18pt] ({\x-0.42+0.12*\i},{5.12-0.12*\j}) circle (0.040);
+      }
+    }
+  }
+  % Representative active neurons in each trajectory.
+  \foreach \p in {(0.86,5.12),(0.98,4.88),(1.22,5.00),(1.58,5.24),(1.70,5.00),(1.46,4.64),
+                   (2.06,5.12),(2.18,4.64),(2.54,4.88),(2.78,4.88),(2.78,4.52),
+                   (3.26,5.12),(3.38,4.64),(3.74,4.52),(3.86,4.76),(3.98,4.88),(4.10,4.52),
+                   (4.46,5.12),(4.46,4.88),(4.82,5.00),(5.18,4.76),(5.30,4.88),(4.82,4.52)}{
+    \fill[navy] \p circle (0.046);
+  }
+  \draw[-{Latex[length=1.2mm]},ink,line width=0.35pt] (0.74,4.40)--(5.31,4.40);
+  \node[font=\fontsize{6.5}{6.5}\selectfont\bfseries] at (3.02,4.23) {Layers / Depth};
+  \draw[-{Latex[length=1.2mm]},ink,line width=0.35pt] (0.70,5.30)--(0.70,4.55);
+  \node[rotate=90,font=\fontsize{6.2}{6.2}\selectfont\bfseries] at (0.50,4.92) {Neurons};
+  \foreach \yy/\txt in {3.94/Outputs may disagree.,3.61/Correct trajectories show stronger neuron agreement.,3.28/Internal activations can guide selection.}{
+    \fill[brandblue] (0.62,\yy) circle (0.15);
+    \fill[white] (0.58,\yy) circle (0.025);
+    \fill[white] (0.66,\yy) circle (0.025);
+    \node[anchor=west,font=\fontsize{6.3}{6.7}\selectfont,align=left,text width=4.85cm] at (0.92,\yy) {\txt};
+  }
+
+  % Center transfer arrow and motivating question.
+  \path[top color=deepblue,bottom color=brandblue]
+    (6.25,6.18)--(8.37,6.18)--(8.37,5.96)--(8.96,6.63)--(8.37,7.30)--(8.37,7.08)--(6.25,7.08)--cycle;
+  \node[text=white,font=\fontsize{6.1}{6.6}\selectfont\bfseries,align=center]
+    at (7.44,6.63) {From reasoning\\trajectories to\\embodied trajectories};
+  \SoftPanel{6.32}{3.48}{2.46}{2.18}
+  \fill[brandblue] (7.55,5.30) circle (0.22);
+  \node[text=white,font=\fontsize{15}{15}\selectfont\bfseries] at (7.55,5.30) {?};
+  \node[text=navy,font=\fontsize{7.2}{7.8}\selectfont\bfseries,align=center,text width=2.12cm]
+    at (7.55,4.42) {If internal activity reveals answer reliability, can internal dynamics reveal when an embodied closed loop has stalled?};
+
+  % Right: embodied closed loop.
+  \Panel{9.22}{3.05}{6.55}{4.48}
+  \PanelHeader{10.40}{7.35}{4.28}{0.40}
+  \node[text=white,font=\fontsize{8.6}{8.8}\selectfont\bfseries] at (12.54,7.55) {Robot-Whisper (Embodied VLA)};
+
+  \path[fill=accentgreen!10,draw=accentgreen!70!black,line width=0.45pt,rounded corners=0.09cm]
+    (11.30,6.63) rectangle (13.32,7.18);
+  \EyeIcon{11.72}{6.91}{0.45}
+  \node[font=\fontsize{7.3}{7.6}\selectfont\bfseries,align=center] at (12.57,6.93) {Observation\\$(o_t)$};
+
+  \path[fill=accentorange!10,draw=accentorange,line width=0.45pt,rounded corners=0.09cm]
+    (13.88,4.98) rectangle (15.28,6.10);
+  \RobotArm[ink]{14.15}{5.22}{0.46}
+  \node[font=\fontsize{7}{7.4}\selectfont\bfseries,align=center] at (14.76,5.56) {Action\\Chunk\\$(a_{t:t+H})$};
+
+  \path[fill=panelblue,draw=lineblue,line width=0.5pt,rounded corners=0.10cm]
+    (11.14,4.62) rectangle (13.42,6.20);
+  \node[text=navy,font=\fontsize{9}{9}\selectfont\bfseries] at (12.28,5.98) {VLA};
+  \node[font=\fontsize{6.1}{6.3}\selectfont] at (12.28,5.76) {(Vision--Language--Action)};
+  \node[font=\fontsize{6.4}{6.5}\selectfont\bfseries] at (12.28,5.48) {MoE Routing (Top-$k$)};
+  \foreach \rowidx in {0,...,2}{
+    \foreach \colidx in {0,...,7}{
+      \pgfmathtruncatemacro{\tone}{mod(2*\rowidx+3*\colidx,5)}
+      \ifcase\tone\def\cellcolor{heatA}\or\def\cellcolor{heatB}\or\def\cellcolor{heatC}\or\def\cellcolor{heatD}\or\def\cellcolor{heatE}\fi
+      \fill[\cellcolor] ({11.63+0.16*\colidx},{4.92+0.16*\rowidx}) rectangle ++(0.15,0.15);
+    }
+  }
+  \draw[ink,line width=0.25pt] (11.63,4.92) rectangle (12.91,5.40);
+  \node[font=\fontsize{5.5}{5.5}\selectfont] at (12.27,4.75) {Time / Steps $\longrightarrow$};
+
+  \path[fill=accentpurple!10,draw=accentpurple,line width=0.45pt,rounded corners=0.08cm]
+    (11.30,3.57) rectangle (13.34,4.15);
+  \draw[ink,line width=0.45pt] (11.70,3.86) circle (0.17);
+  \draw[ink,line width=0.35pt] (11.53,3.86)--(11.87,3.86) (11.70,3.69)--(11.70,4.03);
+  \draw[ink,line width=0.30pt] (11.56,3.77) arc[start angle=215,end angle=325,radius=0.18];
+  \draw[ink,line width=0.30pt] (11.56,3.95) arc[start angle=145,end angle=35,radius=0.18];
+  \node[font=\fontsize{7}{7.2}\selectfont\bfseries,align=center] at (12.60,3.86) {World\\(Environment)};
+
+  \path[fill=accentgreen!10,draw=accentgreen!70!black,line width=0.45pt,rounded corners=0.08cm]
+    (9.42,4.80) rectangle (10.76,5.72);
+  \draw[ink,line width=0.5pt] (9.62,5.18) rectangle (9.92,5.44);
+  \fill[ink] (9.77,5.31) circle (0.09);
+  \node[font=\fontsize{6.7}{7}\selectfont\bfseries,align=center] at (10.30,5.30) {New\\Observation\\$(o_{t+1})$};
+
+  \draw[-{Latex[length=1.5mm]},ink,line width=0.7pt] (13.32,6.91) .. controls (14.50,6.93) and (14.62,6.65) .. (14.62,6.14);
+  \draw[-{Latex[length=1.5mm]},ink,line width=0.7pt] (13.42,5.42)--(13.87,5.42);
+  \draw[-{Latex[length=1.5mm]},ink,line width=0.7pt] (14.58,4.98) .. controls (14.58,4.35) and (13.98,3.87) .. (13.36,3.87);
+  \draw[-{Latex[length=1.5mm]},ink,line width=0.7pt] (11.30,3.87) .. controls (10.12,3.84) and (9.84,4.18) .. (9.91,4.79);
+  \draw[-{Latex[length=1.5mm]},ink,line width=0.7pt] (10.08,5.72) .. controls (10.08,6.56) and (10.58,6.90) .. (11.29,6.91);
+  \foreach \yy/\txt in {3.43/Actions may remain normal.,3.17/Terminal reward arrives too late.,2.91/Deep routing turnover slows when the loop stalls.}{
+    \fill[brandblue] (9.63,\yy) circle (0.12);
+    \node[text=white,font=\fontsize{7}{7}\selectfont\bfseries] at (9.63,\yy) {$\bullet$};
+    \node[anchor=west,font=\fontsize{7.1}{7.4}\selectfont] at (9.86,\yy) {\txt};
+  }
+
+  % Comparison table.
+  \path[fill=panelblue,draw=lineblue,line width=0.45pt,rounded corners=0.06cm] (0.70,0.93) rectangle (15.20,2.75);
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=0.05cm] (0.70,2.45) rectangle (15.20,2.75);
+  \draw[lineblue,line width=0.35pt] (4.36,0.93)--(4.36,2.75) (9.46,0.93)--(9.46,2.75);
+  \foreach \y in {1.23,1.53,1.83,2.13,2.45}{\draw[lineblue!65,line width=0.25pt] (0.70,\y)--(15.20,\y);}
+  \node[text=white,font=\fontsize{8.8}{9}\selectfont\bfseries] at (6.91,2.60) {NAD (Reasoning LLMs)};
+  \node[text=white,font=\fontsize{8.8}{9}\selectfont\bfseries] at (12.33,2.60) {Robot-Whisper (Embodied VLA)};
+  \foreach \yy/\lhs/\nad/\rob in {
+    2.29/Object/Reasoning trajectory/Embodied trajectory,
+    1.98/Compare across/Samples/Time,
+    1.68/Internal signal/Neuron activations/MoE routing sets,
+    1.38/Goal/Reliability/Current state,
+    1.08/Downstream use/Select/Alarm}{
+    \fill[brandblue] (0.94,\yy) circle (0.055);
+    \node[anchor=west,font=\fontsize{7.4}{7.5}\selectfont\bfseries] at (1.10,\yy) {\lhs};
+    \node[font=\fontsize{7.4}{7.5}\selectfont] at (6.91,\yy) {\nad};
+    \node[font=\fontsize{7.4}{7.5}\selectfont] at (12.33,\yy) {\rob};
+  }
+
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=0.09cm] (0.30,0.17) rectangle (15.70,0.79);
+  \node[text=white,font=\fontsize{9.2}{9.8}\selectfont\bfseries,align=center,text width=14.8cm]
+    at (8.0,0.48) {NAD compares samples to estimate quality. Robot-Whisper compares time steps to estimate state.};
+\end{whisperslide}
+\end{frame}

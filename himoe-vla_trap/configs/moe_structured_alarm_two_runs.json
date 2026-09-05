@@ -1,0 +1,98 @@
+{
+  "schema": "himoe.moe_structured_alarm_two_runs.config.v1",
+  "experiment_name": "moe_structured_alarm_two_runs",
+  "training": false,
+  "gradient_optimization": false,
+  "learned_feature_weights": false,
+  "failure_labels_used_for_features_or_thresholds": false,
+  "cache_root": "VLA_MUI_HUB/cache_new/HiMoE-VLA",
+  "runs": [
+    {
+      "name": "seed1000_1007",
+      "run_id": "right-50x8-20260903",
+      "posthoc_onset_proxy": "himoe-vla_trap/results/trainfree_trap_probability/timing_constrained_alarm/tables/physical_onset_labels.csv"
+    },
+    {
+      "name": "seed1008_1015",
+      "run_id": "right-50x8b-20260903",
+      "posthoc_onset_proxy": "himoe-vla_trap/results/moe_structured_alarm_two_runs/posthoc_onset_seed1008_1015/tables/physical_onset_labels.csv"
+    }
+  ],
+  "expected_tasks_per_run": 40,
+  "expected_episodes_per_task": 400,
+  "task_partition": {
+    "method": "sha256_rank_within_suite",
+    "salt": "moe-invariant-alarm-20260904-v1",
+    "heldout_test_per_suite": 2,
+    "threshold_confirmation_per_suite": 2,
+    "healthy_reference_per_suite": 6
+  },
+  "position_grid": {
+    "layer_groups": {
+      "front": [0, 1, 2, 3],
+      "back": [4, 5, 6, 7]
+    },
+    "flow_groups": {
+      "probability": {
+        "early": [0, 1, 2],
+        "middle": [3, 4, 5, 6],
+        "late": [7, 8, 9]
+      },
+      "transition": {
+        "early": [0, 1, 2],
+        "middle": [3, 4, 5],
+        "late": [6, 7, 8]
+      },
+      "acceleration": {
+        "early": [0, 1, 2],
+        "middle": [3, 4, 5],
+        "late": [6, 7]
+      }
+    },
+    "token_groups": {
+      "state": [0],
+      "action1_3": [1, 2, 3],
+      "action4_7": [4, 5, 6, 7],
+      "action8_10": [8, 9, 10]
+    },
+    "recurrence_lags": [1, 2, 3, 4]
+  },
+  "causal_self_reference": {
+    "ordinary_baseline_queries": [0, 1, 2, 3],
+    "ordinary_first_scored_query": 4,
+    "recurrence_baseline_observations_per_lag": 3,
+    "recurrence_first_scored_query": "lag + 3"
+  },
+  "healthy_cdf_query_bins": [4, 8, 16, 32, 64, 1000000],
+  "minimum_reference_values_per_bin": 200,
+  "head_logic": {
+    "lock_in": "at least 2 of 3 recurrence views AND at least one independent flow-collapse or token-collapse confirmation, evaluated separately for each lag",
+    "instability": "at least 3 of 4 confirmations",
+    "state_action_decoupling": "front or back state-action gap AND either chunk-jump imbalance or action-position disagreement",
+    "temporal_persistence": "at least 2 of the current and previous 2 consecutive queries",
+    "union": "persistent lock-in OR persistent instability OR persistent state-action decoupling"
+  },
+  "threshold_confirmation": {
+    "target_success_episode_false_alarm_rate": 0.01,
+    "selection": "for each rule, take the maximum of the eight task-specific thresholds so every confirmation task separately satisfies the episode false-alarm budget",
+    "labels_used": "success flags from source-run healthy-reference and threshold-confirmation tasks only",
+    "failure_labels_used": false
+  },
+  "runtime_inputs": [
+    "HB full-softmax router probabilities",
+    "HB selected expert IDs",
+    "HB selected expert probabilities",
+    "current episode route history",
+    "frozen healthy empirical CDFs"
+  ],
+  "runtime_excluded_inputs": [
+    "task identity",
+    "action values",
+    "physical state or distance",
+    "reward",
+    "success or failure outcome",
+    "future route rows",
+    "episode length"
+  ],
+  "primary_protocol": "calibrate on one seed group's disjoint healthy-reference and threshold tasks, freeze, then evaluate the other seed group's eight heldout tasks; repeat in reverse"
+}

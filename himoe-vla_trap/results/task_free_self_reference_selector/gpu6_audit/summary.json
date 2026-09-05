@@ -1,0 +1,153 @@
+{
+  "schema": "himoe.self_reference_gpu6_audit.v1",
+  "training": false,
+  "selector_version": "self_reference_coupling_collapse_v3",
+  "runtime_selector_inputs": [
+    "current HB router probabilities",
+    "own episode route prefix"
+  ],
+  "runtime_selector_excluded_inputs": [
+    "task identity",
+    "normal trajectory bank",
+    "action values",
+    "robot or simulator state",
+    "physical distance",
+    "reward",
+    "success",
+    "timeout"
+  ],
+  "development_outcomes_inspected": true,
+  "gpu6_prospective": {
+    "episodes": 16,
+    "failures": 1,
+    "successes": 15,
+    "tp": 1,
+    "fn": 0,
+    "fp": 0,
+    "tn": 15,
+    "failure_recall": 1.0,
+    "success_false_alarm_rate": 0.0,
+    "precision": 1.0
+  },
+  "gpu6_fixed_clock_phase_0_81": {
+    "episodes": 16,
+    "failures": 1,
+    "successes": 15,
+    "tp": 1,
+    "fn": 0,
+    "fp": 0,
+    "tn": 15,
+    "failure_recall": 1.0,
+    "success_false_alarm_rate": 0.0,
+    "precision": 1.0
+  },
+  "gpu6_post_alarm_action_steps": 100,
+  "posthoc_physical_timing": [
+    {
+      "run": "gpu6_prospective_init09_seeds1000_1007",
+      "episode_index": 0,
+      "init_state_id": 9,
+      "flow_noise_seed": 1000,
+      "object_joint": "plate_1_joint0",
+      "plateau_definition": "initial displacement >= 0.05 m and all remaining excursion <= 0.001 m",
+      "plateau_query": 16,
+      "last_motion_transition_control_step": 158,
+      "plateau_remaining_excursion_m": 0.00035088665305779254,
+      "initial_to_final_displacement_m": 0.2876853099668638,
+      "query_initial_to_final_displacement_m": 0.2876853099668638,
+      "first_moe_alarm_query": 20,
+      "moe_alarm_delay_after_plateau_queries": 4,
+      "fixed_clock_phase": 0.81,
+      "fixed_clock_query": 24,
+      "moe_lead_over_fixed_clock_queries": 4,
+      "horizon_queries": 30,
+      "state_response_ratio_at_alarm": 0.194114001536238,
+      "planning_churn_ratio_at_alarm": 1.2114375198020426,
+      "state_action_gap_ratio_at_alarm": 1.5955603915920642,
+      "marker_is_semantic_failure_onset": false,
+      "marker_scope": "posthoc object-motion plateau; never used by selector"
+    }
+  ],
+  "offline_heldout_39_tasks": {
+    "episodes": 15600,
+    "failures": 530,
+    "fn": 452,
+    "fp": 35,
+    "fpr": 0.00232249502322495,
+    "fpr_95": [
+      0.00033134361524485897,
+      0.005817667167178163
+    ],
+    "median_failure_alarm_horizon_phase": 0.7633053221288515,
+    "median_failure_alarm_lead_queries": 8.5,
+    "precision": 0.6902654867256637,
+    "successes": 15070,
+    "tn": 15035,
+    "tp": 78,
+    "tp_with_at_least_3_query_lead": 68,
+    "tp_with_at_least_5_query_lead": 60,
+    "tpr": 0.1471698113207547,
+    "tpr_95": [
+      0.08915587483624338,
+      0.23579827173087872
+    ]
+  },
+  "offline_clock_controls_heldout": {
+    "matched_median_lead": {
+      "fn": 0.0,
+      "fp": 31.0,
+      "fpr": 0.0020570670205706703,
+      "horizon_phase": 0.8099999999999999,
+      "median_failure_alarm_lead_queries": 9.0,
+      "precision": 0.9447415329768271,
+      "tn": 15039.0,
+      "tp": 530.0,
+      "tp_with_at_least_3_query_lead": 530.0,
+      "tp_with_at_least_5_query_lead": 404.0,
+      "tpr": 1.0
+    },
+    "matched_or_lower_fpr": {
+      "fn": 0.0,
+      "fp": 31.0,
+      "fpr": 0.0020570670205706703,
+      "horizon_phase": 0.8099999999999999,
+      "median_failure_alarm_lead_queries": 9.0,
+      "precision": 0.9447415329768271,
+      "tn": 15039.0,
+      "tp": 530.0,
+      "tp_with_at_least_3_query_lead": 530.0,
+      "tp_with_at_least_5_query_lead": 404.0,
+      "tpr": 1.0
+    }
+  },
+  "cross_gpu_same_seed_replay": {
+    "conditions": 2,
+    "old_failures": 2,
+    "new_successes": 2,
+    "q0_policy_state_exact_conditions": 2,
+    "q0_sim_state_exact_conditions": 2,
+    "runtime_identity": {
+      "fields_compared": [
+        "checkpoint_sha256",
+        "himoe_upstream_commit",
+        "himoe_working_tree_diff_sha256",
+        "libero_wrist_layout"
+      ],
+      "all_match": true,
+      "old_gpu": "3",
+      "new_gpu": "6",
+      "checkpoint_sha256": "98ee29d09d1855716e341532a3d0f76068de6fa131f8fe16ffd52f982df1b953"
+    },
+    "action_mae_min": 0.0006896489067003131,
+    "action_mae_max": 0.0008129720226861537,
+    "route_mae_min": 0.00010634958744049072,
+    "route_mae_max": 0.00010932142322417349,
+    "interpretation": "same seed is not bitwise closed-loop replay across GPUs; small q0 route/action differences compound after contact"
+  },
+  "invalid_startup_attempts_excluded": [
+    "gpu6_exact_failure_replay",
+    "gpu6_exact_failure_replay_retry1",
+    "gpu6_exact_failure_replay_retry2"
+  ],
+  "scientific_scope": "high-precision internal response-collapse phenotype head; not a universal failure detector and not a failure-cause classifier"
+}

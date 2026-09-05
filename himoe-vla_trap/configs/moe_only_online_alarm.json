@@ -1,0 +1,62 @@
+{
+  "schema": "himoe.moe_only_online_alarm.config.v1",
+  "training": false,
+  "physical_inputs_to_selector": false,
+  "healthy_reference": "results/moe_only_online_alarm/full_healthy_route_sequences.npz",
+  "matcher": {
+    "descriptor": "HB front-layer action-token full-flow routing",
+    "algorithm": "closed-begin online monotone DTW",
+    "allowed_reference_advance_per_query": [0, 1, 2]
+  },
+  "raw_rule": "transition_split_v1 with DTW-matched healthy routes",
+  "alarm_persistence": 2,
+  "gpu4_online_runs": [
+    {
+      "role": "preliminary_hardware_calibration_source",
+      "seed": 20260905,
+      "path": "results/moe_only_online_alarm/gpu4_fresh_random_seed20260905",
+      "healthy_reference": "results/moe_only_online_alarm/full_healthy_route_sequences.npz"
+    },
+    {
+      "role": "heldout_after_h20_reference_freeze",
+      "seed": 20260906,
+      "path": "results/moe_only_online_alarm/gpu4_heldout_random_seed20260906",
+      "healthy_reference": "results/moe_only_online_alarm/h20_healthy_route_sequences_seed20260905.npz"
+    }
+  ],
+  "gpu5_online_runs": [
+    {
+      "role": "extended_frozen_rule_test",
+      "seed": 20260907,
+      "path": "results/moe_only_online_alarm/gpu5_extended_random_seed20260907",
+      "server_capture": "results/moe_only_online_alarm/gpu5_server_seed20260907",
+      "episodes": 24,
+      "healthy_reference": "results/moe_only_online_alarm/h20_healthy_route_sequences_seed20260905.npz",
+      "rule_changed_during_collection": false
+    }
+  ],
+  "posthoc_method_diagnosis": {
+    "path": "results/moe_only_online_alarm/method_diagnosis",
+    "permutations": 5000,
+    "features": 12,
+    "event_windows": 4,
+    "maxT_tests_gpu5": 48,
+    "replacement_detector_validated_online": false
+  },
+  "posthoc_failure_typing": {
+    "uses_physics": true,
+    "available_to_selector": false,
+    "targets_checked": ["moka_pot_1_joint0", "moka_pot_2_joint0"]
+  },
+  "deployment_status": "frozen_rule_failed_target_recall_post_event_moe_signal_only",
+  "retrospective_runs": [
+    {
+      "role": "hardware_replay_of_development_noise",
+      "path": "results/online_belief_alarm/replay_candidate06_gpu4_20260903"
+    },
+    {
+      "role": "fresh_random_preliminary_set",
+      "path": "results/online_belief_alarm/fresh_random_gpu4_20260904"
+    }
+  ]
+}

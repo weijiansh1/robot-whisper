@@ -1,0 +1,28 @@
+{
+  "schema": "himoe.trainfree_belief_selector.config.v1",
+  "training": false,
+  "base_event_config": "configs/failed_grasp_moe_dynamics.json",
+  "trigger_relative_query_range": [-1, 6],
+  "trigger_rule": {
+    "name": "transition_split_v1",
+    "layer5_axis": 3,
+    "front_layer_axes": [0, 1, 2, 3],
+    "back_layer_axes": [4, 5, 6, 7],
+    "threshold": "maximum phase-matched healthy reference",
+    "conditions": [
+      "layer5_state_action_gap_above_healthy",
+      "back_chunk_jump_above_healthy",
+      "front_action_route_inside_healthy"
+    ]
+  },
+  "candidate_audit": {
+    "hub_root": "VLA_MUI_HUB/cache/HiMoE-VLA",
+    "run_glob": "**/right-16x32/client/summaries.json",
+    "pool_size": 8,
+    "pools_per_state": 4,
+    "layer5_axis": 3,
+    "bootstrap_draws": 20000,
+    "permutation_draws": 9999,
+    "random_seed": 20260903
+  }
+}

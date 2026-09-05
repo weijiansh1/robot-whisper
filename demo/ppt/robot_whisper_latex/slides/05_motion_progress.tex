@@ -1,0 +1,92 @@
+\newcommand{\RWSuccessTraces}{%
+  \pgfplotsinvokeforeach{1,...,14}{%
+    \addplot[lineblue!72,line width=0.45pt,domain=0:2000,samples=42,forget plot]
+      {((0.56+0.048*##1)*(1-exp(-x/430))) + (0.00012+0.000018*##1)*x
+        + 0.018*sin(deg(x/(75+5*##1))) + 0.010*sin(deg(x/(26+##1)))};
+  }%
+}
+\newcommand{\RWTrapTraces}{%
+  \pgfplotsinvokeforeach{1,...,18}{%
+    \addplot[accentorange!76,line width=0.43pt,domain=0:2000,samples=42,forget plot]
+      {(0.17+0.021*##1)*(1-exp(-x/(180+7*##1)))
+        + 0.012*sin(deg(x/(90+3*##1))) + 0.006*sin(deg(x/(31+##1)))};
+  }%
+}
+
+\begin{frame}[plain]
+\begin{whisperslide}{5}
+  \SlideTitle[27]{A Trap Is Motion Without Progress}
+  \node[anchor=west,text=brandblue,font=\fontsize{13}{13}\selectfont\bfseries\itshape]
+    at (1.25,7.83) {Representative stagnation case};
+
+  \node[text=ink,font=\fontsize{12}{12}\selectfont\bfseries] at (5.47,7.18)
+    {Cumulative Change in End-Effector Position};
+  \begin{axis}[
+    at={(0.72cm,2.18cm)},anchor=south west,width=9.52cm,height=4.92cm,
+    xmin=0,xmax=2000,ymin=0,ymax=1.8,
+    xtick={0,250,500,750,1000,1250,1500,1750,2000},
+    ytick={0,.2,.4,.6,.8,1.0,1.2,1.4,1.6,1.8},
+    grid=both,grid style={gray!45,dashed,line width=0.25pt},
+    tick label style={font=\fontsize{6.3}{6.3}\selectfont},
+    label style={font=\fontsize{8}{8}\selectfont},
+    xlabel={},ylabel={Cumulative Distance (m)},
+    axis line style={line width=0.4pt},
+    legend style={at={(0.02,0.97)},anchor=north west,font=\fontsize{6.8}{7}\selectfont,
+      fill=white,draw=gray!60,rounded corners=1pt},
+  ]
+    % Fourteen successful branches continue accumulating distance.
+    \RWSuccessTraces
+    % Eighteen traps move normally at first and then flatten.
+    \RWTrapTraces
+    \addlegendimage{lineblue,line width=0.9pt}
+    \addlegendentry{Success (14 rollouts)}
+    \addlegendimage{accentorange,line width=0.9pt}
+    \addlegendentry{Trap (18 rollouts)}
+    \draw[ink,dashed,line width=0.45pt] (axis cs:250,0)--(axis cs:250,1.8);
+    \draw[ink,dashed,line width=0.45pt] (axis cs:525,0)--(axis cs:525,1.8);
+    \draw[ink,dashed,line width=0.45pt] (axis cs:900,0)--(axis cs:900,1.8);
+    \draw[ink,dashed,line width=0.45pt] (axis cs:1570,0)--(axis cs:1570,1.8);
+  \end{axis}
+
+  % Milestone labels under the plot.
+  \node[font=\fontsize{7}{7}\selectfont] at (6.30,1.13) {Control Step};
+  \foreach \x/\txt in {2.02/{First pot\\placed},3.28/{Shared\\pause},4.90/{Success\\restarts},8.06/{Trap\\remains flat}}{
+    \fill[ink] (\x,1.86) circle (0.055);
+    \node[text=brandblue,font=\fontsize{7.4}{7.8}\selectfont\bfseries,align=center] at (\x,1.50) {\txt};
+  }
+
+  % Statistics card.
+  \Panel{10.55}{4.04}{5.18}{3.18}
+  \PanelHeader{10.55}{6.54}{5.18}{0.68}
+  \begin{scope}[shift={(11.14,6.87)}]
+    \draw[white,line width=0.7pt] (-0.25,-0.18)--(0.35,-0.18);
+    \foreach \x/\h in {-0.18/0.22,-0.02/0.36,0.14/0.52}{\fill[white] (\x,-0.16) rectangle ++(0.10,\h);}
+  \end{scope}
+  \node[text=white,font=\fontsize{12}{12}\selectfont\bfseries] at (13.38,6.88) {Statistics / Description};
+  \foreach \yy/\num/\rest/\col in {
+    5.99/32/rollouts from the same state/brandblue,
+    5.42/14/successes/brandblue,
+    4.86/18/traps/accentorange}{
+    \fill[brandblue] (10.90,\yy) circle (0.055);
+    \node[anchor=west,text=\col,font=\fontsize{13}{13}\selectfont\bfseries] at (11.15,\yy) {\num};
+    \node[anchor=west,font=\fontsize{9.2}{9.4}\selectfont] at (11.70,\yy) {\rest};
+  }
+  \fill[brandblue] (10.90,4.34) circle (0.055);
+  \node[anchor=west,font=\fontsize{8.8}{9}\selectfont] at (11.15,4.34) {Only difference: sampling noise};
+
+  % Two morphology card.
+  \Panel{10.55}{1.72}{5.18}{1.98}
+  \path[fill=panelblue,draw=lineblue,line width=0.35pt,rounded corners=0.07cm]
+    (10.55,3.19) rectangle (15.73,3.70);
+  \LoopIcon{11.14}{3.44}{0.57}
+  \node[text=navy,font=\fontsize{11.5}{12}\selectfont\bfseries] at (13.23,3.44) {Two trap morphologies};
+  \fill[brandblue] (10.90,2.67) circle (0.055);
+  \node[anchor=west,font=\fontsize{11}{11}\selectfont] at (11.15,2.67) {Stagnation (hovering)};
+  \fill[brandblue] (10.90,2.12) circle (0.055);
+  \node[anchor=west,font=\fontsize{11}{11}\selectfont] at (11.15,2.12) {Looping (repetitive cycles)};
+
+  \Panel{0.32}{0.24}{15.42}{0.73}
+  \node[text=brandblue,font=\fontsize{10.8}{11}\selectfont\bfseries,align=center,text width=14.8cm]
+    at (8.03,0.61) {A trap is not the absence of motion. It is the absence of meaningful progress.};
+\end{whisperslide}
+\end{frame}

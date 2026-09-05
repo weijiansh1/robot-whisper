@@ -1,0 +1,86 @@
+\begin{frame}[plain]
+\begin{whisperslide}{11}
+  \SlideTitle[20]{\scalebox{.67}[1]{The Alarm Arrives Halfway --- and Mainly Flags Genuinely Slow Runs}}
+
+  % Alarm timing histogram.
+  \Panel{0.36}{2.40}{7.50}{5.05}
+  \node[text=navy,font=\fontsize{14}{14}\selectfont\bfseries]
+    at (4.11,7.02) {\scalebox{.83}[1]{When Does the Alarm Fire? (All Alarms)}};
+  \begin{axis}[
+    at={(1.20cm,3.22cm)},anchor=south west,
+    width=6.30cm,height=3.48cm,
+    xmin=0,xmax=52,ymin=0,ymax=120,
+    axis lines=left,
+    xtick={0,6,12,18,24,30,36,42,48,52},
+    ytick={0,20,40,60,80,100,120},
+    xlabel={Control Step},ylabel={Count},
+    xlabel style={font=\fontsize{9}{9}\selectfont,yshift=1pt},
+    ylabel style={font=\fontsize{9}{9}\selectfont,yshift=-2pt},
+    tick label style={font=\fontsize{7}{7}\selectfont},
+    tick style={black,line width=.45pt},
+    axis line style={black,line width=.55pt},
+    ybar,bar width=5.7pt,
+    clip=false
+  ]
+    \addplot[fill=deepblue,draw=brandblue,line width=.2pt] coordinates {
+      (6,1) (8,2) (10,3) (12,9) (14,21) (16,36) (18,59) (20,72)
+      (22,102) (24,108) (26,89) (28,91) (30,72) (32,58) (34,48)
+      (36,38) (38,25) (40,15) (42,8) (44,4) (46,3) (48,1)
+    };
+    \addplot[accentorange,dashed,line width=1.15pt] coordinates {(26,0) (26,124)};
+  \end{axis}
+  \node[anchor=west,text=accentorange,font=\fontsize{10}{11}\selectfont\bfseries,
+    align=center] at (5.10,6.30) {Median: q28\\($\sim$54\% of 52-step\\budget)};
+
+  % Rollout-length strip plots.
+  \Panel{8.06}{2.40}{7.58}{5.05}
+  \node[text=navy,font=\fontsize{14}{14}\selectfont\bfseries,align=center]
+    at (11.85,6.91) {Success Rollout Lengths\\[-1pt](Control Steps)};
+  \node[text=accentorange,font=\fontsize{10}{10}\selectfont\bfseries,align=center]
+    at (9.24,5.63) {False-Alarmed\\Successes};
+  \node[text=navy,font=\fontsize{10}{10}\selectfont\bfseries,align=center]
+    at (9.24,4.02) {Quiet\\Successes};
+  \draw[black,line width=.42pt] (9.84,5.44)--(14.38,5.44);
+  \draw[black,line width=.42pt] (9.84,3.86)--(14.38,3.86);
+  \foreach \x/\dy in {
+    5/.04,8/.16,9/-.11,11/.08,13/.20,14/-.18,15/.03,16/.26,17/-.07,
+    18/.14,19/-.24,20/.02,21/.20,22/-.12,23/.09,24/-.22,25/.27,
+    26/-.04,27/.15,28/-.18,29/.05,31/.19,32/-.09,34/.07,36/-.22,
+    37/.16,38/-.06,39/.23,41/-.17,42/.04,43/.20,44/-.27,45/.08,
+    46/.29,47/-.12,49/.14,50/-.20
+  }{\fill[accentorange] ({9.84+.0873*\x},{5.44+\dy}) circle (.045);}
+  \foreach \x/\dy in {
+    4/-.02,6/.14,7/-.16,9/.03,10/-.23,11/.20,12/-.07,13/.09,
+    14/-.19,15/.21,16/-.03,17/-.28,18/.11,19/-.12,20/.24,21/-.04,
+    22/.14,23/-.22,24/.03,25/.25,26/-.09,27/.13,28/-.25,29/.02,
+    30/.19,31/-.14,32/.08,33/-.27,34/.15,35/-.05,36/.23,37/-.18,
+    38/.06,39/.17,40/-.12,41/.01,42/.20,43/-.23,44/.10,46/-.08,
+    47/.17,49/-.02
+  }{\fill[deepblue] ({9.84+.0873*\x},{3.86+\dy}) circle (.045);}
+  \draw[black,line width=1.15pt] ({9.84+.0873*41},5.08)--({9.84+.0873*41},5.88);
+  \draw[black,line width=1.15pt] ({9.84+.0873*37},3.50)--({9.84+.0873*37},4.30);
+  \node[text=accentorange,font=\fontsize{10}{10}\selectfont\bfseries]
+    at ({9.84+.0873*41},6.05) {41};
+  \node[text=navy,font=\fontsize{10}{10}\selectfont\bfseries]
+    at ({9.84+.0873*37},4.48) {37};
+  \node[anchor=west,text=accentorange,font=\fontsize{7.2}{7.2}\selectfont\bfseries]
+    at (14.42,5.44) {Median: 41};
+  \node[anchor=west,text=navy,font=\fontsize{7.2}{7.2}\selectfont\bfseries]
+    at (14.42,3.86) {Median: 37};
+  \draw[black,line width=.45pt] (9.84,3.30)--(14.38,3.30);
+  \foreach \x in {0,10,20,30,40,50}{
+    \draw[black,line width=.45pt] ({9.84+.0873*\x},3.30)--++(0,-.09);
+    \node[anchor=north,font=\fontsize{7}{7}\selectfont] at ({9.84+.0873*\x},3.20) {\x};
+  }
+  \node[anchor=north,font=\fontsize{7}{7}\selectfont] at (14.38,3.20) {52};
+  \node[font=\fontsize{9}{9}\selectfont] at (12.11,2.72) {Control Step};
+
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=.10cm]
+    (0.36,1.08) rectangle (15.64,2.00);
+  \CheckCircle{2.68}{1.54}
+  \node[text=white,font=\fontsize{15}{15}\selectfont\bfseries]
+    at (8.30,1.54) {\scalebox{.82}[1]{The alarm means `failing now,' not `doomed eventually.'}};
+  \Footer{Robot-Whisper \quad $\bullet$ \quad HiMoE-VLA \quad $\bullet$ \quad LIBERO-10
+    \quad $\bullet$ \quad 32 Experts / Top-4 Routing}
+\end{whisperslide}
+\end{frame}

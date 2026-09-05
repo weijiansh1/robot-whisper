@@ -1,0 +1,75 @@
+{
+  "schema": "himoe.moe_invariant_alarm_cache_new.config.v1",
+  "experiment_name": "moe_invariant_alarm_cache_new_50x8b",
+  "training": false,
+  "gradient_optimization": false,
+  "learned_feature_weights": false,
+  "probability_calibration": false,
+  "cache_root": "VLA_MUI_HUB/cache_new/HiMoE-VLA",
+  "run_id": "right-50x8b-20260903",
+  "expected_tasks": 40,
+  "expected_episodes_per_task": 400,
+  "task_split": {
+    "method": "sha256_rank_within_suite",
+    "salt": "moe-invariant-alarm-20260904-v1",
+    "heldout_tasks_per_suite": 2
+  },
+  "runtime_inputs": [
+    "current and historical HB full-softmax MoE router probabilities"
+  ],
+  "runtime_excluded_inputs": [
+    "task identity",
+    "action values",
+    "physical state or distance",
+    "reward",
+    "success or failure outcome",
+    "future route rows",
+    "episode length"
+  ],
+  "route_geometry": {
+    "front_layers": [0, 1, 2, 3],
+    "back_layers": [4, 5, 6, 7],
+    "state_token": 0,
+    "action_tokens": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "final_flow": 9,
+    "late_flow_transition_start": 6,
+    "recurrence_lags": [1, 2, 3, 4]
+  },
+  "causal_self_reference": {
+    "baseline_queries": [0, 1, 2, 3],
+    "first_scored_query": 4,
+    "normalization": "current raw head minus own-episode baseline median"
+  },
+  "heads": {
+    "flow_convergence_failure": "late-flow Hellinger path share minus own early baseline",
+    "state_action_response_split": "positive(front state route jump minus front action route jump) minus own early baseline",
+    "cross_chunk_recurrence": "maximum lag-1..4 weighted-Jaccard recurrence minus own early baseline"
+  },
+  "alarm_logic": {
+    "joint_branch": "flow convergence and state-action response are simultaneously extreme",
+    "recurrence_branch": "cross-chunk recurrence is extreme for two consecutive scored queries",
+    "union": "joint_branch OR recurrence_branch",
+    "head_scale": "finite-sample tail confidence against threshold-confirmation successful episode maxima"
+  },
+  "threshold_confirmation": {
+    "labels_used": "success labels from non-heldout tasks only",
+    "failure_labels_used": false,
+    "target_success_episode_false_alarm_rate": 0.01,
+    "selection": "smallest detector confidence threshold whose successful-episode alarm rate does not exceed budget"
+  },
+  "heldout_protocol": {
+    "prediction_first": true,
+    "hash_predictions_before_outcome_load": true,
+    "primary_label": "endpoint success or failure",
+    "secondary_onset_proxy": null,
+    "secondary_onset_proxy_run_id": null
+  },
+  "clock_control": {
+    "selection": "earliest fixed query whose threshold-confirmation successful-episode false alarm rate does not exceed the same budget",
+    "heldout_labels_used_for_selection": false
+  },
+  "interpretation": {
+    "detector_output": "healthy-route extremeness confidence, not failure probability",
+    "post_reveal_precision": "empirical heldout failure fraction among alarmed episodes"
+  }
+}

@@ -1,0 +1,102 @@
+\begin{frame}[plain]
+\begin{whisperslide}{13}
+  \SlideTitle[22]{\scalebox{.72}[1]{Why It Works: A Compressed Echo of a Stopped World}}
+
+  % Closed-loop schematic.
+  \node[text=navy,font=\fontsize{14}{14}\selectfont\bfseries]
+    at (3.06,7.32) {Closed-Loop System};
+  \Panel{2.45}{5.86}{1.38}{.95}
+  \Panel{0.67}{4.70}{1.40}{.98}
+  \Panel{4.15}{4.70}{1.40}{.98}
+  \Panel{2.45}{3.53}{1.38}{.98}
+  % Brain/model.
+  \begin{scope}[shift={(3.14,6.49)},scale=.60]
+    \draw[lineblue,line width=1pt]
+      (-.06,-.04) .. controls (-.38,-.02) and (-.39,.30) .. (-.21,.36)
+      .. controls (-.33,.58) and (-.04,.72) .. (.02,.52)
+      .. controls (.12,.72) and (.38,.55) .. (.27,.34)
+      .. controls (.48,.24) and (.31,-.06) .. (.08,-.04);
+    \draw[lineblue,line width=.7pt] (0,-.04)--(.02,.53)
+      (-.24,.10)--(-.05,.20) (.27,.13)--(.04,.25) (-.14,.45)--(.02,.34);
+  \end{scope}
+  \node[font=\fontsize{8}{8}\selectfont\bfseries] at (3.14,5.99) {Model};
+  \EyeIcon{1.37}{5.28}{.72}
+  \node[font=\fontsize{7}{7}\selectfont\bfseries] at (1.37,4.86) {Observation};
+  \RobotArm{4.54}{5.03}{.42}
+  \node[font=\fontsize{8}{8}\selectfont\bfseries] at (4.85,4.86) {Action};
+  % Globe/world.
+  \begin{scope}[shift={(3.14,4.14)},scale=.58]
+    \draw[lineblue,line width=.9pt] (0,0) circle (.36);
+    \draw[lineblue,line width=.65pt] (-.36,0)--(.36,0) (0,-.36)--(0,.36);
+    \draw[lineblue,line width=.65pt] (-.25,-.27) arc[start angle=225,end angle=135,x radius=.25,y radius=.42];
+    \draw[lineblue,line width=.65pt] (.25,-.27) arc[start angle=-45,end angle=45,x radius=.25,y radius=.42];
+  \end{scope}
+  \node[font=\fontsize{8}{8}\selectfont\bfseries] at (3.14,3.70) {World};
+  \draw[flow arrow] (1.40,5.79) to[out=92,in=180] (2.40,6.38);
+  \draw[flow arrow] (3.88,6.38) to[out=0,in=90] (4.85,5.74);
+  \draw[flow arrow] (4.85,4.65) to[out=-90,in=0] (3.90,4.03);
+  \draw[flow arrow] (2.39,4.03) to[out=180,in=-90] (1.37,4.65);
+
+  \SoftPanel{0.61}{1.96}{4.91}{1.39}
+  \begin{scope}[shift={(1.03,3.04)}]
+    \draw[lineblue,line width=1pt] (0,0) circle (.16);
+    \draw[lineblue,line width=1pt] (.12,-.12)--(.31,-.31);
+  \end{scope}
+  \node[anchor=west,text=navy,font=\fontsize{10}{10}\selectfont\bfseries] at (1.43,3.04) {Evidence};
+  \fill[lineblue] (.84,2.66) circle (.045);
+  \node[anchor=west,font=\fontsize{6.5}{7.2}\selectfont] at (1.04,2.66)
+    {Routing stickiness $\approx$ input stability: $r\approx0.93$};
+  \fill[lineblue] (.84,2.28) circle (.045);
+  \node[anchor=west,font=\fontsize{6.4}{7.1}\selectfont,align=left] at (1.04,2.26)
+    {After removing input-stability effect, routing\\signal drops to near-random.};
+
+  % Causal chain.
+  \SoftPanel{6.04}{1.98}{3.74}{5.28}
+  \node[text=navy,font=\fontsize{13}{13}\selectfont\bfseries]
+    at (7.91,6.76) {When the Loop Stalls};
+  \foreach \n/\y/\txt in {
+    1/5.98/World change weakens,
+    2/5.15/New observations stay similar,
+    3/4.32/Router inputs stabilize,
+    4/3.49/Selected expert sets stabilize
+  }{
+    \fill[deepblue] (6.52,\y) circle (.22);
+    \node[text=white,font=\fontsize{10}{10}\selectfont\bfseries] at (6.52,\y) {\n};
+    \node[anchor=west,font=\fontsize{7.4}{7.4}\selectfont] at (6.88,\y) {\txt};
+  }
+
+  % Interpretation cards.
+  \Panel{10.28}{4.74}{5.10}{2.52}
+  \begin{scope}[shift={(11.18,6.11)}]
+    \draw[lineblue,line width=1.25pt] (0,0) circle (.55);
+    \draw[lineblue,line width=.8pt] (-.22,-.12) arc[start angle=210,end angle=-30,radius=.30];
+    \draw[lineblue,line width=.8pt] (-.25,-.25)--(.25,-.25) (.0,-.25)--(.0,-.38);
+    \draw[lineblue,line width=1.25pt] (-.39,.39)--(.39,-.39);
+  \end{scope}
+  \node[anchor=west,text=navy,font=\fontsize{9.2}{10.2}\selectfont\bfseries,align=left]
+    at (12.02,6.53) {Not Hidden Intention /\\Not Future Prophecy};
+  \node[anchor=west,font=\fontsize{7.3}{8.4}\selectfont,align=left]
+    at (12.02,5.55) {The signal appears only after\\loops stall and disappears\\when dynamics resume.};
+
+  \Panel{10.28}{1.98}{5.10}{2.40}
+  \begin{scope}[shift={(11.18,3.20)}]
+    \draw[lineblue,line width=1.0pt,rounded corners=.04cm] (-.35,-.35) rectangle (.35,.35);
+    \draw[lineblue,line width=.8pt] (-.18,-.18) rectangle (.18,.18);
+    \foreach \offset in {-.24,0,.24}{
+      \draw[lineblue,line width=.8pt] (-.50,\offset)--(-.35,\offset) (.35,\offset)--(.50,\offset);
+      \draw[lineblue,line width=.8pt] (\offset,-.50)--(\offset,-.35) (\offset,.35)--(\offset,.50);
+    }
+  \end{scope}
+  \node[anchor=west,text=navy,font=\fontsize{9.2}{10.2}\selectfont\bfseries,align=left]
+    at (12.02,3.65) {A Free Internal Readout /\\No Extra Forward Pass};
+  \node[anchor=west,font=\fontsize{7.2}{8.3}\selectfont,align=left]
+    at (12.02,2.68) {The signal is read from existing\\hidden states---no additional\\inference or computation.};
+
+  \path[top color=deepblue,bottom color=brandblue,rounded corners=.10cm]
+    (0.61,.88) rectangle (15.39,1.73);
+  \CheckCircle{1.80}{1.305}
+  \node[text=white,font=\fontsize{14}{14}\selectfont\bfseries]
+    at (8.42,1.305) {\scalebox{.80}[1]{The routing signal is an internal state readout of a stalled closed loop.}};
+  \Footer{Robot-Whisper \quad $\bullet$ \quad HiMoE-VLA \quad $\bullet$ \quad LIBERO-10}
+\end{whisperslide}
+\end{frame}
