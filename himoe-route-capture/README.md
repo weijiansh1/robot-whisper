@@ -247,6 +247,7 @@ runner 立即 SIGTERM server；重启时三类 store 一起截到 artifact-confi
 |---|---|
 | `himoe_router_recorder.py` | router 档 hook：AS+HB、raw 概率、entropy、可选完整分布 |
 | `himoe_state_recorder.py` | 四层完整状态：router / block / per-expert / raw 分档 |
+| `himoe_functional_recorder.py` | request-gated HB 富状态 snapshot：单次 expert dispatch 后批量计算 authority / cancellation / disagreement / 16-D sketch，不重复执行 expert |
 | `himoe_route_store.py` | Zarr v3 + Zstd 读写（codec 按 dtype 分配，**不要开 bitshuffle**） |
 | `serve_with_recorder.py` | 挂 router recorder 的服务器 |
 | `serve_state.py` | 挂四层 recorder 的服务器（开销 4.3×，见报告） |
@@ -263,6 +264,8 @@ runner 立即 SIGTERM server；重启时三类 store 一起截到 artifact-confi
 | `run_behavior_micro_pilot.py` | 18-state candidate-only 小验证总控；资源门、A/B/C no-op gate、artifact-prefix 恢复、R48→全局 R96、最终决策 |
 | `capture_behavior_study.py`, `assemble_behavior_study.py` | v2 source-event/candidate/continuation 分阶段采集与 checksum assembly；screen/main/enriched 严格分池 |
 | `audit_candidate_capture_noop.py` | 部署 GPU 上验证 route/hidden/flow hooks 对 action 与 flow trajectory 逐位无扰动 |
+| `audit_functional_snapshot_noop.py` | 固定 observation/noise 的 A/B/C 部署 GPU 审计：未挂载、挂载但关闭、开启富状态 snapshot 三臂 action 必须逐位一致 |
+| `audit_functional_snapshot_multigpu.py` | checkpoint 只加载一次并依次迁移到指定 GPU；每张卡重复 functional snapshot A/B/C 硬门，避免逐卡重读 9.2 GB 权重 |
 | `analyze_routes.py` | 基础度量与 layout 对比 |
 | `analyze_controls.py` | 对照检验（随机基线、长度混淆） |
 | `analyze_decode.py` | 线性探针解码 + 置换零分布 |
@@ -317,6 +320,6 @@ runner 立即 SIGTERM server；重启时三类 store 一起截到 artifact-confi
   多一个键会打到策略上）。回归测试见 `test_episode_id.py`。
   **旧批次不受影响**，仍只能靠 `summaries.json` 的 `inference_calls` 累加切分。
   `control_step` 语义**故意没动**——`within64_lib.py:134` 依赖它全局连续来检测丢 chunk。
-- 四层档 4.3× 开销来自 268 个 per-expert hook 的逐次 `.norm()`（kernel launch 风暴），可优化。
+- 四层档 4.3× 开销来自 268 个 per-expert hook 的逐次 `.norm()`（kernel launch 风暴）。新采集应使用 `himoe_functional_recorder.py`：只在抽样 request 开启，在原 dispatch 中保留已计算的 selected outputs，并一次性做 norm/sketch；正式 rollout 开销仍需部署 GPU 审计。
 - `himoe_state_recorder.py` 的 `raw` 档从未在真实 rollout 上跑过。
 - `serve_ablated_router.py --mode uniform` 从未运行。

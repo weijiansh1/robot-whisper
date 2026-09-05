@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 
 from moe_grammar.corpus import DEFAULT_STASIS_LABELS, Corpus, Episode, corpus_summary, load_corpus
-from moe_grammar.features import build_query_descriptors
+from moe_grammar.features import build_clean_query_descriptors
 from moe_grammar.run_experiments import (
     ExperimentConfig,
     episode_rows,
@@ -243,6 +243,9 @@ def aggregate(records: list[dict[str, Any]], config: ExperimentConfig) -> dict[s
 def write_report(summary: dict[str, Any], output: Path) -> None:
     result = summary["grammar_existence"]
     primary = result["comparisons"]["task_position_context_vs_task_position"]
+    history1 = result["comparisons"]["task_position_context1_vs_task_position"]
+    history2 = result["comparisons"]["task_position_context_vs_task_position_context1"]
+    ordered_bag = result["comparisons"]["task_position_context_vs_task_position_bag_context"]
     interval = primary["crossed_state_seed_bootstrap_ci95"]
     if interval[1] < 0.0:
         judgment = "支持。历史在 task 与绝对 query 阶段之外仍有稳定预测增益。"
@@ -262,6 +265,12 @@ def write_report(summary: dict[str, Any], output: Path) -> None:
         f"- 16 个 crossed cells 中 `{primary['crossed_cells_negative']}/16` 个方向为改善；"
         f"cell effect 范围为 `[{primary['cell_effect_range'][0]:+.4f}, "
         f"{primary['cell_effect_range'][1]:+.4f}]`。",
+        f"- 分解后：一阶历史 `{history1['mean_left_minus_right']:+.4f}` bits/token，"
+        f"第二历史词增量 `{history2['mean_left_minus_right']:+.4f}`；ordered-2 相对 bag-2 为 "
+        f"`{ordered_bag['mean_left_minus_right']:+.4f}`，crossed 95% CI "
+        f"`[{ordered_bag['crossed_state_seed_bootstrap_ci95'][0]:+.4f}, "
+        f"{ordered_bag['crossed_state_seed_bootstrap_ci95'][1]:+.4f}]`，"
+        f"`{ordered_bag['crossed_cells_negative']}/16` cells 同方向。",
         "",
         "这是对共享 noise-seed ID 解释的泄漏审计，不是新数据集复现。词表 K=32、PCA=24 和语法"
         "超参数在审计前由主实验固定，因此本轮不重新调参。",
@@ -334,7 +343,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     print("Loading corpus and building ordered descriptors...", flush=True)
     corpus = load_corpus(args.features_dir, args.stasis_labels)
-    descriptor = build_query_descriptors(corpus.features)
+    descriptor = build_clean_query_descriptors(corpus.features, corpus.feature_names)
     states = np.asarray([episode.init_state_id for episode in corpus.episodes])
     seeds = np.asarray([episode.flow_noise_seed for episode in corpus.episodes])
     state_groups = axis_groups(states, config.folds, config.seed)

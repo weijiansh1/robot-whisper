@@ -119,6 +119,32 @@ def test_low_memory_loader_rejects_unavailable_cuda(
             pass
 
 
+def test_stage_tensor_chunks_dtype_conversion_without_changing_values() -> None:
+    source = torch.arange(32, dtype=torch.bfloat16).reshape(4, 8)
+
+    staged, copy_count = lowmem._stage_tensor(
+        source,
+        device=torch.device("cpu"),
+        dtype=torch.float32,
+        max_chunk_bytes=16,
+    )
+
+    assert copy_count == 8
+    assert staged.dtype == torch.float32
+    assert staged.untyped_storage().data_ptr() != source.untyped_storage().data_ptr()
+    torch.testing.assert_close(staged, source.float())
+
+
+def test_stage_tensor_rejects_nonpositive_chunk_size() -> None:
+    with pytest.raises(ValueError, match="must be positive"):
+        lowmem._stage_tensor(
+            torch.ones(2),
+            device=torch.device("cpu"),
+            dtype=torch.float32,
+            max_chunk_bytes=0,
+        )
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
 def test_meta_mmap_assign_stages_in_model_dtype_on_cuda(
     tmp_path, monkeypatch

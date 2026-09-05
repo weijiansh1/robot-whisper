@@ -35,7 +35,7 @@ class Episode:
 @dataclass
 class Corpus:
     features: np.ndarray
-    flow_shuffled_features: np.ndarray
+    flow_shuffled_features: np.ndarray | None
     behavior_features: np.ndarray
     feature_names: tuple[str, ...]
     behavior_feature_names: tuple[str, ...]
@@ -66,7 +66,15 @@ def _load_stasis_labels(path: Path | None) -> dict[tuple[int, int], tuple[bool, 
     }
 
 
-def load_corpus(feature_dir: Path, stasis_labels: Path | None = DEFAULT_STASIS_LABELS) -> Corpus:
+def load_corpus(
+    feature_dir: Path,
+    stasis_labels: Path | None = DEFAULT_STASIS_LABELS,
+    *,
+    allow_task_segments: bool = False,
+    require_flow_shuffled: bool = True,
+    require_stasis_labels: bool = True,
+    feature_dtype: type[np.floating] = np.float32,
+) -> Corpus:
     paths = sorted(feature_dir.glob("*.npz"))
     if not paths:
         raise FileNotFoundError(f"no extracted feature files in {feature_dir}")
@@ -81,15 +89,25 @@ def load_corpus(feature_dir: Path, stasis_labels: Path | None = DEFAULT_STASIS_L
     episodes: list[Episode] = []
     tasks: list[str] = []
     expected_feature_names = step_feature_names()
+    legacy_feature_names = (*expected_feature_names[:-1], "layer_disagreement")
+    loaded_feature_names: tuple[str, ...] | None = None
     behavior_names: tuple[str, ...] | None = None
+    task_to_index: dict[str, int] = {}
+    seen_episode_keys: set[tuple[str, int, int]] = set()
+    has_shuffled: bool | None = None
     query_offset = 0
 
-    for task_index, path in enumerate(paths):
+    for path in paths:
         with np.load(path, allow_pickle=False) as payload:
             metadata = json.loads(str(payload["metadata_json"].item()))
-            task = str(metadata["run_key"])
-            features = np.asarray(payload["features"], dtype=np.float32)
-            shuffled = np.asarray(payload["flow_shuffled_features"], dtype=np.float32)
+            task = str(metadata.get("task_key", metadata["run_key"]))
+            features = np.asarray(payload["features"], dtype=feature_dtype)
+            current_has_shuffled = "flow_shuffled_features" in payload
+            shuffled = (
+                np.asarray(payload["flow_shuffled_features"], dtype=feature_dtype)
+                if current_has_shuffled
+                else None
+            )
             behavior = np.asarray(payload["behavior_features"], dtype=np.float32)
             feature_names = tuple(str(item) for item in payload["feature_names"])
             local_episode = np.asarray(payload["episode_id"], dtype=np.int16)
@@ -98,19 +116,34 @@ def load_corpus(feature_dir: Path, stasis_labels: Path | None = DEFAULT_STASIS_L
             state = np.asarray(payload["init_state_id"], dtype=np.int16)
             noise_seed = np.asarray(payload["flow_noise_seed"], dtype=np.int16)
             current_behavior_names = tuple(str(item) for item in payload["behavior_feature_names"])
-        if feature_names != expected_feature_names:
+        if feature_names not in (expected_feature_names, legacy_feature_names):
             raise ValueError(f"feature schema mismatch in {path}")
-        if features.shape != shuffled.shape or len(features) != len(local_episode):
+        if loaded_feature_names is None:
+            loaded_feature_names = feature_names
+        elif feature_names != loaded_feature_names:
+            raise ValueError("cannot mix legacy and corrected routing feature schemas")
+        if len(features) != len(local_episode):
             raise ValueError(f"query-axis mismatch in {path}")
+        if shuffled is not None and features.shape != shuffled.shape:
+            raise ValueError(f"flow-shuffled shape mismatch in {path}")
+        if require_flow_shuffled and shuffled is None:
+            raise ValueError(f"flow-shuffled control missing in {path}")
+        if has_shuffled is None:
+            has_shuffled = current_has_shuffled
+        elif has_shuffled != current_has_shuffled:
+            raise ValueError("cannot mix feature files with and without flow-shuffled controls")
         if behavior.shape[0] != len(features):
             raise ValueError(f"behavior-axis mismatch in {path}")
         if behavior_names is None:
             behavior_names = current_behavior_names
         elif behavior_names != current_behavior_names:
             raise ValueError(f"behavior schema mismatch in {path}")
-        if task in tasks:
+        if task in task_to_index and not allow_task_segments:
             raise ValueError(f"duplicate task feature file for {task}")
-        tasks.append(task)
+        if task not in task_to_index:
+            task_to_index[task] = len(tasks)
+            tasks.append(task)
+        task_index = task_to_index[task]
 
         unique_episode, starts = np.unique(local_episode, return_index=True)
         if not np.array_equal(unique_episode, np.arange(len(unique_episode))):
@@ -132,11 +165,20 @@ def load_corpus(feature_dir: Path, stasis_labels: Path | None = DEFAULT_STASIS_L
             onset = -1
             if task == SCENE8_TASK:
                 key = (int(state[local_start]), int(noise_seed[local_start]))
-                if key not in stasis:
+                if require_stasis_labels and key not in stasis:
                     raise ValueError(f"missing scene8 stasis label for state/seed {key}")
-                included, candidate_onset = stasis[key]
-                if included and not bool(success[local_start]):
-                    onset = candidate_onset
+                if key in stasis:
+                    included, candidate_onset = stasis[key]
+                    if included and not bool(success[local_start]):
+                        onset = candidate_onset
+            episode_key = (
+                task,
+                int(state[local_start]),
+                int(noise_seed[local_start]),
+            )
+            if episode_key in seen_episode_keys:
+                raise ValueError(f"duplicate task/state/seed episode {episode_key}")
+            seen_episode_keys.add(episode_key)
             episodes.append(
                 Episode(
                     index=len(episodes),
@@ -153,9 +195,10 @@ def load_corpus(feature_dir: Path, stasis_labels: Path | None = DEFAULT_STASIS_L
             )
 
         feature_parts.append(features)
-        shuffled_parts.append(shuffled)
+        if shuffled is not None:
+            shuffled_parts.append(shuffled)
         behavior_parts.append(behavior)
-        task_parts.append(np.full(len(features), task_index, dtype=np.int8))
+        task_parts.append(np.full(len(features), task_index, dtype=np.int16))
         episode_parts.append(
             np.concatenate(
                 [
@@ -169,9 +212,11 @@ def load_corpus(feature_dir: Path, stasis_labels: Path | None = DEFAULT_STASIS_L
 
     corpus = Corpus(
         features=np.concatenate(feature_parts, axis=0),
-        flow_shuffled_features=np.concatenate(shuffled_parts, axis=0),
+        flow_shuffled_features=(
+            np.concatenate(shuffled_parts, axis=0) if shuffled_parts else None
+        ),
         behavior_features=np.concatenate(behavior_parts, axis=0),
-        feature_names=expected_feature_names,
+        feature_names=loaded_feature_names or expected_feature_names,
         behavior_feature_names=behavior_names or (),
         query_task_index=np.concatenate(task_parts),
         query_episode_index=np.concatenate(episode_parts),

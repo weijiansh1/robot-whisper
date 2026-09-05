@@ -5,8 +5,9 @@
 - **跨 query 有序性：支持。** 真实顺序相对 query-shuffle 的 NLL 差为 `-5.4415` bits/token，state-blocked 单侧 `p=3.052e-05`。
 - **顺序相对词袋：支持。** PST 相对 bag-context 的 NLL 差为 `-0.0747` bits/token，`p=0.0003204`。
 - **相对绝对 query 时钟：支持。** PST 相对 position-only baseline 的 NLL 差为 `-1.3492` bits/token，`p=3.052e-05`。
-- **任务与阶段之后的历史增益：支持。** task-position+history 相对 task-position 的 NLL 差为 `-0.1082` bits/token，95% CI `[-0.1397, -0.0764]`，单侧 `p=3.052e-05`。
-- **阶段条件的早期失败监控：不支持。** q7/q12 的 task-phase+history 相对 task-phase AUC 增量分别为 `-0.0008`/`-0.0002`；健康预测增益没有转化成早期失败区分。
+- **任务与阶段之后的历史增益：支持。** task-position+history 相对 task-position 的 NLL 差为 `-0.1229` bits/token，95% CI `[-0.1510, -0.0956]`，单侧 `p=3.052e-05`。
+- **历史结构分解：顺序增量支持。** 前一词贡献 `-0.0785` bits/token；加入第二个历史词再贡献 `-0.0444`；ordered-2 相对 bag-2 额外贡献 `-0.0052`，95% CI `[-0.0096, -0.0016]`。
+- **阶段条件的早期失败监控：不支持。** q7/q12 的 task-phase+history 相对 task-phase AUC 增量分别为 `-0.0005`/`+0.0002`；健康预测增益没有转化成早期失败区分。
 - **query 内 flow 顺序：支持。** 真实 flow 相对重算后的 flow-shuffle lexical NLL 差为 `-138.2808` nats/query，`p=3.052e-05`；平均 word 改变率 `92.6%`。
 - **duration 增益：不支持。** PST+duration 相对 PST 的差为 `0.0378` bits/token。
 
@@ -26,7 +27,9 @@ Tokenizer、PCA、GMM、grammar 只看训练 state 的成功 episode；词表大
 |---|---:|
 | unigram | 4.8547 |
 | position | 2.7543 |
-| position_context | 1.3981 |
+| position_context1 | 1.4697 |
+| position_bag_context | 1.4382 |
+| position_context | 1.4353 |
 | bigram | 1.8407 |
 | markov4 | 1.3784 |
 | bag6 | 1.4883 |
@@ -34,11 +37,13 @@ Tokenizer、PCA、GMM、grammar 只看训练 state 的成功 episode；词表大
 | pst6_duration | 1.4500 |
 | task_unigram | 3.0096 |
 | task_position | 1.1783 |
-| task_position_context | 1.0707 |
+| task_position_context1 | 1.1003 |
+| task_position_bag_context | 1.0607 |
+| task_position_context | 1.0558 |
 | task_pst6 | 1.2191 |
 
 task-conditioned 项使用任务标签，只是检查任务异质性的 oracle control，不属于严格 MoE-only 在线模型。
-`position_context` 是严格嵌套对照：先给定绝对位置，再只用同一位置内的最近历史更新；`task_position_context` 进一步给定任务标签。后者是本轮判断 history 是否超出任务阶段时钟的主检验。
+`position_context` 是严格嵌套对照：先给定绝对位置，再只用同一位置内的最近历史更新；`task_position_context` 进一步给定任务标签。`context1`、`bag_context`、`context` 依次区分一阶历史、无序二词集合与有序二词历史。
 
 ## 固定前缀失败区分
 
@@ -68,21 +73,21 @@ task-conditioned 项使用任务标签，只是检查任务异质性的 oracle c
 
 | horizon | phase | phase+history | residual | task+phase | task+phase+history | task residual |
 |---:|---:|---:|---:|---:|---:|---:|
-| 7 | 0.613 | 0.618 | 0.515 | 0.618 | 0.618 | 0.496 |
-| 12 | 0.550 | 0.549 | 0.562 | 0.544 | 0.543 | 0.548 |
-| 20 | 0.504 | 0.501 | 0.563 | 0.502 | 0.493 | 0.565 |
-| 27 | 0.505 | 0.502 | 0.627 | 0.503 | 0.502 | 0.491 |
-| 34 | 0.618 | 0.632 | 0.774 | 0.624 | 0.626 | 0.733 |
+| 7 | 0.613 | 0.617 | 0.519 | 0.618 | 0.618 | 0.452 |
+| 12 | 0.550 | 0.549 | 0.557 | 0.544 | 0.544 | 0.549 |
+| 20 | 0.504 | 0.500 | 0.564 | 0.502 | 0.499 | 0.566 |
+| 27 | 0.505 | 0.502 | 0.625 | 0.503 | 0.502 | 0.497 |
+| 34 | 0.618 | 0.632 | 0.776 | 0.624 | 0.630 | 0.741 |
 
 history 模型相对 phase baseline 的 AUC 增量（state-blocked 95% CI）：
 
 | horizon | phase+history - phase | task phase+history - task phase | task residual - task phase |
 |---:|---:|---:|---:|
-| 7 | +0.005 [+0.000, +0.010] | -0.001 [-0.006, +0.003] | -0.123 [-0.195, -0.053] |
-| 12 | -0.001 [-0.010, +0.006] | -0.000 [-0.004, +0.004] | +0.005 [-0.049, +0.059] |
-| 20 | -0.003 [-0.027, +0.024] | -0.009 [-0.022, +0.002] | +0.063 [-0.038, +0.185] |
-| 27 | -0.003 [-0.015, +0.007] | -0.001 [-0.005, +0.000] | -0.012 [-0.094, +0.059] |
-| 34 | +0.015 [+0.002, +0.035] | +0.002 [-0.009, +0.013] | +0.109 [+0.004, +0.215] |
+| 7 | +0.004 [-0.000, +0.009] | -0.001 [-0.005, +0.003] | -0.166 [-0.280, -0.067] |
+| 12 | -0.001 [-0.008, +0.006] | +0.000 [-0.004, +0.004] | +0.006 [-0.050, +0.060] |
+| 20 | -0.003 [-0.027, +0.023] | -0.004 [-0.017, +0.008] | +0.064 [-0.038, +0.186] |
+| 27 | -0.003 [-0.015, +0.007] | -0.001 [-0.005, +0.000] | -0.006 [-0.094, +0.074] |
+| 34 | +0.014 [+0.002, +0.033] | +0.005 [-0.000, +0.014] | +0.117 [+0.018, +0.217] |
 
 ## Episode 误报与 scene8 停滞
 
@@ -102,11 +107,11 @@ scene8 事件比较使用 scene8 成功 calibration 重新标定 CDF/阈值；�
 | 方法 | scene8 健康 FPR | onset 前召回 | onset+3 召回 |
 |---|---:|---:|---:|
 | phase | 0.084 | 0.127 | 0.127 |
-| phase_history | 0.084 | 0.102 | 0.117 |
+| phase_history | 0.084 | 0.102 | 0.107 |
 | phase_residual | 0.074 | 0.066 | 0.112 |
 | task_phase | 0.068 | 0.091 | 0.096 |
 | task_phase_history | 0.078 | 0.096 | 0.102 |
-| task_phase_residual | 0.061 | 0.091 | 0.162 |
+| task_phase_residual | 0.061 | 0.086 | 0.157 |
 
 全局 calibration 下的 scene8 onset 前召回分别为：single=0.010, bag=0.020, ordered=0.020, ordered_duration=0.066, behavior=0.467。
 
@@ -128,6 +133,8 @@ scene8 事件比较使用 scene8 成功 calibration 重新标定 CDF/阈值；�
 - `Fl` 是跨 query 或 flow 的 entropy 趋势，`Sy` 是 L15/f9 的 Top-4 支持同步；报告分别计算，不会把它们硬编码成互斥的 `Fl Fl Sy Sy`。
 - 较晚 horizon 会有 survivor/episode-length 选择，尤其 t27/t34 只能解释为晚期读数。
 - 主实验 split 阻断了 task/init-state root siblings；独立的 state+seed 双轴留出结果由 `run_dual_axis_audit` 生成，不能用主实验的全样本覆盖数字替代。
+- history-1/bag-2/ordered-2 分解是在阶段条件主结果后设计的探索性消融；双轴审计仍使用同一语料，不是独立数据复现。
+- 独立的 leave-one-task-out 审计不支持零样本 task-invariant history 模型；任务内条件结构不能直接外推成跨任务共享语法。
 - scaler/PCA/GMM 按健康 query 拟合，较长的 scene8 成功轨迹会贡献更多 tokenizer 权重；held-out NLL 汇总则以 episode 为单位。
 - behavior baseline 和相关性用于检查信号是否只是动作/物理停滞的读出；本实验不能给出路由因果结论。
 - 当前数据没有可靠的 loop/static/mixed 分类和延长 timeout rollout，因而不评价 `<END>` 延长策略、候选选择或训练时正则化。

@@ -21,7 +21,7 @@ from moe_grammar.corpus import (
     load_corpus,
     make_state_folds,
 )
-from moe_grammar.features import build_query_descriptors
+from moe_grammar.features import build_clean_query_descriptors, global_metric_column
 from moe_grammar.grammar import (
     CountGrammar,
     DurationGrammar,
@@ -922,7 +922,7 @@ def word_prototypes(
         - metric(features, "top4_token_consensus")[:, :3].mean(axis=1),
         "late_effective_rank": metric(features, "effective_rank")[:, 7:].mean(axis=1),
         "mean_switch": metric(features, "flow_top4_switch")[:, 1:].mean(axis=1),
-        "late_layer_disagreement": features[:, 7:, names.index("layer_disagreement")].mean(axis=1),
+        "late_layer_disagreement": features[:, 7:, global_metric_column(names)].mean(axis=1),
         "terminal_l15_sync": features[:, 9, names.index("top4_token_consensus|layer_7")],
         "terminal_l15_effective_rank": features[:, 9, names.index("effective_rank|layer_7")],
     }
@@ -1046,6 +1046,9 @@ def write_report(summary: dict[str, Any], path: Path) -> None:
     phenotype = summary["phenotype"]
     conditional_test = tests["task_position_context_vs_task_position"]
     conditional_ci = conditional_test["ci95"]
+    history1_test = tests["task_position_context1_vs_task_position"]
+    history2_test = tests["task_position_context_vs_task_position_context1"]
+    ordered_bag_test = tests["task_position_context_vs_task_position_bag_context"]
     conditional_supported = (
         conditional_test["mean_left_minus_right"] < 0.0
         and conditional_test["one_sided_p_left_less"] < 0.05
@@ -1083,6 +1086,11 @@ def write_report(summary: dict[str, Any], path: Path) -> None:
         f"`{conditional_test['mean_left_minus_right']:.4f}` bits/token，"
         f"95% CI `[{conditional_ci[0]:.4f}, {conditional_ci[1]:.4f}]`，"
         f"单侧 `p={conditional_test['one_sided_p_left_less']:.4g}`。",
+        f"- **历史结构分解：顺序增量{conclusion_label(ordered_bag_test)}。** "
+        f"前一词贡献 `{history1_test['mean_left_minus_right']:.4f}` bits/token；"
+        f"加入第二个历史词再贡献 `{history2_test['mean_left_minus_right']:.4f}`；"
+        f"ordered-2 相对 bag-2 额外贡献 `{ordered_bag_test['mean_left_minus_right']:.4f}`，"
+        f"95% CI `[{ordered_bag_test['ci95'][0]:.4f}, {ordered_bag_test['ci95'][1]:.4f}]`。",
         "- **阶段条件的早期失败监控：不支持。** q7/q12 的 task-phase+history 相对 "
         f"task-phase AUC 增量分别为 "
         f"`{fixed['7']['auc_improvements']['task_phase_history_minus_task_phase']['auc_left_minus_right']:+.4f}`/"
@@ -1122,6 +1130,8 @@ def write_report(summary: dict[str, Any], path: Path) -> None:
     model_order = (
         "unigram",
         "position",
+        "position_context1",
+        "position_bag_context",
         "position_context",
         "bigram",
         "markov4",
@@ -1130,6 +1140,8 @@ def write_report(summary: dict[str, Any], path: Path) -> None:
         "pst6_duration",
         "task_unigram",
         "task_position",
+        "task_position_context1",
+        "task_position_bag_context",
         "task_position_context",
         "task_pst6",
     )
@@ -1141,7 +1153,8 @@ def write_report(summary: dict[str, Any], path: Path) -> None:
             "",
             "task-conditioned 项使用任务标签，只是检查任务异质性的 oracle control，不属于严格 MoE-only 在线模型。",
             "`position_context` 是严格嵌套对照：先给定绝对位置，再只用同一位置内的最近历史更新；"
-            "`task_position_context` 进一步给定任务标签。后者是本轮判断 history 是否超出任务阶段时钟的主检验。",
+            "`task_position_context` 进一步给定任务标签。`context1`、`bag_context`、`context` "
+            "依次区分一阶历史、无序二词集合与有序二词历史。",
             "",
             "## 固定前缀失败区分",
             "",
@@ -1323,6 +1336,10 @@ def write_report(summary: dict[str, Any], path: Path) -> None:
             "- 较晚 horizon 会有 survivor/episode-length 选择，尤其 t27/t34 只能解释为晚期读数。",
             "- 主实验 split 阻断了 task/init-state root siblings；独立的 state+seed 双轴留出结果由"
             " `run_dual_axis_audit` 生成，不能用主实验的全样本覆盖数字替代。",
+            "- history-1/bag-2/ordered-2 分解是在阶段条件主结果后设计的探索性消融；"
+            "双轴审计仍使用同一语料，不是独立数据复现。",
+            "- 独立的 leave-one-task-out 审计不支持零样本 task-invariant history 模型；"
+            "任务内条件结构不能直接外推成跨任务共享语法。",
             "- scaler/PCA/GMM 按健康 query 拟合，较长的 scene8 成功轨迹会贡献更多 tokenizer 权重；"
             "held-out NLL 汇总则以 episode 为单位。",
             "- behavior baseline 和相关性用于检查信号是否只是动作/物理停滞的读出；本实验不能给出路由因果结论。",
@@ -1351,8 +1368,10 @@ def main() -> None:
         flush=True,
     )
     print("Building 2,187-D ordered descriptors...", flush=True)
-    descriptor = build_query_descriptors(corpus.features)
-    flow_descriptor = build_query_descriptors(corpus.flow_shuffled_features)
+    descriptor = build_clean_query_descriptors(corpus.features, corpus.feature_names)
+    flow_descriptor = build_clean_query_descriptors(
+        corpus.flow_shuffled_features, corpus.feature_names
+    )
     folds = make_state_folds(
         np.asarray([episode.init_state_id for episode in corpus.episodes]),
         config.folds,
@@ -1532,7 +1551,9 @@ def main() -> None:
             "All tokenizer and grammar fits use successful train-state episodes only.",
             "Vocabulary size is selected on successful calibration-state episodes only.",
             "All reported predictions are cross-fitted on unseen init states.",
-            "Noise-seed IDs recur across independent init states; this is not a dual-axis holdout.",
+            "The main experiment is state-held-out; a separate crossed state+seed audit is reported.",
+            "History-order ablations are iterative analyses on the same corpus, not independent replication.",
+            "A separate leave-one-task-out audit tests zero-shot task transfer.",
             "Tokenizer fitting is query-weighted, so longer healthy episodes contribute more rows.",
             "Outcome discrimination is associative, not evidence that MoE causes failure.",
             "t27/t34 are late readouts subject to survivor selection.",

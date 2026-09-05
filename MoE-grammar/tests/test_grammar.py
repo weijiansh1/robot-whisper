@@ -8,6 +8,7 @@ from moe_grammar.grammar import (
     PositionGrammar,
 )
 from moe_grammar.run_dual_axis_audit import axis_groups, crossed_cluster_interval
+from moe_grammar.run_task_holdout_audit import task_bootstrap_interval
 from moe_grammar.statistics import auc_pairwise, cusum, empirical_percentile, stratified_pair_auc
 
 
@@ -100,3 +101,8 @@ def test_dual_axis_groups_and_interval() -> None:
     second = np.tile(np.arange(4), 4)
     interval = crossed_cluster_interval(values, first, second, draws=100, seed=7)
     np.testing.assert_allclose(interval, (-0.25, -0.25))
+
+
+def test_task_bootstrap_interval() -> None:
+    interval = task_bootstrap_interval(np.full(5, -0.1), draws=100, seed=7)
+    np.testing.assert_allclose(interval, (-0.1, -0.1))

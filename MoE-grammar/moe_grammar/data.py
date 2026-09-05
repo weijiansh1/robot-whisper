@@ -18,17 +18,23 @@ class RunSpec:
     key: str
     suite: str
     task: str
+    run_id: str
     path: Path
     summaries: tuple[dict[str, Any], ...]
 
     @property
     def output_stem(self) -> str:
-        value = re.sub(r"[^A-Za-z0-9_.-]+", "__", self.key)
+        value = self.key if self.run_id == RUN_ID else f"{self.key}__run__{self.run_id}"
+        value = re.sub(r"[^A-Za-z0-9_.-]+", "__", value)
         return value.strip("_.-")
 
 
-def discover_runs(hub: Path = DEFAULT_HUB, run_id: str = RUN_ID) -> list[RunSpec]:
-    root = hub / "cache" / "HiMoE-VLA"
+def discover_runs(
+    hub: Path = DEFAULT_HUB,
+    run_id: str = RUN_ID,
+    cache_name: str = "cache",
+) -> list[RunSpec]:
+    root = hub / cache_name / "HiMoE-VLA"
     paths = sorted(root.glob(f"*/*/{run_id}"))
     runs: list[RunSpec] = []
     for path in paths:
@@ -49,6 +55,7 @@ def discover_runs(hub: Path = DEFAULT_HUB, run_id: str = RUN_ID) -> list[RunSpec
                 key=f"{suite}/{task}",
                 suite=suite,
                 task=task,
+                run_id=path.name,
                 path=path,
                 summaries=tuple(rows),
             )

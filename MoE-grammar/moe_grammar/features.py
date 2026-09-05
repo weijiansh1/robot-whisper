@@ -24,13 +24,45 @@ LAYER_METRICS = (
     "flow_top4_switch",
     "flow_acceleration",
 )
-GLOBAL_METRICS = ("layer_disagreement",)
+GLOBAL_METRICS = ("layer_profile_disagreement",)
+
+LEVEL_METRICS = (
+    "entropy",
+    "margin",
+    "top1_mass",
+    "top4_mass",
+    "soft_token_consensus",
+    "top4_token_consensus",
+    "effective_rank",
+)
+NATIVE_DYNAMICS_METRICS = (
+    "flow_velocity",
+    "flow_top4_switch",
+    "flow_acceleration",
+)
+
+
+LEGACY_GLOBAL_METRIC = "layer_disagreement"
 
 
 def step_feature_names() -> tuple[str, ...]:
     names = [f"{metric}|layer_{layer}" for metric in LAYER_METRICS for layer in range(N_LAYERS)]
     names.extend(GLOBAL_METRICS)
     return tuple(names)
+
+
+def global_metric_column(names: Sequence[str]) -> int:
+    """Resolve the cross-layer disagreement column in corrected or legacy artifacts.
+
+    Legacy artifacts store the permutation-dependent ``layer_disagreement`` in the same
+    slot. Callers that only need the column position may accept either, but numeric
+    comparisons across the two schemas are not meaningful.
+    """
+    names = list(names)
+    for candidate in (GLOBAL_METRICS[0], LEGACY_GLOBAL_METRIC):
+        if candidate in names:
+            return names.index(candidate)
+    raise ValueError("feature names contain no cross-layer disagreement column")
 
 
 def descriptor_feature_names(names: Sequence[str] | None = None) -> tuple[str, ...]:
@@ -43,7 +75,11 @@ def descriptor_feature_names(names: Sequence[str] | None = None) -> tuple[str, .
 
 
 def build_query_descriptors(features: np.ndarray) -> np.ndarray:
-    """Convert [query, flow, track] chords into ordered query words."""
+    """Reproduce the original 2,187-D descriptor used by the GMM/PST audit.
+
+    This legacy representation differentiates native velocity and acceleration
+    tracks again. New experiments should use ``build_clean_query_descriptors``.
+    """
     values = np.asarray(features, dtype=np.float32)
     if values.ndim != 3 or values.shape[1:] != (N_FLOW, len(step_feature_names())):
         raise ValueError(f"expected [N,{N_FLOW},{len(step_feature_names())}], got {values.shape}")
@@ -57,6 +93,52 @@ def build_query_descriptors(features: np.ndarray) -> np.ndarray:
         ],
         axis=1,
     ).astype(np.float32, copy=False)
+
+
+def clean_descriptor_feature_names(
+    names: Sequence[str] | None = None,
+) -> tuple[str, ...]:
+    names = tuple(names or step_feature_names())
+    output: list[str] = []
+    bins = ("early", "middle", "late")
+    for name in names:
+        metric = name.split("|", 1)[0]
+        output.extend(f"{flow_bin}|{name}" for flow_bin in bins)
+        if metric in LEVEL_METRICS or metric == GLOBAL_METRICS[0]:
+            output.append(f"flow_slope|{name}")
+    return tuple(output)
+
+
+def build_clean_query_descriptors(
+    features: np.ndarray,
+    names: Sequence[str] | None = None,
+) -> np.ndarray:
+    """Summarize flow curves without applying derivatives to native dynamics."""
+
+    values = np.asarray(features, dtype=np.float32)
+    names = tuple(names or step_feature_names())
+    if values.ndim != 3 or values.shape[1:] != (N_FLOW, len(names)):
+        raise ValueError(f"expected [N,{N_FLOW},{len(names)}], got {values.shape}")
+    time = np.arange(N_FLOW, dtype=np.float32)
+    time -= time.mean()
+    denominator = np.square(time).sum()
+    parts: list[np.ndarray] = []
+    for column, name in enumerate(names):
+        curve = values[:, :, column]
+        parts.extend(
+            [
+                curve[:, :3].mean(axis=1),
+                curve[:, 3:7].mean(axis=1),
+                curve[:, 7:].mean(axis=1),
+            ]
+        )
+        metric = name.split("|", 1)[0]
+        if metric in LEVEL_METRICS or metric == GLOBAL_METRICS[0]:
+            parts.append((curve * time[None, :]).sum(axis=1) / denominator)
+    result = np.column_stack(parts).astype(np.float32, copy=False)
+    if result.shape[1] != len(clean_descriptor_feature_names(names)):
+        raise AssertionError("clean descriptor name and value shapes differ")
+    return result
 
 
 def deterministic_flow_permutations(count: int, seed: int, row_offset: int = 0) -> np.ndarray:
@@ -157,11 +239,6 @@ def extract_multitrack_features(
     acceleration = torch.zeros_like(entropy)
     acceleration[:, :, 1:-1] = torch.linalg.vector_norm(second_difference, dim=-1).mean(dim=-1)
 
-    layer_mean = probability.mean(dim=-2).permute(0, 2, 1, 3)
-    sqrt_layer_mean = torch.sqrt(layer_mean)
-    layer_bc = sqrt_layer_mean @ sqrt_layer_mean.transpose(-1, -2)
-    layer_disagreement = _mean_upper_triangle(_hellinger_from_bhattacharyya(layer_bc))
-
     layer_metrics = (
         entropy,
         margin,
@@ -174,8 +251,12 @@ def extract_multitrack_features(
         flow_support_switch,
         acceleration,
     )
+    # Expert identities are independently permutable in every layer. Compare layers
+    # through invariant scalar profiles rather than aligning equal numeric IDs.
+    invariant_profile = torch.stack(layer_metrics[:7], dim=-1)
+    layer_profile_disagreement = invariant_profile.std(dim=1, unbiased=False).mean(dim=-1)
     flattened = [metric.permute(0, 2, 1) for metric in layer_metrics]
-    flattened.append(layer_disagreement.unsqueeze(-1))
+    flattened.append(layer_profile_disagreement.unsqueeze(-1))
     result = torch.cat(flattened, dim=-1)
     if result.shape[1:] != (N_FLOW, len(step_feature_names())):
         raise AssertionError(f"internal feature shape mismatch: {tuple(result.shape)}")

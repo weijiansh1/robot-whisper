@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import os
 import pathlib
 import sys
 from typing import Any, Iterator
@@ -24,6 +25,7 @@ _META_BUFFER_NAMES = {
     "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
     "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
 }
+_STAGING_CHUNK_BYTES = 64 * 1024 * 1024
 
 
 @dataclasses.dataclass
@@ -39,6 +41,8 @@ class LowMemoryLoadAudit:
     logical_tensor_bytes: int = 0
     target_tensor_bytes: int = 0
     staged_tensor_count: int = 0
+    chunked_tensor_count: int = 0
+    staging_copy_count: int = 0
     aliased_tensor_count: int = 0
     reconstructed_buffers: tuple[str, ...] = ()
     _model: Any = dataclasses.field(default=None, repr=False)
@@ -78,6 +82,9 @@ class LowMemoryLoadAudit:
             "logical_tensor_bytes": self.logical_tensor_bytes,
             "target_tensor_bytes": self.target_tensor_bytes,
             "staged_tensor_count": self.staged_tensor_count,
+            "staging_chunk_bytes": _STAGING_CHUNK_BYTES,
+            "chunked_tensor_count": self.chunked_tensor_count,
+            "staging_copy_count": self.staging_copy_count,
             "aliased_tensor_count": self.aliased_tensor_count,
             "reconstructed_nonpersistent_buffers": list(self.reconstructed_buffers),
         }
@@ -141,6 +148,48 @@ def _training_config(upstream_root: pathlib.Path, name: str) -> Any:
     from moevla.training import config
 
     return config.get_training_config(name)
+
+
+def _stage_tensor(
+    value: Any,
+    *,
+    device: Any,
+    dtype: Any,
+    max_chunk_bytes: int = _STAGING_CHUNK_BYTES,
+) -> tuple[Any, int]:
+    """Copy a contiguous tensor without faulting its whole mmap into RAM."""
+    import torch
+
+    if max_chunk_bytes <= 0:
+        raise ValueError("max_chunk_bytes must be positive")
+    source_bytes = value.numel() * value.element_size()
+    if not value.is_contiguous() or source_bytes <= max_chunk_bytes:
+        return value.to(device=device, dtype=dtype, non_blocking=False), 1
+
+    target = torch.empty(value.shape, device=device, dtype=dtype)
+    source_flat = value.view(-1)
+    target_flat = target.view(-1)
+    bytes_per_element = max(value.element_size(), target.element_size())
+    chunk_elements = max(1, max_chunk_bytes // bytes_per_element)
+    copy_count = 0
+    for start in range(0, value.numel(), chunk_elements):
+        stop = min(start + chunk_elements, value.numel())
+        target_flat[start:stop].copy_(source_flat[start:stop], non_blocking=False)
+        copy_count += 1
+    return target, copy_count
+
+
+def _evict_checkpoint_pages(weights: pathlib.Path) -> None:
+    try:
+        with weights.open("rb") as stream:
+            os.posix_fadvise(
+                stream.fileno(),
+                0,
+                0,
+                os.POSIX_FADV_DONTNEED,
+            )
+    except (AttributeError, OSError):
+        pass
 
 
 @contextlib.contextmanager
@@ -275,12 +324,14 @@ def low_memory_himoe_load(
                         "checkpoint shape mismatch for %s: expected %s, got %s"
                         % (name, expected_shape, tuple(value.shape))
                     )
-                state[name] = value.to(
+                state[name], copy_count = _stage_tensor(
+                    value,
                     device=device,
                     dtype=expected_dtype,
-                    non_blocking=False,
                 )
                 audit.staged_tensor_count += 1
+                audit.staging_copy_count += copy_count
+                audit.chunked_tensor_count += int(copy_count > 1)
             audit.target_tensor_bytes = sum(
                 value.numel() * value.element_size() for value in state.values()
             )
@@ -288,8 +339,12 @@ def low_memory_himoe_load(
             audit.target_tensor_bytes = audit.logical_tensor_bytes
         return state
 
-    with mock.patch.object(model_config, "create", create_meta_model), mock.patch.object(
-        torch, "load", mmap_load
-    ):
-        yield audit
-    audit.validate_complete()
+    try:
+        with mock.patch.object(model_config, "create", create_meta_model), mock.patch.object(
+            torch, "load", mmap_load
+        ):
+            yield audit
+        audit.validate_complete()
+    finally:
+        if device.type == "cuda":
+            _evict_checkpoint_pages(weights)
