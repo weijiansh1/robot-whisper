@@ -112,18 +112,135 @@ class CountGrammar:
         probability = priors[np.arange(len(targets)), targets]
         return -np.log(np.maximum(probability, 1e-300)), depths
 
-    def continuous_nll(
+    def _marginalized_nll(
+        self, word_prior: np.ndarray, component_log_likelihood: np.ndarray
+    ) -> np.ndarray:
+        word_prior = word_prior / np.maximum(word_prior.sum(axis=1, keepdims=True), 1e-300)
+        log_probability = np.log(np.maximum(word_prior, 1e-300))
+        return -logsumexp(log_probability + component_log_likelihood, axis=1)
+
+    def _check_emission(
         self, sequence: np.ndarray, component_log_likelihood: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> None:
         if len(sequence) != len(component_log_likelihood):
             raise ValueError("sequence and emission lengths differ")
         if component_log_likelihood.shape[1] != self.vocabulary_size - 1:
             raise ValueError("emission vocabulary does not match grammar")
+
+    def continuous_nll(
+        self, sequence: np.ndarray, component_log_likelihood: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        self._check_emission(sequence, component_log_likelihood)
         priors, depths = self.priors(sequence, include_end=False)
-        word_prior = priors[:, :-1]
-        word_prior /= np.maximum(word_prior.sum(axis=1, keepdims=True), 1e-300)
-        log_probability = np.log(np.maximum(word_prior, 1e-300))
-        return -logsumexp(log_probability + component_log_likelihood, axis=1), depths
+        return self._marginalized_nll(priors[:, :-1], component_log_likelihood), depths
+
+    def continuous_nll_components(
+        self, sequence: np.ndarray, component_log_likelihood: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Split context surprisal into a lexical part and an order residual.
+
+        Returns ``(context_nll, lexical_nll, order_residual, depths)``. The residual
+        isolates "this word is unlikely *here*" from "this word is unlikely at all",
+        which the pooled context NLL conflates.
+        """
+        self._check_emission(sequence, component_log_likelihood)
+        priors, depths = self.priors(sequence, include_end=False)
+        context = self._marginalized_nll(priors[:, :-1], component_log_likelihood)
+        root = np.repeat(
+            self._smoothed(self.counts[0][()])[None, :-1], len(component_log_likelihood), axis=0
+        )
+        lexical = self._marginalized_nll(root, component_log_likelihood)
+        return context, lexical, context - lexical, depths
+
+    def end_hitting_table(self, horizon: int) -> np.ndarray:
+        """Return ``P(END within `horizon` | last word = w)`` for every word.
+
+        Uses the first-order slice of the grammar so the whole corpus can be scored by
+        table lookup; the exact variable-order version is
+        :meth:`end_hitting_probability`, which is far too slow per query.
+        """
+        if horizon < 1:
+            raise ValueError("horizon must be positive")
+        words = self.vocabulary_size - 1
+        transition = np.empty((words, self.vocabulary_size), dtype=np.float64)
+        for word in range(words):
+            transition[word] = self.distribution([word])[0]
+        reach = transition[:, self.end_token].copy()
+        for _ in range(horizon - 1):
+            reach = transition[:, self.end_token] + transition[:, :words] @ reach
+        return np.clip(reach, 0.0, 1.0)
+
+    def end_hitting_probability(
+        self, history: list[int] | np.ndarray, horizon: int, draws: int = 256, seed: int = 0
+    ) -> float:
+        """Estimate ``P(END within `horizon` steps | history)`` by ancestral sampling.
+
+        Distinguishes a genuinely ill-formed prefix from a healthy sentence that simply
+        has not finished yet, which the next-token NLL alone cannot separate.
+        """
+        if horizon < 1:
+            raise ValueError("horizon must be positive")
+        rng = np.random.default_rng(seed)
+        context = [int(value) for value in history]
+        hits = 0
+        for draw in range(draws):
+            rollout = list(context)
+            for _ in range(horizon):
+                prior, _, _ = self.distribution(rollout)
+                token = int(rng.choice(self.vocabulary_size, p=prior / prior.sum()))
+                if token == self.end_token:
+                    hits += 1
+                    break
+                rollout.append(token)
+        return hits / draws
+
+
+@dataclass
+class LagRecurrenceModel:
+    """Score periodic word patterns that exact-run duration statistics cannot see.
+
+    ``DurationModel`` only accumulates while the word is unchanged, so ``A B A B A B``
+    looks like six length-one runs. This model compares each position against lags
+    ``1..max_lag`` and scores the observed recurrence pattern against healthy rates.
+    """
+
+    n_words: int
+    max_lag: int = 4
+    alpha: float = 0.5
+
+    def fit(self, sequences: list[np.ndarray]) -> "LagRecurrenceModel":
+        if self.max_lag < 1:
+            raise ValueError("max_lag must be positive")
+        matches = np.zeros(self.max_lag, dtype=np.int64)
+        eligible = np.zeros(self.max_lag, dtype=np.int64)
+        for sequence in sequences:
+            values = np.asarray(sequence, dtype=np.int64)
+            for lag in range(1, self.max_lag + 1):
+                if len(values) <= lag:
+                    continue
+                eligible[lag - 1] += len(values) - lag
+                matches[lag - 1] += int(np.sum(values[lag:] == values[:-lag]))
+        self.rate_ = (matches + self.alpha) / (eligible + 2.0 * self.alpha)
+        return self
+
+    def surprisal(self, sequence: np.ndarray) -> np.ndarray:
+        """Return the healthy surprisal of each position's lag-recurrence pattern."""
+        if not hasattr(self, "rate_"):
+            raise ValueError("model must be fitted before scoring")
+        values = np.asarray(sequence, dtype=np.int64)
+        output = np.zeros(len(values), dtype=np.float64)
+        for lag in range(1, self.max_lag + 1):
+            if len(values) <= lag:
+                break
+            rate = float(self.rate_[lag - 1])
+            hit = values[lag:] == values[:-lag]
+            cost = np.where(
+                hit,
+                -np.log(max(rate, 1e-300)),
+                -np.log(max(1.0 - rate, 1e-300)),
+            )
+            output[lag:] += cost
+        return output
 
 
 @dataclass
@@ -177,6 +294,18 @@ class PositionGrammar:
             targets = np.r_[targets, self.end_token]
         priors, depths = self.priors(sequence, include_end)
         return -np.log(np.maximum(priors[np.arange(len(targets)), targets], 1e-300)), depths
+
+    def unigram_continuous_nll(self, component_log_likelihood: np.ndarray) -> np.ndarray:
+        """Word cost with neither clock nor history: the audit's lexical baseline.
+
+        Subtracting this from a context-conditioned score isolates "this word is odd
+        *here*" from "this word is odd at all". The existing ``history - phase``
+        residual measures something different: history relative to the clock.
+        """
+        prior = self._smoothed(self.root_counts)[:-1]
+        prior = prior / max(prior.sum(), 1e-300)
+        log_prior = np.log(np.maximum(prior, 1e-300))
+        return -logsumexp(log_prior[None, :] + component_log_likelihood, axis=1)
 
     def continuous_nll(
         self, sequence: np.ndarray, component_log_likelihood: np.ndarray
@@ -322,6 +451,45 @@ class PositionContextGrammar:
             axis=1,
         )
         return value, depths
+
+    def beam_continuous_nll(
+        self,
+        component_log_likelihood: np.ndarray,
+        beam_width: int = 3,
+        max_beam: int = 8,
+    ) -> np.ndarray:
+        """Score with the history marginalized over past word posteriors.
+
+        ``continuous_nll`` marginalizes the *current* word but commits every past query
+        to its argmax word, so a query sitting near a cluster boundary silently
+        rewrites the context of the next few steps. This keeps a weighted beam of
+        plausible histories instead, which is the soft-latent version the design asked
+        for without moving all the way to a full HSMM.
+        """
+        emissions = np.asarray(component_log_likelihood, dtype=np.float64)
+        if emissions.ndim != 2 or emissions.shape[1] != self.vocabulary_size - 1:
+            raise ValueError("emission vocabulary does not match grammar")
+        beams: list[tuple[tuple[int, ...], float]] = [((self.bos_token,), 0.0)]
+        output = np.empty(len(emissions), dtype=np.float64)
+        for position, emission in enumerate(emissions):
+            predictive: list[float] = []
+            expanded: list[tuple[tuple[int, ...], float]] = []
+            for history, log_weight in beams:
+                prior = self.distribution(position, list(history))[0][:-1]
+                prior = prior / max(prior.sum(), 1e-300)
+                joint = np.log(np.maximum(prior, 1e-300)) + emission
+                predictive.append(log_weight + logsumexp(joint))
+                posterior = joint - logsumexp(joint)
+                for word in np.argsort(posterior)[-beam_width:]:
+                    expanded.append(
+                        ((*history, int(word)), log_weight + float(posterior[word]))
+                    )
+            output[position] = -logsumexp(predictive)
+            expanded.sort(key=lambda item: item[1], reverse=True)
+            kept = expanded[:max_beam]
+            total = logsumexp([weight for _, weight in kept])
+            beams = [(history, weight - total) for history, weight in kept]
+        return output
 
 
 @dataclass

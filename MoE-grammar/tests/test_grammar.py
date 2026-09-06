@@ -4,6 +4,7 @@ from moe_grammar.grammar import (
     CountGrammar,
     DurationGrammar,
     DurationModel,
+    LagRecurrenceModel,
     PositionContextGrammar,
     PositionGrammar,
 )
@@ -78,6 +79,103 @@ def test_position_bag_context_ignores_local_order() -> None:
     left = grammar.distribution(3, [0, 1, 2])[0]
     right = grammar.distribution(3, [0, 2, 1])[0]
     np.testing.assert_allclose(left, right)
+
+
+def test_order_residual_separates_lexical_from_context_surprise() -> None:
+    training = [np.asarray([0, 1, 2, 0, 1, 2], dtype=np.int16) for _ in range(30)]
+    grammar = CountGrammar(vocabulary_size=4, max_order=2, min_support=5).fit(training)
+    # Emissions that identify each word exactly, so only the priors differ.
+    def emission(sequence: np.ndarray) -> np.ndarray:
+        values = np.full((len(sequence), 3), -50.0)
+        values[np.arange(len(sequence)), sequence] = 0.0
+        return values
+
+    ordered = np.asarray([0, 1, 2, 0, 1, 2], dtype=np.int16)
+    scrambled = np.asarray([0, 2, 1, 0, 2, 1], dtype=np.int16)
+    context_a, lexical_a, residual_a, _ = grammar.continuous_nll_components(
+        ordered, emission(ordered)
+    )
+    context_b, lexical_b, residual_b, _ = grammar.continuous_nll_components(
+        scrambled, emission(scrambled)
+    )
+    np.testing.assert_allclose(residual_a, context_a - lexical_a, atol=1e-9)
+    # Both sequences use each word equally often, so lexical cost matches and only the
+    # order residual can distinguish them.
+    np.testing.assert_allclose(sorted(lexical_a), sorted(lexical_b), atol=1e-9)
+    assert residual_b.sum() > residual_a.sum()
+
+
+def test_beam_history_matches_hard_history_when_words_are_unambiguous() -> None:
+    training = [np.asarray([0, 1, 2, 3], dtype=np.int16) for _ in range(40)]
+    grammar = PositionContextGrammar(vocabulary_size=5, max_order=2, min_support=5).fit(training)
+    sequence = np.asarray([0, 1, 2, 3], dtype=np.int16)
+    emission = np.full((4, 4), -60.0)
+    emission[np.arange(4), sequence] = 0.0
+    hard, _ = grammar.continuous_nll(sequence, emission)
+    beam = grammar.beam_continuous_nll(emission)
+    np.testing.assert_allclose(beam, hard, atol=1e-6)
+
+
+def test_beam_history_recovers_when_argmax_picks_the_wrong_branch() -> None:
+    # Two healthy continuations that diverge after the first word.
+    training = [np.asarray([0, 1, 2, 3], dtype=np.int16) for _ in range(30)]
+    training += [np.asarray([0, 2, 4, 5], dtype=np.int16) for _ in range(30)]
+    grammar = PositionContextGrammar(vocabulary_size=7, max_order=2, min_support=5).fit(training)
+    emission = np.full((4, 6), -60.0)
+    emission[0, 0] = 0.0
+    emission[1, 1] = emission[1, 2] = 0.0  # genuinely ambiguous query
+    emission[2, 4] = 0.0  # the continuation only the word-2 branch predicts
+    emission[3, 5] = 0.0
+    # argmax breaks the tie toward word 1, committing the rest of the episode to the
+    # branch the observations then contradict.
+    hard, _ = grammar.continuous_nll(np.asarray([0, 1, 4, 5], dtype=np.int16), emission)
+    beam = grammar.beam_continuous_nll(emission)
+    assert beam[2] < hard[2]
+    assert beam.sum() < hard.sum()
+
+
+def test_unigram_baseline_ignores_clock_and_history() -> None:
+    training = [np.asarray([0, 1, 2], dtype=np.int16) for _ in range(40)]
+    grammar = PositionGrammar(vocabulary_size=4, min_support=5).fit(training)
+    emission = np.full((3, 3), -50.0)
+    emission[np.arange(3), [0, 1, 2]] = 0.0
+    unigram = grammar.unigram_continuous_nll(emission)
+    # Each word appears equally often in training, so the lexical cost is flat even
+    # though the clock-conditioned model would strongly prefer a specific order.
+    np.testing.assert_allclose(unigram, unigram[0], atol=1e-9)
+    clock, _ = grammar.continuous_nll(np.asarray([0, 1, 2]), emission)
+    assert clock.mean() < unigram.mean()
+
+
+def test_end_hitting_table_matches_sampling_on_first_order_grammar() -> None:
+    training = [np.asarray([0, 1, 2], dtype=np.int16) for _ in range(60)]
+    grammar = CountGrammar(vocabulary_size=4, max_order=1, min_support=5).fit(training)
+    table = grammar.end_hitting_table(horizon=1)
+    assert table.shape == (3,) and np.all((table >= 0.0) & (table <= 1.0))
+    # Word 2 always ends the sentence; word 0 never does.
+    assert table[2] > 0.9 and table[0] < 0.1
+    sampled = grammar.end_hitting_probability([2], horizon=1, draws=400, seed=2)
+    assert abs(sampled - table[2]) < 0.1
+    longer = grammar.end_hitting_table(horizon=3)
+    assert np.all(longer >= table - 1e-9)
+
+
+def test_end_hitting_probability_grows_with_horizon() -> None:
+    training = [np.asarray([0, 1, 2], dtype=np.int16) for _ in range(40)]
+    grammar = CountGrammar(vocabulary_size=4, max_order=2, min_support=5).fit(training)
+    near = grammar.end_hitting_probability([0, 1, 2], horizon=1, draws=200, seed=1)
+    far = grammar.end_hitting_probability([0], horizon=1, draws=200, seed=1)
+    assert 0.0 <= far <= near <= 1.0
+    assert near > 0.8 and far < 0.2
+
+
+def test_lag_recurrence_flags_periodic_patterns() -> None:
+    training = [np.asarray([0, 1, 2, 3, 0, 1, 2, 3], dtype=np.int16) for _ in range(30)]
+    model = LagRecurrenceModel(n_words=4, max_lag=3).fit(training)
+    # Exact-run duration sees six length-one runs here and cannot react at all.
+    alternating = model.surprisal(np.asarray([0, 1, 0, 1, 0, 1], dtype=np.int16))
+    healthy = model.surprisal(np.asarray([0, 1, 2, 3, 0, 1], dtype=np.int16))
+    assert alternating[2:].sum() > healthy[2:].sum()
 
 
 def test_calibration_and_auc_helpers() -> None:

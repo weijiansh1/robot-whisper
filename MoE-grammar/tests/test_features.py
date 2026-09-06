@@ -1,12 +1,16 @@
 import numpy as np
 import torch
 
+import pytest
+
 from moe_grammar.features import (
+    LEGACY_GLOBAL_METRIC,
     build_clean_query_descriptors,
     build_query_descriptors,
     clean_descriptor_feature_names,
     deterministic_flow_permutations,
     extract_multitrack_features,
+    global_metric_column,
     step_feature_names,
 )
 
@@ -69,6 +73,15 @@ def test_features_are_invariant_to_independent_expert_permutations_by_layer() ->
     original = extract_multitrack_features(probability, expert_ids)
     permuted = extract_multitrack_features(permuted_probability, permuted_ids)
     torch.testing.assert_close(original, permuted, rtol=1e-5, atol=1e-6)
+
+
+def test_global_metric_column_resolves_both_schemas() -> None:
+    corrected = step_feature_names()
+    legacy = (*corrected[:-1], LEGACY_GLOBAL_METRIC)
+    assert global_metric_column(corrected) == len(corrected) - 1
+    assert global_metric_column(legacy) == len(legacy) - 1
+    with pytest.raises(ValueError):
+        global_metric_column(corrected[:-1])
 
 
 def test_flow_permutations_are_stable_across_batches() -> None:
