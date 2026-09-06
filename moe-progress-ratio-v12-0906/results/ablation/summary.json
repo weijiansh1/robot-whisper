@@ -1,0 +1,958 @@
+{
+  "alignment_checks": {
+    "graph_metric_duplicate": {
+      "dropped": [
+        "conditional_energy"
+      ],
+      "max_abs_deviation_from_1_minus_square": 0.0016566738486289978,
+      "pair": [
+        "state_action_alignment",
+        "conditional_energy"
+      ],
+      "pearson_r": -0.9946881108676264
+    },
+    "labels": {
+      "file": "/home/jovyan/work/himoe-vla/double-selete/trainfree/results/timeout_extension_plus10/development_main_clean_labels.csv",
+      "merge": "on (task, episode), validate=one_to_one, row order restored",
+      "unmatched_rows": 0
+    },
+    "layer_graphs": {
+      "checked": [
+        {
+          "array": "task_names",
+          "identical": true
+        },
+        {
+          "array": "task_index",
+          "identical": true
+        },
+        {
+          "array": "episode",
+          "identical": true
+        },
+        {
+          "array": "init_state_id",
+          "identical": true
+        },
+        {
+          "array": "length",
+          "identical": true
+        },
+        {
+          "array": "valid",
+          "identical": true
+        },
+        {
+          "array": "layer_names",
+          "identical": true
+        }
+      ],
+      "file": "/home/jovyan/work/himoe-vla/moe-hb-front-back-0905/results/layer_graphs/development_main.npz",
+      "metric_names": [
+        "flow_path",
+        "flow_settling_log_ratio",
+        "flow_endpoint",
+        "action_consensus",
+        "state_action_alignment",
+        "conditional_energy",
+        "conditional_effective_rank",
+        "partial_edge_std",
+        "expert_load_effective_rank",
+        "conditional_query_d1",
+        "partial_query_d1"
+      ],
+      "rows": 14800,
+      "run_id": "right-50x8-20260903"
+    },
+    "route_store": {
+      "checked": "per task, episode_id contiguity and per-episode row count against the cache length; every cache row covered",
+      "episodes_covered": 14800
+    }
+  },
+  "artifacts": {
+    "graph_metric_source": "/home/jovyan/work/himoe-vla/moe-hb-front-back-0905/experiments/extract_layer_graphs_gpu.py",
+    "increments_csv": "/home/jovyan/work/himoe-vla/moe-progress-ratio-v12-0906/results/ablation/increments.csv",
+    "increments_csv_sha256": "246e13dd2f307bbc329ece4648fd613ed499aefc3f357232b84512bd31080752",
+    "layer_graphs_sha256": "bd2d3bc29f16e28ddf37d3a38c07c5a544f5dfc5b82810e92de30b6a48c0c8af",
+    "order_control_csv": "/home/jovyan/work/himoe-vla/moe-progress-ratio-v12-0906/results/ablation/order_control.csv",
+    "order_control_csv_sha256": "29ddf00d075cd17acf547d99425bb09a264d39edb5e7ee31ed9579c84141dc44",
+    "progress_cache_sha256": "23af977921ff6a3c2f0cd3f28792fb4cf806e66c321f86e3798a1dcab62838f1",
+    "script_sha256": "d57f8dca5759521af958fe32c812d8ac70c87c7455f7eb26e646f953b4269bc5"
+  },
+  "bands": {
+    "all": {
+      "n_rows": 221781,
+      "positive_rate": 0.08301883389469793
+    },
+    "high_prior": {
+      "n_rows": 16489,
+      "positive_rate": 0.5427860998241252
+    },
+    "low_prior": {
+      "n_rows": 205292,
+      "positive_rate": 0.04609044677824757
+    },
+    "low_prior_window_defined": {
+      "n_rows": 146092,
+      "positive_rate": 0.05143334337266928
+    }
+  },
+  "corpus": {
+    "cohort": "development_main",
+    "episodes": 14800,
+    "failure_episodes": 487,
+    "row_positive_rate": 0.08301883389469793,
+    "rows": 221781,
+    "tasks": 37,
+    "tasks_with_zero_failures": 5
+  },
+  "disclaimer": "The bundle's detectors are train-free by protocol.  This ablation fits an L2 logistic model only to measure how much information each feature class carries.  No coefficient, threshold or profile produced here is read by any monitor, and none of it ships.  Do not mistake this for a trained guard.",
+  "feature_blocks": {
+    "S0": {
+      "columns": [
+        "prior_logit",
+        "chunk",
+        "log1p_chunk"
+      ],
+      "description": "clock only: per-suite survival prior at this chunk, plus the raw chunk index",
+      "n": 3
+    },
+    "S1": {
+      "columns": [
+        "adjacent_front",
+        "adjacent_back",
+        "adjacent_all",
+        "gate_entropy_mean",
+        "gate_entropy_spread",
+        "ratio_front",
+        "ratio_back",
+        "ratio_all",
+        "path_front",
+        "path_back",
+        "path_all"
+      ],
+      "description": "instantaneous routing readout at this query",
+      "n": 11
+    },
+    "S2": {
+      "columns": [
+        "dwell",
+        "log1p_dwell"
+      ],
+      "description": "dwell: consecutive preceding queries in the same 3x3 regime of (R, L)",
+      "n": 2
+    },
+    "S3": {
+      "columns": [
+        "d1_adjacent_front",
+        "d2_adjacent_front",
+        "d1_adjacent_back",
+        "d2_adjacent_back",
+        "d1_adjacent_all",
+        "d2_adjacent_all",
+        "d1_ratio_all",
+        "d2_ratio_all",
+        "d1_path_all",
+        "d2_path_all",
+        "d1_gate_entropy_mean",
+        "d2_gate_entropy_mean",
+        "d1_gate_entropy_spread",
+        "d2_gate_entropy_spread"
+      ],
+      "description": "first differences of the S1 quantities at lags 1 and 2",
+      "n": 14
+    },
+    "S4": {
+      "categories": 11,
+      "description": "ordered one-hot encoding of the last 8 regime labels (strict prefix, PAD before episode start)",
+      "n": 88
+    },
+    "S5": {
+      "columns": [
+        "flow_path|L2",
+        "flow_path|L3",
+        "flow_path|L4",
+        "flow_path|L5",
+        "flow_path|L12",
+        "flow_path|L13",
+        "flow_path|L14",
+        "flow_path|L15",
+        "flow_settling_log_ratio|L2",
+        "flow_settling_log_ratio|L3",
+        "flow_settling_log_ratio|L4",
+        "flow_settling_log_ratio|L5",
+        "flow_settling_log_ratio|L12",
+        "flow_settling_log_ratio|L13",
+        "flow_settling_log_ratio|L14",
+        "flow_settling_log_ratio|L15",
+        "flow_endpoint|L2",
+        "flow_endpoint|L3",
+        "flow_endpoint|L4",
+        "flow_endpoint|L5",
+        "flow_endpoint|L12",
+        "flow_endpoint|L13",
+        "flow_endpoint|L14",
+        "flow_endpoint|L15",
+        "action_consensus|L2",
+        "action_consensus|L3",
+        "action_consensus|L4",
+        "action_consensus|L5",
+        "action_consensus|L12",
+        "action_consensus|L13",
+        "action_consensus|L14",
+        "action_consensus|L15",
+        "state_action_alignment|L2",
+        "state_action_alignment|L3",
+        "state_action_alignment|L4",
+        "state_action_alignment|L5",
+        "state_action_alignment|L12",
+        "state_action_alignment|L13",
+        "state_action_alignment|L14",
+        "state_action_alignment|L15",
+        "conditional_effective_rank|L2",
+        "conditional_effective_rank|L3",
+        "conditional_effective_rank|L4",
+        "conditional_effective_rank|L5",
+        "conditional_effective_rank|L12",
+        "conditional_effective_rank|L13",
+        "conditional_effective_rank|L14",
+        "conditional_effective_rank|L15",
+        "partial_edge_std|L2",
+        "partial_edge_std|L3",
+        "partial_edge_std|L4",
+        "partial_edge_std|L5",
+        "partial_edge_std|L12",
+        "partial_edge_std|L13",
+        "partial_edge_std|L14",
+        "partial_edge_std|L15",
+        "conditional_query_d1|L2",
+        "conditional_query_d1|L3",
+        "conditional_query_d1|L4",
+        "conditional_query_d1|L5",
+        "conditional_query_d1|L12",
+        "conditional_query_d1|L13",
+        "conditional_query_d1|L14",
+        "conditional_query_d1|L15",
+        "partial_query_d1|L2",
+        "partial_query_d1|L3",
+        "partial_query_d1|L4",
+        "partial_query_d1|L5",
+        "partial_query_d1|L12",
+        "partial_query_d1|L13",
+        "partial_query_d1|L14",
+        "partial_query_d1|L15"
+      ],
+      "description": "token-graph summaries residualised on per-layer node utilisation, train-fold fit",
+      "n": 72
+    },
+    "S5_utilisation_control": {
+      "columns": [
+        "expert_load_effective_rank|L2",
+        "expert_load_effective_rank|L3",
+        "expert_load_effective_rank|L4",
+        "expert_load_effective_rank|L5",
+        "expert_load_effective_rank|L12",
+        "expert_load_effective_rank|L13",
+        "expert_load_effective_rank|L14",
+        "expert_load_effective_rank|L15",
+        "gate_entropy|L2",
+        "gate_entropy|L3",
+        "gate_entropy|L4",
+        "gate_entropy|L5",
+        "gate_entropy|L12",
+        "gate_entropy|L13",
+        "gate_entropy|L14",
+        "gate_entropy|L15"
+      ],
+      "n": 16
+    }
+  },
+  "fold_diagnostics": [
+    {
+      "fold": 0,
+      "path_tercile_edges": [
+        0.17754869163036346,
+        0.22937613725662231
+      ],
+      "prior_chunks_clamped_to_train_max": 0,
+      "ratio_tercile_edges": [
+        0.2775653004646301,
+        0.3273325562477112
+      ],
+      "seconds": 23.2,
+      "test_rows": 46161,
+      "train_rows": 175620
+    },
+    {
+      "fold": 1,
+      "path_tercile_edges": [
+        0.17609912157058716,
+        0.2280314862728119
+      ],
+      "prior_chunks_clamped_to_train_max": 0,
+      "ratio_tercile_edges": [
+        0.27657651901245117,
+        0.32429492473602295
+      ],
+      "seconds": 19.5,
+      "test_rows": 56856,
+      "train_rows": 164925
+    },
+    {
+      "fold": 2,
+      "path_tercile_edges": [
+        0.16567433873812357,
+        0.22002606590588888
+      ],
+      "prior_chunks_clamped_to_train_max": 0,
+      "ratio_tercile_edges": [
+        0.2814028064409892,
+        0.3295714855194092
+      ],
+      "seconds": 22.7,
+      "test_rows": 40126,
+      "train_rows": 181655
+    },
+    {
+      "fold": 3,
+      "path_tercile_edges": [
+        0.1654973328113556,
+        0.21865803003311157
+      ],
+      "prior_chunks_clamped_to_train_max": 0,
+      "ratio_tercile_edges": [
+        0.2830512821674347,
+        0.33146438002586365
+      ],
+      "seconds": 24.4,
+      "test_rows": 34256,
+      "train_rows": 187525
+    },
+    {
+      "fold": 4,
+      "path_tercile_edges": [
+        0.16324658195177713,
+        0.2145487864812215
+      ],
+      "prior_chunks_clamped_to_train_max": 0,
+      "ratio_tercile_edges": [
+        0.2777402599652608,
+        0.3306250373522441
+      ],
+      "seconds": 24.1,
+      "test_rows": 44382,
+      "train_rows": 177399
+    }
+  ],
+  "folds": [
+    {
+      "fold": 0,
+      "test_episodes": 3200,
+      "test_failures": 95,
+      "test_rows": 46161,
+      "test_tasks": [
+        "libero_goal/open_the_middle_drawer_of_the_cabinet",
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside",
+        "libero_goal/put_the_bowl_on_top_of_the_cabinet",
+        "libero_goal/put_the_wine_bottle_on_the_rack",
+        "libero_long/STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+        "libero_object/pick_up_the_bbq_sauce_and_place_it_in_the_basket",
+        "libero_object/pick_up_the_cream_cheese_and_place_it_in_the_basket",
+        "libero_object/pick_up_the_salad_dressing_and_place_it_in_the_basket"
+      ]
+    },
+    {
+      "fold": 1,
+      "test_episodes": 3200,
+      "test_failures": 185,
+      "test_rows": 56856,
+      "test_tasks": [
+        "libero_goal/push_the_plate_to_the_front_of_the_stove",
+        "libero_goal/put_the_bowl_on_the_stove",
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+        "libero_long/LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+        "libero_object/pick_up_the_chocolate_pudding_and_place_it_in_the_basket",
+        "libero_object/pick_up_the_orange_juice_and_place_it_in_the_basket",
+        "libero_spatial/pick_up_the_black_bowl_from_table_center_and_place_it_on_the_plate",
+        "libero_spatial/pick_up_the_black_bowl_on_the_wooden_cabinet_and_place_it_on_the_plate"
+      ]
+    },
+    {
+      "fold": 2,
+      "test_episodes": 2800,
+      "test_failures": 82,
+      "test_rows": 40126,
+      "test_tasks": [
+        "libero_goal/put_the_cream_cheese_in_the_bowl",
+        "libero_long/LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+        "libero_object/pick_up_the_ketchup_and_place_it_in_the_basket",
+        "libero_object/pick_up_the_milk_and_place_it_in_the_basket",
+        "libero_object/pick_up_the_tomato_sauce_and_place_it_in_the_basket",
+        "libero_spatial/pick_up_the_black_bowl_next_to_the_cookie_box_and_place_it_on_the_plate",
+        "libero_spatial/pick_up_the_black_bowl_next_to_the_plate_and_place_it_on_the_plate"
+      ]
+    },
+    {
+      "fold": 3,
+      "test_episodes": 2800,
+      "test_failures": 57,
+      "test_rows": 34256,
+      "test_tasks": [
+        "libero_goal/put_the_bowl_on_the_plate",
+        "libero_goal/put_the_wine_bottle_on_top_of_the_cabinet",
+        "libero_goal/turn_on_the_stove",
+        "libero_long/LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+        "libero_object/pick_up_the_alphabet_soup_and_place_it_in_the_basket",
+        "libero_spatial/pick_up_the_black_bowl_on_the_cookie_box_and_place_it_on_the_plate",
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate"
+      ]
+    },
+    {
+      "fold": 4,
+      "test_episodes": 2800,
+      "test_failures": 68,
+      "test_rows": 44382,
+      "test_tasks": [
+        "libero_long/KITCHEN_SCENE4_put_the_black_bowl_in_the_bottom_drawer_of_the_cabinet_and_close_it",
+        "libero_long/KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it",
+        "libero_object/pick_up_the_butter_and_place_it_in_the_basket",
+        "libero_spatial/pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate",
+        "libero_spatial/pick_up_the_black_bowl_in_the_top_drawer_of_the_wooden_cabinet_and_place_it_on_the_plate",
+        "libero_spatial/pick_up_the_black_bowl_next_to_the_ramekin_and_place_it_on_the_plate",
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate"
+      ]
+    }
+  ],
+  "gate_entropy": {
+    "episodes_covered": 14800,
+    "float16_ulp_at_log32": 0.001953125,
+    "max": 0.9997425675392151,
+    "max_abs_recomputation_delta_nats": 0.0011229515075683594,
+    "mean": 0.9973711371421814,
+    "min": 0.9605756402015686,
+    "recomputation_sample_rows": 64,
+    "reduction": "final flow step 9, action tokens 1..10, mean over tokens, / log(32)",
+    "route_root": "/home/jovyan/work/himoe-vla/VLA_MUI_HUB/cache_new/HiMoE-VLA",
+    "run_id": "right-50x8-20260903",
+    "seconds": 4.9,
+    "source": "hb_entropy in <route_root>/<task>/<run_id>/server/routes.zarr",
+    "tasks": 37
+  },
+  "protocol": {
+    "C": 1.0,
+    "bootstrap": {
+      "cluster": "task",
+      "draws": 2000,
+      "interval": "percentile 2.5/97.5"
+    },
+    "cross_validation": "StratifiedGroupKFold by task, no task in both fit and score",
+    "folds": 5,
+    "imputation": "train-fold column median; no missingness indicators, so an undefined window cannot launder the clock into S1",
+    "model": "sklearn LogisticRegression, pure L2 (l1_ratio=0), solver=lbfgs",
+    "prior_band": "survival prior < 0.25 is low, otherwise high; the prior used is the train-fold estimate, the same value fed to the model",
+    "seed": 20260906,
+    "standardisation": "train fold only; S4 one-hots left as raw 0/1 so the ordered and shuffled encodings carry identical penalties",
+    "window_defined_band": "low_prior rows with chunk >= 4, where every W=4 quantity is defined without imputation"
+  },
+  "results": {
+    "all": {
+      "S0": {
+        "ci_hi": 0.3469265312049186,
+        "ci_lo": 0.12418966085380916,
+        "logloss": 0.2206163410726207,
+        "n_rows": 221781
+      },
+      "S1": {
+        "ci_hi": 0.02434415632809389,
+        "ci_lo": -6.304389922093462e-05,
+        "decrement": 0.011151511664497639,
+        "excludes_zero": false,
+        "logloss": 0.20946482940812308,
+        "n_rows": 221781
+      },
+      "S2": {
+        "ci_hi": 0.004093676550501375,
+        "ci_lo": 0.000648554983405683,
+        "decrement": 0.002156762545429851,
+        "excludes_zero": true,
+        "logloss": 0.2073080668626932,
+        "n_rows": 221781
+      },
+      "S3": {
+        "ci_hi": 0.0024782316149726917,
+        "ci_lo": -0.0009038458058969884,
+        "decrement": 0.0006969339526276542,
+        "excludes_zero": false,
+        "logloss": 0.20661113291006555,
+        "n_rows": 221781
+      },
+      "S4": {
+        "ci_hi": 0.003622282435994961,
+        "ci_lo": -0.0059037669068793125,
+        "decrement": -0.0014718174824687664,
+        "excludes_zero": false,
+        "logloss": 0.20808295039253433,
+        "n_rows": 221781
+      },
+      "S4_shuffled": {
+        "ci_hi": 0.004026771848271919,
+        "ci_lo": -0.005967345891355487,
+        "decrement": -0.0012628479725985016,
+        "excludes_zero": false,
+        "logloss": 0.20787398088266407,
+        "n_rows": 221781
+      },
+      "S5": {
+        "ci_hi": 0.007309145831082522,
+        "ci_lo": -0.003568499994314868,
+        "decrement": 0.002441934431465951,
+        "excludes_zero": false,
+        "logloss": 0.20564101596106837,
+        "n_rows": 221781
+      },
+      "S5_raw_graph": {
+        "ci_hi": 0.0081211178790591,
+        "ci_lo": -0.001982656283193601,
+        "decrement": 0.003442321242977945,
+        "excludes_zero": false,
+        "logloss": 0.20464062914955639,
+        "n_rows": 221781
+      },
+      "S5_utilisation_only": {
+        "ci_hi": 0.004123257261486333,
+        "ci_lo": -0.0007501675514873171,
+        "decrement": 0.001479695675331529,
+        "excludes_zero": false,
+        "logloss": 0.2066032547172028,
+        "n_rows": 221781
+      }
+    },
+    "high_prior": {
+      "S0": {
+        "ci_hi": 0.6934016414176578,
+        "ci_lo": 0.41791753279689176,
+        "logloss": 0.6048018007276372,
+        "n_rows": 16489
+      },
+      "S1": {
+        "ci_hi": 0.17652822886953376,
+        "ci_lo": 0.07063950364724708,
+        "decrement": 0.14740552530665627,
+        "excludes_zero": true,
+        "logloss": 0.457396275420981,
+        "n_rows": 16489
+      },
+      "S2": {
+        "ci_hi": 0.018209982266648852,
+        "ci_lo": 0.0017225740234578474,
+        "decrement": 0.007432377854029797,
+        "excludes_zero": true,
+        "logloss": 0.44996389756695115,
+        "n_rows": 16489
+      },
+      "S3": {
+        "ci_hi": 0.023323596443829198,
+        "ci_lo": 0.0024041007239856303,
+        "decrement": 0.016625983294911644,
+        "excludes_zero": true,
+        "logloss": 0.43333791427203955,
+        "n_rows": 16489
+      },
+      "S4": {
+        "ci_hi": 0.014670654769568995,
+        "ci_lo": -0.045275134830699344,
+        "decrement": -0.0033772329091242043,
+        "excludes_zero": false,
+        "logloss": 0.4367151471811637,
+        "n_rows": 16489
+      },
+      "S4_shuffled": {
+        "ci_hi": 0.011534626118057808,
+        "ci_lo": -0.042599494013074904,
+        "decrement": -0.005624728219004455,
+        "excludes_zero": false,
+        "logloss": 0.438962642491044,
+        "n_rows": 16489
+      },
+      "S5": {
+        "ci_hi": 0.06038801027860787,
+        "ci_lo": 0.010449487586754572,
+        "decrement": 0.02605406480785803,
+        "excludes_zero": true,
+        "logloss": 0.41066108237330573,
+        "n_rows": 16489
+      },
+      "S5_raw_graph": {
+        "ci_hi": 0.07158139642793022,
+        "ci_lo": 0.030791088221557707,
+        "decrement": 0.04587260844846912,
+        "excludes_zero": true,
+        "logloss": 0.39084253873269464,
+        "n_rows": 16489
+      },
+      "S5_utilisation_only": {
+        "ci_hi": 0.025198470066143362,
+        "ci_lo": -0.014082532735900996,
+        "decrement": 0.014438472547849527,
+        "excludes_zero": false,
+        "logloss": 0.4222766746333142,
+        "n_rows": 16489
+      }
+    },
+    "low_prior": {
+      "S0": {
+        "ci_hi": 0.29774785231086215,
+        "ci_lo": 0.11329529796837738,
+        "logloss": 0.18975866496126645,
+        "n_rows": 205292
+      },
+      "S1": {
+        "ci_hi": 0.004814110313724749,
+        "ci_lo": -0.004434872650443566,
+        "decrement": 0.00020762475733028377,
+        "excludes_zero": false,
+        "logloss": 0.18955104020393618,
+        "n_rows": 205292
+      },
+      "S2": {
+        "ci_hi": 0.0035046768245855084,
+        "ci_lo": 0.000475444773836204,
+        "decrement": 0.001733026497150549,
+        "excludes_zero": true,
+        "logloss": 0.1878180137067856,
+        "n_rows": 205292
+      },
+      "S3": {
+        "ci_hi": 0.0019101961564309139,
+        "ci_lo": -0.003249269318623356,
+        "decrement": -0.0005824831440196924,
+        "excludes_zero": false,
+        "logloss": 0.18840049685080532,
+        "n_rows": 205292
+      },
+      "S4": {
+        "ci_hi": 0.0039754987649988525,
+        "ci_lo": -0.006377639519875327,
+        "decrement": -0.0013187750114024642,
+        "excludes_zero": false,
+        "logloss": 0.18971927186220777,
+        "n_rows": 205292
+      },
+      "S4_shuffled": {
+        "ci_hi": 0.0044401015818667676,
+        "ci_lo": -0.005949193399866309,
+        "decrement": -0.0009125028866580475,
+        "excludes_zero": false,
+        "logloss": 0.18931299973746335,
+        "n_rows": 205292
+      },
+      "S5": {
+        "ci_hi": 0.00593185265024633,
+        "ci_lo": -0.006716500056594928,
+        "decrement": 0.0005454142661577027,
+        "excludes_zero": false,
+        "logloss": 0.18917385759605007,
+        "n_rows": 205292
+      },
+      "S5_raw_graph": {
+        "ci_hi": 0.005981619922663344,
+        "ci_lo": -0.008349937115831485,
+        "decrement": 3.433161975157226e-05,
+        "excludes_zero": false,
+        "logloss": 0.18968494024245622,
+        "n_rows": 205292
+      },
+      "S5_utilisation_only": {
+        "ci_hi": 0.001973577495457338,
+        "ci_lo": -0.0011382390652797704,
+        "decrement": 0.00043885009025757573,
+        "excludes_zero": false,
+        "logloss": 0.1892804217719502,
+        "n_rows": 205292
+      }
+    },
+    "low_prior_window_defined": {
+      "S0": {
+        "ci_hi": 0.33026641511434535,
+        "ci_lo": 0.12025859336464038,
+        "logloss": 0.20671834260079727,
+        "n_rows": 146092
+      },
+      "S1": {
+        "ci_hi": 0.007655633923766969,
+        "ci_lo": -0.005376595798300159,
+        "decrement": 0.0011623531072174696,
+        "excludes_zero": false,
+        "logloss": 0.2055559894935798,
+        "n_rows": 146092
+      },
+      "S2": {
+        "ci_hi": 0.004747761648905988,
+        "ci_lo": 0.0007865189213835562,
+        "decrement": 0.0024413486852157763,
+        "excludes_zero": true,
+        "logloss": 0.20311464080836403,
+        "n_rows": 146092
+      },
+      "S3": {
+        "ci_hi": 0.002976761849715179,
+        "ci_lo": -0.001996248596687547,
+        "decrement": 0.0003582808273523902,
+        "excludes_zero": false,
+        "logloss": 0.20275635998101163,
+        "n_rows": 146092
+      },
+      "S4": {
+        "ci_hi": 0.005552584548103261,
+        "ci_lo": -0.009255703934973474,
+        "decrement": -0.0020540188514868007,
+        "excludes_zero": false,
+        "logloss": 0.20481037883249845,
+        "n_rows": 146092
+      },
+      "S4_shuffled": {
+        "ci_hi": 0.006043833878205164,
+        "ci_lo": -0.008774085707385621,
+        "decrement": -0.001504084849728886,
+        "excludes_zero": false,
+        "logloss": 0.20426044483074052,
+        "n_rows": 146092
+      },
+      "S5": {
+        "ci_hi": 0.008938191146508054,
+        "ci_lo": -0.007307046441587757,
+        "decrement": 0.0017913668336648593,
+        "excludes_zero": false,
+        "logloss": 0.20301901199883357,
+        "n_rows": 146092
+      },
+      "S5_raw_graph": {
+        "ci_hi": 0.009377576028977349,
+        "ci_lo": -0.010437351396981123,
+        "decrement": 0.0008460411777576976,
+        "excludes_zero": false,
+        "logloss": 0.20396433765474076,
+        "n_rows": 146092
+      },
+      "S5_utilisation_only": {
+        "ci_hi": 0.0024138199397872127,
+        "ci_lo": -0.0015668322224414145,
+        "decrement": 0.0003492270048092211,
+        "excludes_zero": false,
+        "logloss": 0.20446115182768923,
+        "n_rows": 146092
+      }
+    }
+  },
+  "schema": "himoe.progress_ratio_v12.information_ablation.v1",
+  "seconds": 117.9,
+  "static_features": {
+    "eps_length": 0.07821522653102875,
+    "eps_length_quantile": 0.01,
+    "eps_length_uses_labels": false,
+    "window": 4
+  },
+  "status": "analysis_instrument_not_a_detector",
+  "target": "original_failure of the episode (constant within an episode)",
+  "unit": "one (episode, chunk) row over every valid chunk of development_main",
+  "verdicts": {
+    "nested_steps_with_intervals_excluding_zero": {
+      "all": [
+        "S2"
+      ],
+      "high_prior": [
+        "S1",
+        "S2",
+        "S3",
+        "S5"
+      ],
+      "low_prior": [
+        "S2"
+      ],
+      "low_prior_window_defined": [
+        "S2"
+      ]
+    },
+    "order_gain_by_band": {
+      "all": {
+        "ci": [
+          -0.0009452950908361582,
+          0.0005039082687101276
+        ],
+        "order_carries_information": false,
+        "order_gain": -0.00020896950987026042
+      },
+      "high_prior": {
+        "ci": [
+          -0.00781782017724544,
+          0.0067639368605957985
+        ],
+        "order_carries_information": false,
+        "order_gain": 0.0022474953098802763
+      },
+      "low_prior": {
+        "ci": [
+          -0.000878083545924635,
+          8.943825534979534e-05
+        ],
+        "order_carries_information": false,
+        "order_gain": -0.0004062721247444223
+      },
+      "low_prior_window_defined": {
+        "ci": [
+          -0.0011353951735857133,
+          8.693749154141046e-05
+        ],
+        "order_carries_information": false,
+        "order_gain": -0.0005499340017579291
+      }
+    },
+    "ordered_history_beats_identical_content_shuffle": false,
+    "ordered_history_verdict": "THE ORDERED-HISTORY CONTRIBUTION IS NOT ORDER.  In every prior band the identical-content shuffle of the same eight regime labels scores as well as or better than the ordered encoding, and every order-gain interval spans zero.  With S2 (dwell) already in the model, S4 also fails to beat S3 in any band.  What the ordered-history machinery reads is dwell time and label composition, and it should be named that way.",
+    "s4_over_s3_by_band": {
+      "all": {
+        "ci": [
+          -0.0059037669068793125,
+          0.003622282435994961
+        ],
+        "decrement": -0.0014718174824687664,
+        "useful": false
+      },
+      "high_prior": {
+        "ci": [
+          -0.045275134830699344,
+          0.014670654769568995
+        ],
+        "decrement": -0.0033772329091242043,
+        "useful": false
+      },
+      "low_prior": {
+        "ci": [
+          -0.006377639519875327,
+          0.0039754987649988525
+        ],
+        "decrement": -0.0013187750114024642,
+        "useful": false
+      },
+      "low_prior_window_defined": {
+        "ci": [
+          -0.009255703934973474,
+          0.005552584548103261
+        ],
+        "decrement": -0.0020540188514868007,
+        "useful": false
+      }
+    },
+    "s5_bands_where_residual_survives": [
+      "high_prior"
+    ],
+    "s5_by_band": {
+      "all": {
+        "raw_graph": {
+          "ci": [
+            -0.001982656283193601,
+            0.0081211178790591
+          ],
+          "decrement": 0.003442321242977945,
+          "useful": false
+        },
+        "residualised": {
+          "ci": [
+            -0.003568499994314868,
+            0.007309145831082522
+          ],
+          "decrement": 0.002441934431465951,
+          "useful": false
+        },
+        "utilisation_only": {
+          "ci": [
+            -0.0007501675514873171,
+            0.004123257261486333
+          ],
+          "decrement": 0.001479695675331529,
+          "useful": false
+        }
+      },
+      "high_prior": {
+        "raw_graph": {
+          "ci": [
+            0.030791088221557707,
+            0.07158139642793022
+          ],
+          "decrement": 0.04587260844846912,
+          "useful": true
+        },
+        "residualised": {
+          "ci": [
+            0.010449487586754572,
+            0.06038801027860787
+          ],
+          "decrement": 0.02605406480785803,
+          "useful": true
+        },
+        "utilisation_only": {
+          "ci": [
+            -0.014082532735900996,
+            0.025198470066143362
+          ],
+          "decrement": 0.014438472547849527,
+          "useful": false
+        }
+      },
+      "low_prior": {
+        "raw_graph": {
+          "ci": [
+            -0.008349937115831485,
+            0.005981619922663344
+          ],
+          "decrement": 3.433161975157226e-05,
+          "useful": false
+        },
+        "residualised": {
+          "ci": [
+            -0.006716500056594928,
+            0.00593185265024633
+          ],
+          "decrement": 0.0005454142661577027,
+          "useful": false
+        },
+        "utilisation_only": {
+          "ci": [
+            -0.0011382390652797704,
+            0.001973577495457338
+          ],
+          "decrement": 0.00043885009025757573,
+          "useful": false
+        }
+      },
+      "low_prior_window_defined": {
+        "raw_graph": {
+          "ci": [
+            -0.010437351396981123,
+            0.009377576028977349
+          ],
+          "decrement": 0.0008460411777576976,
+          "useful": false
+        },
+        "residualised": {
+          "ci": [
+            -0.007307046441587757,
+            0.008938191146508054
+          ],
+          "decrement": 0.0017913668336648593,
+          "useful": false
+        },
+        "utilisation_only": {
+          "ci": [
+            -0.0015668322224414145,
+            0.0024138199397872127
+          ],
+          "decrement": 0.0003492270048092211,
+          "useful": false
+        }
+      }
+    },
+    "s5_survives_at_low_prior": false,
+    "s5_verdict": "The graph residual survives utilisation residualisation only in band(s): high_prior -- i.e. only where the clock already says the episode is probably failing.  In the low-prior region, where a detector would have to act, the residualised graph block adds nothing whose interval excludes zero, so the low-prior graph contribution is utilisation and clock."
+  }
+}
