@@ -9,4 +9,9 @@
 设计见 `docs/superpowers/specs/2026-09-06-progress-ratio-guard-design.md`。
 主指标是相对存活先验的提升倍数，不是 episode 级精确度。
 
-复现顺序见 `docs/REPRODUCE.md`（由 Task 13 写入）。
+判决与全部结果见 [`REPORT_ZH.md`](REPORT_ZH.md)。复现顺序见 [`docs/REPRODUCE.md`](docs/REPRODUCE.md)。
+
+**作为检测器它两轮预注册都未通过。** 保留下来的是两件别的东西：召回与精确度在本语料上
+无法区分任何监视器（纯时钟召回 1.000 @ 0.42% 误报），以及由此得到的可部署组合规则
+——时钟支 ∨ v7 relative_freeze @q0.98，external 召回 1.000 / 精度 0.887 / 31% 的失败
+提前 110 个环境步。
