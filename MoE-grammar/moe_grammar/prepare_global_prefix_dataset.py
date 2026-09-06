@@ -37,7 +37,9 @@ def main() -> None:
         raise ValueError("grammar-model task order does not match corpus")
 
     print("Projecting and tokenizing every query with this fold's train-only model...", flush=True)
-    projected = project_in_batches(corpus.features, artifact["preprocessor"])
+    projected = project_in_batches(
+        corpus.features, corpus.feature_names, artifact["preprocessor"]
+    )
     words, emissions, lexical_log_likelihood = tokenize_in_batches(
         projected, artifact["tokenizer"]
     )

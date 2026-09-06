@@ -246,16 +246,29 @@ class ContinuousVARGrammar:
         )
 
 
+def _defined_min(distances: np.ndarray) -> np.ndarray:
+    """Row-wise minimum over defined lags, NaN where no lag is defined."""
+    defined = np.isfinite(distances)
+    filled = np.where(defined, distances, np.inf)
+    return np.where(defined.any(axis=1), filled.min(axis=1), np.nan).astype(np.float32)
+
+
 def causal_recurrence_features(
     values: np.ndarray,
     starts: np.ndarray,
     lengths: np.ndarray,
     max_lag: int = 4,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return lag-1 speed, lag-2..K recurrence, and nearest prior-state distance."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Return lag-1 speed, lag-2..K recurrence, nearest prior distance, and validity.
+
+    Early positions have no prior state at the required lag. Filling them with a large
+    sentinel placed 8.3% of the calibration rows at an extreme value and compressed the
+    usable percentile range, so those positions are masked instead. ``valid`` has one
+    boolean column per returned statistic, in the order they are returned.
+    """
 
     values = np.asarray(values, dtype=np.float32)
-    missing = np.float32(100.0)
+    missing = np.float32(np.nan)
     speed = np.full(len(values), missing, dtype=np.float32)
     periodic = np.full(len(values), missing, dtype=np.float32)
     nearest = np.full(len(values), missing, dtype=np.float32)
@@ -272,9 +285,12 @@ def causal_recurrence_features(
             )
         speed[start : start + length] = distances[:, 0]
         if max_lag > 1:
-            periodic[start : start + length] = distances[:, 1:].min(axis=1)
-        nearest[start : start + length] = distances.min(axis=1)
-    return speed, periodic, nearest
+            periodic[start : start + length] = _defined_min(distances[:, 1:])
+        nearest[start : start + length] = _defined_min(distances)
+    valid = np.column_stack(
+        [np.isfinite(speed), np.isfinite(periodic), np.isfinite(nearest)]
+    )
+    return speed, periodic, nearest, valid
 
 
 def combine_overregularity(

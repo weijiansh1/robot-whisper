@@ -32,7 +32,9 @@ def main() -> None:
         feature_dtype=np.float16,
     )
     artifact = joblib.load(args.grammar_model)
-    projected = project_in_batches(corpus.features, artifact["preprocessor"])
+    projected = project_in_batches(
+        corpus.features, corpus.feature_names, artifact["preprocessor"]
+    )
 
     episode_count = len(corpus.episodes)
     route_dimensions = projected.shape[1] + 3 * corpus.features.shape[2]

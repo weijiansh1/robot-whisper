@@ -1,10 +1,10 @@
 # MoE Routing Grammar
 
 This directory turns the proposal in `idea.md` into leakage-resistant experiments on the
-`VLA_MUI_HUB` routing corpora. The legacy audit maps each 10-step query to a discrete word; the
-current audit keeps a continuous multitrack query phenotype and models the complete causal
-prefix. It uses all 40 LIBERO tasks in the two `right-50x8*-20260903` segments; the original
-five-task `right-16x32` experiment remains as a smaller reference.
+`VLA_MUI_HUB` routing corpora. The current audits test both a continuous multitrack query
+phenotype and an interpretable five-track discrete chord over the complete causal prefix. They
+use all 40 LIBERO tasks in the two `right-50x8*-20260903` segments; the original five-task
+`right-16x32` experiment remains as a smaller reference.
 
 The implementation is read-only with respect to the source hub. Generated features and models
 stay under this directory.
@@ -38,6 +38,65 @@ candidate audit is in
 [results-candidate-reranking-v2/REPORT.zh.md](results-candidate-reranking-v2/REPORT.zh.md).
 The sections below retain prior audits for provenance rather than presenting them as the final
 monitoring result.
+
+## Strict Ten-Flow Query-Word Audit (Current)
+
+The literal multitrack proposal is now tested without collapsing a query into one chord. Every
+query keeps all ten flow positions and five ternary tracks, giving a `10 x 5` query word. The
+within-query grammar compares ordered flow context against the identical unordered context; a
+factorial categorical HMM then filters the complete sequence of 50-symbol query words. Neither
+path uses task ID, action, vision, outcome, or a Transformer online.
+
+- Within a query, order-2 improves over order-1 by 0.01009 bits/flow-track. Order-3 adds only
+  0.00035, and order-4 makes held-out NLL worse by 0.00067. Ordered-4 still beats its identical
+  bag-4 control by 0.00176 bits/flow-track, with all 50 held-out init states agreeing.
+- Across queries, the complete prefix improves over the same latent-clock HMM given only the
+  latest full query word by 0.00093 bits/track (state-cluster 95% CI [0.00058, 0.00127]; 41/50
+  states positive). This is direct evidence for a very small global-prefix residual, not a
+  strong global grammar.
+- Exact words are unusably sparse: 72,022 of 75,722 sampled healthy query words are unique
+  (95.1%), and the most common exact word appears only 27 times. The model therefore compares
+  all 50 symbols factorwise instead of assigning a one-hot query-word ID.
+- A literal within-query `Fl Fl Sy Sy` window occurs in 100% of successful Scene8 episodes;
+  the fixed terminal version occurs in 96.3% and has matched AUC 0.499. It is normal generation
+  morphology, not a Trap-specific sentence.
+- At a matched 4.7% success-episode FPR, full-prefix innovation detects 4.1% of physical stasis
+  events by q-3 and has matched AUC 0.450. The best tail operating point is low surprisal at
+  8.1% q-3 recall (95% CI [5.1%, 12.8%]), but its matched AUC is only 0.550. This is not a
+  reliable online warning signal.
+
+The strict report, OOF physical scores, and five state-disjoint fold models are in
+[results-flow-word-v1/REPORT.zh.md](results-flow-word-v1/REPORT.zh.md). The query-collapsed audit
+below is retained as a representation ablation.
+
+## Interpretable Query-Level Discrete Audit
+
+The explicit `Fl/Sy/Sw/...` hypothesis is now tested directly rather than used only as a story
+for learned GMM IDs. Each query emits five simultaneous ternary tracks:
+sharpness (`Fl/normal/Sh`), token synchronization (`Ds/normal/Sy`), effective rank
+(`LR/normal/HR`), switching (`Lk/normal/Sw`), and within-query flow sharpening
+(`Ff/normal/Fs`). Healthy density-state successes alone set the 20/80% thresholds. The primary
+tokenizer is stateless so it cannot manufacture sequential persistence.
+
+- Ordered last-four-chord context improves held-out prediction over the identical unordered bag
+  by 0.0301 bits/track. A full-prefix categorical HMM improves over its clock-only control by
+  0.0179 bits/track.
+- Both gains are positive in all 5 folds and all 50 held-out init states. The init-state cluster
+  bootstrap intervals are [0.0285, 0.0317] and [0.0173, 0.0185] bits/track, respectively.
+- This confirms a small but stable **local** discrete routing syntax. Order-4 improves over
+  order-1 by 0.0189 bits/track, of which q-2 contributes 0.0159, q-3 contributes 0.0026, and
+  q-4 only 0.00038. The full-prefix HMM is 0.00235 bits/track worse than the same HMM given only
+  its clock and last chord (49/50 states agree), so there is no positive long-prefix result.
+- It does not confirm a Trap syntax. At a matched 4.7% success-episode FPR, ordered-4 detects
+  0.0% of physical stasis events by q-3; full-prefix HMM detects 0.5%.
+- The preregistered `Fl Fl Sy Sy` motif occurs in 85.5% of successful Scene8 episodes and has
+  state/query-matched AUC 0.508 at stasis onset. It is a common motif, not a Trap-specific rule.
+- Explicit duration, `ABAB/ABCABC` recurrence, low-surprisal, and healthy-return channels do not
+  rescue early detection. The discrete three-channel union reaches 5.1% q-3 recall at the same
+  4.7% FPR and matched AUC 0.491.
+
+Full measurements, learned chord frequencies, OOF scores, and fold models are in
+[results-discrete-grammar-v1/REPORT.zh.md](results-discrete-grammar-v1/REPORT.zh.md).
 
 ## Expanded Full-40 Result
 
@@ -227,10 +286,40 @@ For each `[query, layer, flow, token, expert]` routing tensor, the extractor com
 - flow Hellinger velocity, Top-4 switching, and acceleration;
 - cross-layer invariant-profile dispersion (the old raw expert-ID disagreement was invalid).
 
-The legacy path yields a `10 x 81` chord tensor per query. It then applies levels, first
-differences, and second differences to every track, including already-derived velocity and
-acceleration, forming a 2,187-dimensional descriptor. This path remains only for reproducing
-the older reports; it is not the corrected detector representation.
+The discrete path yields a `10 x 81` chord tensor per query. It used to apply levels, first
+differences, and second differences to every track, including the already-derived velocity and
+acceleration, forming a 2,187-dimensional descriptor that encoded third- and fourth-order
+finite differences of a 10-point curve. `build_clean_query_descriptors` replaced that
+expansion: each flow curve now contributes early, middle, and late means, plus a slope for
+level metrics only, for 300 dimensions. All four discrete audits
+(`run_experiments`, `run_full40_audit`, `run_dual_axis_audit`, `run_task_holdout_audit`) use
+it. Across the five state-blocked folds this raises the variance retained by 24 PCA
+components from 0.46 to 0.83, moves `history - phase` from -0.2091 to -0.1984 bits/query
+(5/5 folds), and strengthens `ordered - bag` from -0.00371 to -0.00505 (5/5 folds). The
+second-word increment `history - history1`, however, collapses from -0.0073 to -0.00034 and
+is significant in **0/5** folds, so the earlier "adding a second word contributes 0.044
+bits/token" claim does not survive the corrected representation. Because
+`history` (39.4098) < `history1` (39.4109) < `bag` (39.4161), the surviving ordered effect is
+unordered pooling *destroying* information rather than a second word adding ordered
+information.
+
+The GMM tokenizer additionally reports `P(out-of-vocabulary | query)` against a flat
+background component, and the audit scores four channels the pooled context NLL cannot
+express on its own: `order_residual` (context minus the clock-free unigram baseline, which
+separates "this word is rare" from "this word is rare *here*"), `unknown`, `recurrence`
+(lag-1..4 word recurrence, which exact-run duration cannot see), and `end_hazard`
+(`1 - P(END within 4 queries)` from a first-order reachability table). None of the four is
+selected in any fold: mean calibration AUC is 0.608, 0.594, 0.519, and 0.507 against 0.621
+for the best existing channel, and `recurrence`/`end_hazard` sit at chance. Their absence was
+therefore not the reason early detection failed.
+
+Marginalizing the *history* over past word posteriors instead of committing to argmax words
+(`beam_continuous_nll`) is worth -0.0180 bits/query on held-out successes (state-blocked
+p=0.0020), with 14.85% of queries within one bit of a tie. That measurement error is 3.6x the
+entire `ordered - bag` effect it is being used to establish.
+
+The per-point fixes, before/after numbers, and remaining gaps are in
+[results-full40-v2-crossfit/AUDIT_FIXES.zh.md](results-full40-v2-crossfit/AUDIT_FIXES.zh.md).
 
 The sequence comparison includes unigram, absolute position, position+history, bigram, fixed
 fourth-order Markov, unordered bag-context, PST, PST plus explicit duration, and task-conditioned
@@ -344,6 +433,31 @@ CUDA_VISIBLE_DEVICES=1 python -m moe_grammar.run_candidate_reranking_audit \
 The continuous VAR Ridge solve, prediction, and Gaussian quadratic forms use CUDA in this path;
 small indexing, calibration quantiles, and report aggregation remain on CPU.
 
+Run the interpretable discrete chord audit and its held-out init-state stability check on an idle
+GPU:
+
+```bash
+python -m moe_grammar.run_discrete_grammar_audit \
+  --device cuda:1 --output-dir results-discrete-grammar-v1
+python -m moe_grammar.run_discrete_stability \
+  --device cuda:1 --output-dir results-discrete-grammar-v1
+```
+
+The categorical HMM processes all active episodes at each query offset as one CUDA batch. Sparse
+ordered-context counting and lookup remain single-process CPU operations.
+
+Prepare and run the strict ten-flow query-word audit on an idle GPU:
+
+```bash
+python -m moe_grammar.prepare_flow_word_dataset --device cuda:1
+python -m moe_grammar.run_flow_word_audit \
+  --device cuda:1 --output-dir results-flow-word-v1
+```
+
+The preparation projects the original routing arrays in GPU batches. The audit also batches the
+factorial HMM forward pass on CUDA; only sparse categorical counts, calibration, and report
+aggregation remain on CPU.
+
 Verification:
 
 ```bash
@@ -383,6 +497,12 @@ python -m pytest -q
   matched-FPR physical onset evaluation, and deploy-threshold transfer diagnostics.
 - `results-candidate-reranking-v2/`: exact route-matched same-snapshot candidate scores,
   selections, paired ablations, and trunk-cluster uncertainty.
+- `results-discrete-grammar-v1/`: five-track ternary chord models, ordered/bag/full-prefix
+  comparisons, direct `Fl Fl Sy Sy` tests, OOF physical scores, and init-state cluster inference.
+- `artifacts/flow-word-primitives-v1.npz`: ten flow-step primitive vectors for every full40 and
+  Scene8 anchor query.
+- `results-flow-word-v1/`: strict `10 x 5` query words, flow-position grammar, factorized
+  full-prefix models, OOF physical scores, and direct flow-motif controls.
 
 ## Unsupported Next Steps
 

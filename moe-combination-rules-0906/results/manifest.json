@@ -1,0 +1,227 @@
+{
+  "artifacts": {
+    "PREREGISTRATION.json": {
+      "bytes": 6287,
+      "sha256_16": "619c42bb554cbc95"
+    },
+    "analysis.json": {
+      "bytes": 2849,
+      "sha256_16": "72b2b1d04a011f8c"
+    },
+    "build.json": {
+      "bytes": 652,
+      "sha256_16": "c03a22cbd1354d00"
+    },
+    "detector_index.csv": {
+      "bytes": 35836,
+      "sha256_16": "4782e54001c473a1"
+    },
+    "development_baselines.csv": {
+      "bytes": 119728,
+      "sha256_16": "86f61811e5cedd0a"
+    },
+    "development_main_alarms.npz": {
+      "bytes": 329258,
+      "sha256_16": "4d04cfb57d872fce"
+    },
+    "development_rules.csv": {
+      "bytes": 2868014,
+      "sha256_16": "dae02b930748d7ee"
+    },
+    "development_to_external_transfer.csv": {
+      "bytes": 8115,
+      "sha256_16": "976b4560d4c0bfbd"
+    },
+    "development_window_ablation.csv": {
+      "bytes": 841,
+      "sha256_16": "340bb3f7288165f4"
+    },
+    "development_window_pareto.csv": {
+      "bytes": 1249,
+      "sha256_16": "a0860c2d4be9e18d"
+    },
+    "external_8b_alarms.npz": {
+      "bytes": 362458,
+      "sha256_16": "78afdcc642c145e5"
+    },
+    "external_alarm_timing.csv": {
+      "bytes": 1837,
+      "sha256_16": "a68ab287841decd3"
+    },
+    "external_frontiers.csv": {
+      "bytes": 14939,
+      "sha256_16": "fd873a1948eb0e3b"
+    },
+    "external_shortlist.csv": {
+      "bytes": 17266,
+      "sha256_16": "9ebaf519d214992a"
+    },
+    "external_summary.json": {
+      "bytes": 545,
+      "sha256_16": "9f5d7cc455679c73"
+    },
+    "headline.json": {
+      "bytes": 475,
+      "sha256_16": "dc88d5dcb20958fa"
+    },
+    "headline_comparison.csv": {
+      "bytes": 50648,
+      "sha256_16": "722ad099d9c10803"
+    },
+    "manifest.json": {
+      "bytes": 5766,
+      "sha256_16": "663e958edde51723"
+    },
+    "posthoc_v7_probe.csv": {
+      "bytes": 2105,
+      "sha256_16": "8576121c0e39db97"
+    },
+    "posthoc_v7_probe.json": {
+      "bytes": 1312,
+      "sha256_16": "b7acc8d4c4b16061"
+    },
+    "reference_operating_points.csv": {
+      "bytes": 60191,
+      "sha256_16": "bd74a9310c25ff6d"
+    },
+    "shortlist.json": {
+      "bytes": 49626,
+      "sha256_16": "1761df6f5fb04308"
+    },
+    "union_coverage_context.csv": {
+      "bytes": 24369,
+      "sha256_16": "526ee6caf524cf0d"
+    }
+  },
+  "bundle": "moe-combination-rules-0906",
+  "causal": "a combined alarm at chunk q uses only component alarms at chunks <= q",
+  "cohorts": {
+    "development_main": {
+      "episodes": 14800,
+      "risks": 487
+    },
+    "external_8b": {
+      "episodes": 15600,
+      "risks": 564
+    }
+  },
+  "date": "2026-09-06",
+  "learned_parameters": 0,
+  "moe_only": "every pool member is a hb_router_probs quantity; episode length, outcome and wall-clock never enter a rule",
+  "pipeline": [
+    "experiments/build_detector_alarms.py",
+    "experiments/test_combination_core.py",
+    "experiments/select_on_development.py",
+    "experiments/evaluate_external.py",
+    "experiments/analyze_results.py",
+    "experiments/make_headline_table.py",
+    "experiments/ablate_window.py",
+    "experiments/write_manifest.py"
+  ],
+  "post_hoc_items": [
+    "premise.best_possible_four_detector_union in analysis.json is chosen by external coverage and is labelled post-hoc there",
+    "union_coverage_context.csv sweeps the plain-OR sensitivity curve on external; it is reported as context and no rule was selected from it",
+    "the suite-level reading of why the global-mode gain exists was written after seeing the external suite split"
+  ],
+  "predeclared_objective": {
+    "constraints": {
+      "development_low_prior_precision_at_least": 0.6,
+      "development_timely_fpr_caps": [
+        0.0005,
+        0.001,
+        0.0015,
+        0.003,
+        0.005
+      ]
+    },
+    "document": "PREREGISTRATION.json",
+    "grid": {
+      "frames": [
+        1,
+        2
+      ],
+      "k": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "levels": [
+        "selected",
+        "0.5",
+        "0.6",
+        "0.7",
+        "0.75",
+        "0.8",
+        "0.85",
+        "0.9",
+        "0.925",
+        "0.95",
+        "0.96",
+        "0.975",
+        "0.98",
+        "0.99",
+        "0.995"
+      ],
+      "pools": {
+        "all12": [
+          "action_consensus",
+          "conditional_effective_rank",
+          "conditional_energy",
+          "conditional_query_d1",
+          "expert_load_effective_rank",
+          "flow_endpoint",
+          "flow_path",
+          "flow_settling_log_ratio",
+          "mobility",
+          "partial_edge_std",
+          "partial_query_d1",
+          "state_action_alignment"
+        ],
+        "dedup11": [
+          "action_consensus",
+          "conditional_effective_rank",
+          "conditional_energy",
+          "conditional_query_d1",
+          "expert_load_effective_rank",
+          "flow_endpoint",
+          "flow_path",
+          "flow_settling_log_ratio",
+          "mobility",
+          "partial_edge_std",
+          "partial_query_d1"
+        ]
+      },
+      "window": [
+        0,
+        1,
+        2,
+        4,
+        8,
+        "inf"
+      ]
+    },
+    "objectives": {
+      "O1_early": "low_prior_tp",
+      "O2_recall": "tp"
+    },
+    "rule_families": [
+      "quorum",
+      "cascade"
+    ],
+    "written_before_external_was_opened": true
+  },
+  "provenance": {
+    "alarm_reconstruction_verified_against": "moe-hb-front-back-0905/results/frame_survey/external_first_alarms.npz",
+    "detector_definitions": "moe-hb-front-back-0905/results/frame_survey/external_detectors.csv",
+    "labels": "double-selete/trainfree/results/timeout_extension_plus10/*_clean_labels.csv",
+    "routing_caches": [
+      "moe-hb-front-back-0905/results/layer_graphs/*.npz",
+      "moe-v4-0904/results/layerwise_mobility/*.npz"
+    ]
+  },
+  "question": "can an explicit train-free combination rule recover substantially more of the detector union's coverage than any single detector or plain AND, at a comparable false alarm rate",
+  "schema": "himoe.combination_rules.manifest.v1",
+  "train_free": true
+}

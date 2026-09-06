@@ -126,7 +126,9 @@ v7 严格支配旧 cold-start，也以 +29 TP / -1 FP 超过 task-aware v4。相
 | libero_object | 44 | 22 | 7 | 50.00% | 75.86% | 0.197% | 38.64% |
 | libero_spatial | 140 | 108 | 3 | 77.14% | 97.30% | 0.078% | 15.71% |
 
-统一 profile 在四个 suite 都能检出风险，但并非均匀校准。`libero_long` 占 80 个 external FP 中的 69 个；`libero_object` recall 较低；短 horizon 的 `libero_spatial` 受 q6 最早报警限制，early-4 较低。为保持任务无关，本版本没有针对这些差异追加 suite 修正。
+统一 profile 在四个 suite 都能检出风险，但并非均匀校准。`libero_long` 占 80 个 external FP 中的 69 个；`libero_object` recall 较低；`libero_spatial` early-4 较低。为保持任务无关，本版本没有针对这些差异追加 suite 修正。
+
+> **更正（2026-09-05）**：本节初版把 `libero_spatial` 的低 early-4 归因于"短 horizon 受 q6 最早报警限制"。这是错的。风险 episode 的定义就是没能在 horizon 上限前结束，因此它们一律跑满上限——`libero_spatial` 的风险 episode 有 22 个 chunk，最早可报在 q6，首报只要 ≤ q17 就能拿到 lead ≥ 4，窗口并不窄。实测首报中位在 q19、报警相位中位 90.5%，是**真的报得晚**。短的是及时成功的 episode（中位 10.5 chunk），它们只影响误报机会，不影响风险检出。详见 `docs/LOSO_VALIDATION_REPORT_ZH.md` §2.4。
 
 ## GPU 原始在线前缀回放
 

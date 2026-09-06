@@ -41,7 +41,7 @@ METHODS = (
 OVERREGULARITY_COMPONENTS = (
     "freeze",
     "recurrence",
-    "low_surprise",
+    "low_belief_entropy",
 )
 
 SCORED_METHODS = METHODS + OVERREGULARITY_COMPONENTS
@@ -140,6 +140,32 @@ def percentile(
     return calibrator.transform(values, np.zeros(len(values), dtype=np.int16), phase)
 
 
+def fit_percentile_where_defined(
+    values: np.ndarray,
+    phase: np.ndarray,
+    rows: np.ndarray,
+    valid: np.ndarray,
+) -> PhaseConditionalCDF:
+    """Fit a CDF only on positions where the statistic exists."""
+    rows = np.asarray(rows, dtype=np.int64)
+    defined = rows[np.asarray(valid, dtype=bool)[rows]]
+    if len(defined) == 0:
+        raise ValueError("no calibration rows have a defined recurrence statistic")
+    return fit_percentile(values, phase, defined)
+
+
+def percentile_where_defined(
+    calibrator: PhaseConditionalCDF,
+    values: np.ndarray,
+    phase: np.ndarray,
+    valid: np.ndarray,
+) -> np.ndarray:
+    """Score defined positions and pin undefined ones to the not-anomalous end."""
+    valid = np.asarray(valid, dtype=bool)
+    output = percentile(calibrator, np.where(valid, values, 0.0), phase)
+    return np.where(valid, output, 0.0)
+
+
 def raw_scores(
     base: np.ndarray,
     starts: np.ndarray,
@@ -154,7 +180,9 @@ def raw_scores(
     hmm, phase, belief_entropy = grammar.score(scaled, starts, lengths, device=device)
     var = model["var_grammar"].score(scaled, starts, lengths, device=device)
     current = model["var_grammar"].marginal_score(scaled, device=device)
-    speed, periodic, nearest = causal_recurrence_features(scaled, starts, lengths)
+    speed, periodic, nearest, recurrence_valid = causal_recurrence_features(
+        scaled, starts, lengths
+    )
     output = {
         "scaled": scaled,
         "hmm": hmm,
@@ -165,6 +193,8 @@ def raw_scores(
         "speed": speed,
         "periodic": periodic,
         "nearest": nearest,
+        "speed_valid": recurrence_valid[:, 0],
+        "periodic_valid": recurrence_valid[:, 1],
         "phase_velocity": phase_velocity(phase, starts, lengths),
     }
     if include_clock:
@@ -189,10 +219,16 @@ def channel_scores(
     current = percentile(calibrators["current"], raw["current"], phase)
     var = percentile(calibrators["var"], raw["var"], phase)
     innovation = percentile(calibrators["hmm"], raw["hmm"], phase)
-    freeze = percentile(calibrators["freeze"], -raw["speed"], phase)
-    recurrence = percentile(calibrators["recurrence"], -raw["periodic"], phase)
-    low_surprise = percentile(calibrators["low_surprise"], -raw["hmm"], phase)
-    overregularity = combine_overregularity(freeze, recurrence, low_surprise)
+    freeze = percentile_where_defined(
+        calibrators["freeze"], -raw["speed"], phase, raw["speed_valid"]
+    )
+    recurrence = percentile_where_defined(
+        calibrators["recurrence"], -raw["periodic"], phase, raw["periodic_valid"]
+    )
+    low_belief_entropy = percentile(
+        calibrators["low_belief_entropy"], -raw["belief_entropy"], phase
+    )
+    overregularity = combine_overregularity(freeze, recurrence, low_belief_entropy)
     deviation = np.maximum(innovation, overregularity)
     innovation_dwell = causal_dwell(innovation, starts, lengths, threshold=0.9)
     overregularity_dwell = causal_dwell(overregularity, starts, lengths, threshold=0.9)
@@ -218,13 +254,13 @@ def channel_scores(
         "three_channel": three_channel.astype(np.float32),
         "freeze": freeze.astype(np.float32),
         "recurrence": recurrence.astype(np.float32),
-        "low_surprise": low_surprise.astype(np.float32),
+        "low_belief_entropy": low_belief_entropy.astype(np.float32),
         "return_probability": return_probability.astype(np.float32),
         "deviation": deviation.astype(np.float32),
         "deviation_dwell": deviation_dwell,
         "freeze_percentile": freeze,
         "recurrence_percentile": recurrence,
-        "low_surprise_percentile": low_surprise,
+        "low_belief_entropy_percentile": low_belief_entropy,
     }
 
 
@@ -281,9 +317,18 @@ def fit_fold(
         "current": fit_percentile(raw["current"], raw["phase"], calibration_rows),
         "var": fit_percentile(raw["var"], raw["phase"], calibration_rows),
         "hmm": fit_percentile(raw["hmm"], raw["phase"], calibration_rows),
-        "freeze": fit_percentile(-raw["speed"], raw["phase"], calibration_rows),
-        "recurrence": fit_percentile(-raw["periodic"], raw["phase"], calibration_rows),
-        "low_surprise": fit_percentile(-raw["hmm"], raw["phase"], calibration_rows),
+        "freeze": fit_percentile_where_defined(
+            -raw["speed"], raw["phase"], calibration_rows, raw["speed_valid"]
+        ),
+        "recurrence": fit_percentile_where_defined(
+            -raw["periodic"], raw["phase"], calibration_rows, raw["periodic_valid"]
+        ),
+        # The audit formula asks for -H(M_q | M_<q). Using -hmm here instead made this
+        # component the exact affine negation of hmm_innovation, so the composite
+        # contained a channel and its own negation and scored below chance.
+        "low_belief_entropy": fit_percentile(
+            -raw["belief_entropy"], raw["phase"], calibration_rows
+        ),
     }
     model["calibrators"] = calibrators
     preliminary = channel_scores_without_return(raw, starts, lengths, calibrators)
@@ -314,10 +359,16 @@ def channel_scores_without_return(
 ) -> dict[str, np.ndarray]:
     phase = raw["phase"]
     innovation = percentile(calibrators["hmm"], raw["hmm"], phase)
-    freeze = percentile(calibrators["freeze"], -raw["speed"], phase)
-    recurrence = percentile(calibrators["recurrence"], -raw["periodic"], phase)
-    low_surprise = percentile(calibrators["low_surprise"], -raw["hmm"], phase)
-    overregularity = combine_overregularity(freeze, recurrence, low_surprise)
+    freeze = percentile_where_defined(
+        calibrators["freeze"], -raw["speed"], phase, raw["speed_valid"]
+    )
+    recurrence = percentile_where_defined(
+        calibrators["recurrence"], -raw["periodic"], phase, raw["periodic_valid"]
+    )
+    low_belief_entropy = percentile(
+        calibrators["low_belief_entropy"], -raw["belief_entropy"], phase
+    )
+    overregularity = combine_overregularity(freeze, recurrence, low_belief_entropy)
     return {
         "innovation": innovation,
         "overregularity": overregularity,
@@ -338,6 +389,18 @@ def episode_maxima(
         ],
         dtype=np.float64,
     )
+
+
+def event_bootstrap_interval(
+    win_rates: list[float], draws: int = 5000, seed: int = 20260905
+) -> list[float] | None:
+    """Resample stasis events, not matched pairs, for the matched-AUC interval."""
+    values = np.asarray(win_rates, dtype=np.float64)
+    if len(values) < 2:
+        return None
+    rng = np.random.default_rng(seed)
+    samples = values[rng.integers(0, len(values), size=(draws, len(values)))].mean(axis=1)
+    return [float(np.quantile(samples, 0.025)), float(np.quantile(samples, 0.975))]
 
 
 def wilson(successes: int, total: int) -> list[float]:
@@ -373,6 +436,7 @@ def physical_metrics(
         leads: list[int] = []
         matched_wins = 0.0
         matched_pairs = 0
+        event_win_rates: list[float] = []
         for episode_index in range(len(starts)):
             start = int(starts[episode_index])
             length = int(lengths[episode_index])
@@ -397,14 +461,19 @@ def physical_metrics(
                     leads.append(event_onset - first)
             event_value = sequence[min(event_onset, length - 1)]
             controls = np.flatnonzero(success & (state == state[episode_index]))
+            event_wins: list[float] = []
             for control in controls:
                 control_length = int(lengths[control])
                 if control_length <= event_onset:
                     continue
                 control_row = int(starts[control]) + event_onset
                 difference = event_value - scores[method][control_row]
-                matched_wins += float(difference > 0) + 0.5 * float(difference == 0)
+                win = float(difference > 0) + 0.5 * float(difference == 0)
+                event_wins.append(win)
+                matched_wins += win
                 matched_pairs += 1
+            if event_wins:
+                event_win_rates.append(float(np.mean(event_wins)))
         output[method] = {
             "success_episode_false_alarms": false_alarms,
             "success_episodes": success_total,
@@ -420,6 +489,14 @@ def physical_metrics(
                 matched_wins / matched_pairs if matched_pairs else None
             ),
             "matched_pairs": matched_pairs,
+            # Pooling over pairs weights events by their control count and treats
+            # correlated pairs as independent. The event is the independent unit, so
+            # inference uses the per-event win rate and a bootstrap over events.
+            "event_matched_auc": (
+                float(np.mean(event_win_rates)) if event_win_rates else None
+            ),
+            "event_matched_auc_ci": event_bootstrap_interval(event_win_rates),
+            "matched_events": len(event_win_rates),
         }
     return output
 
@@ -432,6 +509,15 @@ def render_report(summary: dict[str, Any]) -> str:
 
     def pct(value: float) -> str:
         return f"{100.0 * value:.1f}%"
+
+    def auc_cell(row: dict[str, Any]) -> str:
+        value = row["event_matched_auc"]
+        if value is None:
+            return "n/a"
+        interval = row["event_matched_auc_ci"]
+        if interval is None:
+            return f"{value:.3f}"
+        return f"{value:.3f} [{interval[0]:.3f}, {interval[1]:.3f}]"
 
     lines = [
         "# 三通道 MoE routing observer（v2）",
@@ -457,34 +543,31 @@ def render_report(summary: dict[str, Any]) -> str:
         "",
         "## 物理 onset 结果（固定 5% success-episode FPR）",
         "",
-        "| channel | success episode FPR | recall q-3 | recall by onset | recall onset+3 | matched AUC |",
+        "| channel | success episode FPR | recall q-3 | recall by onset | recall onset+3 | matched AUC (95% CI over events) |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     for method in METHODS:
         row = physical[method]
-        auc = row["state_and_query_matched_auc"]
         lines.append(
             f"| {method} | {pct(row['success_episode_fpr'])} | "
             f"{pct(row['recall_onset_minus3'])} | {pct(row['recall_by_onset'])} | "
-            f"{pct(row['recall_by_onset_plus3'])} | "
-            f"{'n/a' if auc is None else f'{auc:.3f}'} |"
+            f"{pct(row['recall_by_onset_plus3'])} | {auc_cell(row)} |"
         )
     lines.extend(
         [
             "",
             "### Over-regularity components",
             "",
-            "| component | success episode FPR | recall q-3 | recall by onset | matched AUC |",
+            "| component | success episode FPR | recall q-3 | recall by onset | matched AUC (95% CI over events) |",
             "|---|---:|---:|---:|---:|",
         ]
     )
     for method in OVERREGULARITY_COMPONENTS:
         row = physical[method]
-        auc = row["state_and_query_matched_auc"]
         lines.append(
             f"| {method} | {pct(row['success_episode_fpr'])} | "
             f"{pct(row['recall_onset_minus3'])} | {pct(row['recall_by_onset'])} | "
-            f"{'n/a' if auc is None else f'{auc:.3f}'} |"
+            f"{auc_cell(row)} |"
         )
     lines.extend(
         [
@@ -494,17 +577,15 @@ def render_report(summary: dict[str, Any]) -> str:
             "",
             "## Scene8 跨状态阈值部署",
             "",
-            "| channel | Scene8 success FPR | recall by onset | matched AUC |",
+            "| channel | Scene8 success FPR | recall by onset | matched AUC (95% CI over events) |",
             "|---|---:|---:|---:|",
         ]
     )
     for method in METHODS:
         row = deployment[method]
-        auc = row["state_and_query_matched_auc"]
         lines.append(
             f"| {method} | {pct(row['success_episode_fpr'])} | "
-            f"{pct(row['recall_by_onset'])} | "
-            f"{'n/a' if auc is None else f'{auc:.3f}'} |"
+            f"{pct(row['recall_by_onset'])} | {auc_cell(row)} |"
         )
     lines.extend(
         [

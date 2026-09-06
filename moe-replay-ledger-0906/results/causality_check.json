@@ -1,0 +1,76 @@
+{
+ "schema": "himoe.replay_ledger.causality_check.v1",
+ "definition": "at chunk q the detector may read chunks 0..q only; truncating an episode at or after its alarm chunk must leave the alarm chunk fixed",
+ "checks": [
+  {
+   "head": "mobility|L12|low|q0.975|global",
+   "rebuilt_from": "moe-v4-0904/results/layerwise_mobility/external_8b.npz (raw per-chunk mobility), threshold from the pooled development peaks",
+   "bit_identical_to_sealed_array": true,
+   "rows_differing_from_sealed": 0,
+   "rebuilt_tp": 195,
+   "rebuilt_fp": 17,
+   "published_tp": 195,
+   "published_fp": 17,
+   "global_threshold": -0.02320718765258789,
+   "truncate_at_alarm": {
+    "episodes_tested": 212,
+    "alarm_chunk_unchanged": 212,
+    "alarm_chunk_moved": 0,
+    "alarm_lost": 0
+   },
+   "truncate_one_chunk_after_alarm": {
+    "episodes_tested": 212,
+    "alarm_chunk_unchanged": 212,
+    "alarm_chunk_moved": 0,
+    "alarm_lost": 0
+   },
+   "truncate_one_chunk_before_alarm": {
+    "episodes_tested": 212,
+    "alarm_correctly_absent": 212,
+    "alarm_survived_truncation": 0
+   }
+  },
+  {
+   "head": "mobility|L2|low|q0.7|per_task",
+   "bit_identical_to_sealed_array": true,
+   "rows_differing_from_sealed": 0,
+   "rebuilt_tp": 272,
+   "rebuilt_fp": 57,
+   "published_tp": 272,
+   "published_fp": 57,
+   "truncate_at_alarm": {
+    "episodes_tested": 329,
+    "alarm_chunk_unchanged": 329,
+    "alarm_chunk_moved": 0,
+    "alarm_lost": 0
+   },
+   "truncate_one_chunk_before_alarm": {
+    "episodes_tested": 329,
+    "alarm_correctly_absent": 329,
+    "alarm_survived_truncation": 0
+   }
+  },
+  {
+   "head": "L5|high|w4|k8|q0.80|per_task  (v4 instability branch, 8-chunk confirmation)",
+   "rebuilt_tp": 34,
+   "rebuilt_fp": 5,
+   "published_tp": 34,
+   "published_fp": 5,
+   "truncate_at_alarm": {
+    "episodes_tested": 39,
+    "alarm_chunk_unchanged": 39,
+    "alarm_chunk_moved": 0,
+    "alarm_lost": 0
+   },
+   "truncate_one_chunk_before_alarm": {
+    "episodes_tested": 39,
+    "alarm_correctly_absent": 39,
+    "alarm_survived_truncation": 0
+   }
+  }
+ ],
+ "structural": {
+  "note": "no stored alarm may land on a chunk the episode never reached",
+  "checked_in": "collect_methods.add()"
+ }
+}

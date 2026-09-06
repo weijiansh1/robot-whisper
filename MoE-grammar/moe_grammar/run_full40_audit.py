@@ -16,7 +16,12 @@ from moe_grammar.conditional_detection import (
 )
 from moe_grammar.corpus import Corpus, Episode, corpus_summary, load_corpus, make_state_folds
 from moe_grammar.features import build_clean_query_descriptors
-from moe_grammar.grammar import PositionContextGrammar, PositionGrammar
+from moe_grammar.grammar import (
+    CountGrammar,
+    LagRecurrenceModel,
+    PositionContextGrammar,
+    PositionGrammar,
+)
 from moe_grammar.statistics import (
     auc_pairwise,
     cusum,
@@ -29,7 +34,22 @@ from moe_grammar.tokenizer import GMMTokenizer, Preprocessor
 
 
 HORIZONS = (3, 7, 12)
-RAW_METRICS = ("lexical", "phase", "bag", "history1", "history", "residual")
+RAW_METRICS = (
+    "lexical",
+    "phase",
+    "bag",
+    "history1",
+    "history",
+    "residual",
+    # Audit channels the pooled context NLL could not express on its own.
+    "order_residual",
+    "unknown",
+    "recurrence",
+    "end_hazard",
+)
+
+# How many queries ahead a healthy sentence is allowed to still be running.
+END_HORIZON = 4
 
 
 def parse_args() -> argparse.Namespace:
@@ -180,6 +200,11 @@ def fit_task_grammars(
                 min_support=min_support,
                 kl_delta=0.01,
             ).fit(sequences),
+            "recurrence": LagRecurrenceModel(n_words=n_words, max_lag=4).fit(sequences),
+            # A clock-free first-order model purely for the END reachability table.
+            "end_table": CountGrammar(vocabulary, max_order=1, alpha=0.5)
+            .fit(sequences)
+            .end_hitting_table(END_HORIZON),
         }
     return output
 
@@ -190,11 +215,13 @@ def score_raw_metrics(
     emissions: np.ndarray,
     lexical_log_likelihood: np.ndarray,
     models: dict[int, dict[str, Any]],
+    tokenizer: GMMTokenizer,
 ) -> dict[str, np.ndarray]:
     raw = {
         name: np.empty(len(corpus.features), dtype=np.float32) for name in RAW_METRICS
     }
     raw["lexical"][:] = -np.asarray(lexical_log_likelihood, dtype=np.float32)
+    raw["unknown"][:] = tokenizer.unknown_posterior(lexical_log_likelihood).astype(np.float32)
     for index, episode in enumerate(corpus.episodes):
         selected = slice(episode.start, episode.stop)
         sequence = words[selected]
@@ -204,6 +231,16 @@ def score_raw_metrics(
             values, _ = task_models[name].continuous_nll(sequence, emission)
             raw[name][selected] = values.astype(np.float32)
         raw["residual"][selected] = raw["history"][selected] - raw["phase"][selected]
+        unigram = task_models["phase"].unigram_continuous_nll(emission)
+        raw["order_residual"][selected] = (
+            raw["history"][selected] - unigram.astype(np.float32)
+        )
+        raw["recurrence"][selected] = (
+            task_models["recurrence"].surprisal(sequence).astype(np.float32)
+        )
+        raw["end_hazard"][selected] = (
+            1.0 - task_models["end_table"][np.asarray(sequence, dtype=np.int64)]
+        ).astype(np.float32)
         if (index + 1) % 4000 == 0:
             print(f"  scored {index + 1:,}/{len(corpus.episodes):,} episodes", flush=True)
     return raw
@@ -569,7 +606,7 @@ def main() -> None:
     print("Fitting task+position healthy grammars on all train-success episodes...", flush=True)
     task_models = fit_task_grammars(corpus, train_success, words, args.n_words)
     print("Scoring query-level healthy likelihoods...", flush=True)
-    raw = score_raw_metrics(corpus, words, emissions, lexical, task_models)
+    raw = score_raw_metrics(corpus, words, emissions, lexical, task_models, tokenizer)
 
     grammar_result = healthy_grammar_evaluation(test_success, raw, args.seed)
     state_order = np.asarray(split["train"], dtype=np.int16).copy()

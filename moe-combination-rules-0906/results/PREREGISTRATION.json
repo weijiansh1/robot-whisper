@@ -1,0 +1,104 @@
+{
+  "schema": "himoe.combination_rules.prereg.v1",
+  "written_before": "any external_8b score of any combination rule was computed",
+  "date": "2026-09-06",
+  "question": "Plain OR over the existing MoE detectors covers 93.1% of external risks but with unacceptable false alarms; plain AND keeps only the intersection and mechanically pushes the alarm to the later of the two component alarms. Is there an explicit, train-free combination rule that recovers substantially more of the union coverage at a false alarm rate comparable to the current single/AND operating points?",
+
+  "detector_pool": {
+    "source": "moe-hb-front-back-0905/results/frame_survey",
+    "quantities": [
+      "mobility", "conditional_query_d1", "partial_query_d1",
+      "flow_path", "flow_endpoint", "flow_settling_log_ratio",
+      "action_consensus", "state_action_alignment", "conditional_energy",
+      "conditional_effective_rank", "partial_edge_std", "expert_load_effective_rank"
+    ],
+    "frames": {
+      "mobility": "adjacent_query",
+      "conditional_query_d1": "adjacent_query",
+      "partial_query_d1": "adjacent_query",
+      "flow_path": "denoising_steps",
+      "flow_endpoint": "denoising_steps",
+      "flow_settling_log_ratio": "denoising_steps",
+      "action_consensus": "token_graph",
+      "state_action_alignment": "token_graph",
+      "conditional_energy": "token_graph",
+      "conditional_effective_rank": "token_graph",
+      "partial_edge_std": "token_graph",
+      "expert_load_effective_rank": "expert_load"
+    },
+    "representation_and_direction": "taken verbatim from the frame survey's development selection; no new representation search",
+    "smoothing": {"trailing_mean_width": 4, "consecutive_confirmations": 4},
+    "threshold_modes": ["per_task", "global"],
+    "modes_reported_separately": true,
+    "global_is_the_headline": "only the global mode proves the combined signal is MoE-side rather than task-side"
+  },
+
+  "rule_family": {
+    "name": "windowed cross-frame quorum",
+    "definition": "with v_d the first alarm chunk of pool member d (-1 = never), the combined alarm is the first chunk q such that at least k members satisfy 0 <= q - v_d <= W and those members span at least f distinct reference frames",
+    "causal": "every vote used at chunk q has v_d <= q",
+    "parameters_predeclared": {
+      "sensitivity_level s": ["selected", 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.925, 0.95, 0.96, 0.975, 0.98, 0.99, 0.995],
+      "k": [1, 2, 3, 4, 5],
+      "W": [0, 1, 2, 4, 8, "inf"],
+      "f": [1, 2],
+      "pool": ["all12", "dedup11"]
+    },
+    "s_semantics": "at a shared level s every pool member is thresholded at the same quantile of the same unlabeled reference peak distribution, so a k-of-n vote counts how many independent routing views place the episode in the same (1-s) tail",
+    "pool_semantics": {
+      "all12": "all twelve quantities",
+      "dedup11": "state_action_alignment dropped, because at the selected operating point it and conditional_energy produce near-identical alarm vectors and would double-count one view"
+    },
+    "special_cases": {
+      "k=1": "plain OR over the pool",
+      "k=2, W=inf, pool of two": "plain pairwise AND",
+      "W=0": "simultaneous latching",
+      "f=2": "corroboration must come from a different reference frame"
+    },
+    "why_this_family": "plain AND alarms at max(v_a, v_b), which is unbounded and lands in the high-prior regime. A finite W bounds the confirmation delay to at most W chunks after the first of the k votes, so the rule requires corroboration without surrendering earliness."
+  },
+
+  "baselines_scored_in_the_same_harness": [
+    "every single pool member at every sensitivity level",
+    "every within-mode pairwise AND at the selected level (alarm = max of the two)",
+    "plain OR over the pool at every level (= k=1)"
+  ],
+
+  "selection": {
+    "cohort": "development_main (14,800 episodes, 487 risks)",
+    "external_use": "external_8b is scored once, on the shortlist named by this document plus the baselines, after development selection is frozen",
+    "objectives_both_predeclared": {
+      "O1_early": "maximise development low_prior_tp (true positives whose matched survival prior is below 0.25)",
+      "O2_recall": "maximise development tp"
+    },
+    "constraints": {
+      "development_low_prior_precision_at_least": 0.6,
+      "development_timely_fpr_at_most_ladder": [0.0005, 0.001, 0.0015, 0.003, 0.005]
+    },
+    "constraint_provenance": "0.6 low-prior precision and 0.005 timely FPR are the frame survey's own bars; the tighter caps are added because the operating points to beat sit at development timely FPR 0.0007-0.0021",
+    "tie_breaks_in_order": [
+      "higher low_prior_precision",
+      "higher precision",
+      "lower mean_alarm_prior",
+      "smaller k, then smaller W, then smaller f, then smaller level index, then pool name"
+    ],
+    "shortlist_size": "one development winner per (mode, pool, objective, cap) = 2 x 2 x 2 x 5 = 40 rules, deduplicated"
+  },
+
+  "scoring": {
+    "survival_prior": "per-suite P(risk | still running at chunk q), computed on the cohort being scored, exactly as moe-hb-front-back-0905/experiments/select_early_lock.py does",
+    "low_prior_threshold": 0.25,
+    "lift": "precision / mean matched prior at the alarm chunk",
+    "reported_for_every_rule": ["tp", "fp", "risk_recall", "timely_fpr", "precision", "low_prior_tp", "low_prior_fp", "low_prior_precision", "mean_alarm_prior", "lift", "union_coverage_share", "median_confirmation_delay"],
+    "union_coverage_share": "tp of the rule divided by tp of plain OR over the same pool at the same level"
+  },
+
+  "hard_rules_respected": {
+    "train_free": "no fitted weights, no learned model; every parameter is chosen from the finite grid above by a development ranking",
+    "moe_only": "every pool member reads hb_router_probs derived quantities only; episode length, outcome and wall-clock never enter a score",
+    "causal": "a combined alarm at chunk q depends only on component alarms at chunks <= q",
+    "survival_baseline": "every rule is reported against the matched survival prior, so a rule that raises precision only by firing later shows no lift gain"
+  },
+
+  "anything_decided_after_looking_at_external_will_be_labelled_post_hoc": true
+}

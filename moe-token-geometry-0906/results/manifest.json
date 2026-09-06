@@ -1,0 +1,275 @@
+{
+  "bundle": "moe-token-geometry-0906",
+  "cache": [
+    {
+      "bytes": 2044352,
+      "path": "cache/features/development_extra_dynamic.npy"
+    },
+    {
+      "bytes": 12265472,
+      "path": "cache/features/development_extra_features.npy"
+    },
+    {
+      "bytes": 7469,
+      "path": "cache/features/development_extra_task_kernels.npz"
+    },
+    {
+      "bytes": 14194112,
+      "path": "cache/features/development_main_dynamic.npy"
+    },
+    {
+      "bytes": 85164032,
+      "path": "cache/features/development_main_features.npy"
+    },
+    {
+      "bytes": 79607,
+      "path": "cache/features/development_main_task_kernels.npz"
+    },
+    {
+      "bytes": 410,
+      "path": "cache/features/dynamic_summary.json"
+    },
+    {
+      "bytes": 15888448,
+      "path": "cache/features/external_8b_dynamic.npy"
+    },
+    {
+      "bytes": 95330048,
+      "path": "cache/features/external_8b_features.npy"
+    },
+    {
+      "bytes": 83890,
+      "path": "cache/features/external_8b_task_kernels.npz"
+    },
+    {
+      "bytes": 1632,
+      "path": "cache/features/feature_summary.json"
+    },
+    {
+      "bytes": 10964,
+      "path": "cache/features/templates.npz"
+    },
+    {
+      "bytes": 822,
+      "path": "cache/kernels/build_summary.json"
+    },
+    {
+      "bytes": 56216288,
+      "path": "cache/kernels/development_extra_conditional55.npy"
+    },
+    {
+      "bytes": 5979,
+      "path": "cache/kernels/development_extra_index.npz"
+    },
+    {
+      "bytes": 390334688,
+      "path": "cache/kernels/development_main_conditional55.npy"
+    },
+    {
+      "bytes": 21321,
+      "path": "cache/kernels/development_main_index.npz"
+    },
+    {
+      "bytes": 436928928,
+      "path": "cache/kernels/external_8b_conditional55.npy"
+    },
+    {
+      "bytes": 23092,
+      "path": "cache/kernels/external_8b_index.npz"
+    }
+  ],
+  "cache_is_regenerable": true,
+  "cache_note": "cache/ holds the bulk float32 intermediates; rebuild with the first three scripts",
+  "coverage": {
+    "denoising_step": "final step only, as the construction specifies",
+    "development_extra_queries": 31941,
+    "development_main_queries": 221781,
+    "external_8b_queries": 248255,
+    "subsampling": "none; every valid query of every cohort is processed"
+  },
+  "inputs": {
+    "episode_index": "moe-v4-0904/results/layerwise_mobility/*.npz",
+    "labels": "double-selete/trainfree/results/timeout_extension_plus10/*_clean_labels.csv",
+    "routing": "VLA_MUI_HUB/cache_new/HiMoE-VLA/<task>/<run_id>/server/routes.zarr:hb_router_probs",
+    "run_ids": [
+      "right-50x8-20260903",
+      "right-50x8b-20260903"
+    ]
+  },
+  "pipeline": [
+    {
+      "role": "reads routes.zarr, writes the PSD conditional kernels",
+      "script": "experiments/extract_conditional_kernels.py",
+      "writes": "cache/kernels"
+    },
+    {
+      "role": "layer templates and twelve per-query geometric features",
+      "script": "experiments/compute_features.py",
+      "writes": "cache/features"
+    },
+    {
+      "role": "causal shape-change features",
+      "script": "experiments/compute_dynamic_features.py",
+      "writes": "cache/features"
+    },
+    {
+      "role": "shape, dimension, stability, front vs back",
+      "script": "experiments/characterise_geometry.py",
+      "writes": "results/geometry"
+    },
+    {
+      "role": "alarm sweep, development selection, one external replay",
+      "script": "experiments/detect_deformation.py",
+      "writes": "results/detection"
+    },
+    {
+      "role": "survival-conditioned AUC",
+      "script": "experiments/stratified_effect.py",
+      "writes": "results/effect"
+    },
+    {
+      "role": "fixed-layer profile and redundancy checks",
+      "script": "experiments/profile_shape_drift.py",
+      "writes": "results/effect"
+    }
+  ],
+  "question": "is the MoE action-token geometry stable, what shape is it, does it deform before failure",
+  "results": [
+    {
+      "bytes": 1511,
+      "path": "results/detection/detection.json",
+      "sha256": "c881a19363d78d44d1e1c1c175a37140dd3306380c581e25619b5f401acdd5bc"
+    },
+    {
+      "bytes": 1582202,
+      "path": "results/detection/development_candidates.csv",
+      "sha256": "fa06a194d70c3bb524070353bc7e13a8473299027da36f9ab26f8010c22076d6"
+    },
+    {
+      "bytes": 1356,
+      "path": "results/detection/development_ceiling.csv",
+      "sha256": "500f6b120699254b5bfb4e39317d9df2993f33bdcd9075202838aaabf70927a6"
+    },
+    {
+      "bytes": 6556,
+      "path": "results/detection/external_detectors.csv",
+      "sha256": "a4e58d58bc94791a1ae99b0a95e52f7accf009912453aac386312c5b1ebc84e7"
+    },
+    {
+      "bytes": 17322,
+      "path": "results/detection/external_first_alarms.npz",
+      "sha256": "44490c730f8df9cdbe031951b17cd35e7db902297800c278cc1e21e711050c08"
+    },
+    {
+      "bytes": 5649,
+      "path": "results/detection/false_alarm_dependence_vs_published.csv",
+      "sha256": "5b54c1be800c59c431661837d263505ca513ca3c9b8e78cc02c1b5d42ea58c1f"
+    },
+    {
+      "bytes": 1013,
+      "path": "results/effect/alive_composition.csv",
+      "sha256": "9bb264a8a7c9fc5b8facb5f9a2663174a1437edf6b70b66fbe390998654651ed"
+    },
+    {
+      "bytes": 4140,
+      "path": "results/effect/best_within_task_auc.csv",
+      "sha256": "5d2cf4e8638b9b3ae4de684cbac436d5b708f872a4d7d06c2851e31258ba2a1f"
+    },
+    {
+      "bytes": 339,
+      "path": "results/effect/effect.json",
+      "sha256": "be423824e280a47b38d098463b95fde6a96972ed6c1c575c12ec544ccd50ca15"
+    },
+    {
+      "bytes": 48055,
+      "path": "results/effect/fixed_layer_profile.csv",
+      "sha256": "0f5fec21738d23a410930ceee0352dd48ff29ccd6878831067549720b3675e85"
+    },
+    {
+      "bytes": 631,
+      "path": "results/effect/fixed_layer_selection.json",
+      "sha256": "85eb8de711216446b56dc86a0d92cd99dd16b85422f58f6b6aca04a306964602"
+    },
+    {
+      "bytes": 7039,
+      "path": "results/effect/redundancy_vs_mobility.csv",
+      "sha256": "93a9b9fb1cf38af5d97f8e3fed07f23d9fe1f5eedfda800c5bcc59a0a5c8796a"
+    },
+    {
+      "bytes": 334731,
+      "path": "results/effect/survival_conditioned_auc.csv",
+      "sha256": "12e1c8a6ab4e3d3bfe64cf8a868c97d317af59b78f386124c5c2c39e54724237"
+    },
+    {
+      "bytes": 715,
+      "path": "results/geometry/arc_not_loop.csv",
+      "sha256": "a00857ed15bfcd8f5c9a3b28ae976237ba17330c95cda9e84a2f2c728c1f7356"
+    },
+    {
+      "bytes": 3838,
+      "path": "results/geometry/characterisation.json",
+      "sha256": "ca4fe4b447aaa1e9dcc86a30f30397ccbe3d59f770b4794a28ea63c0a145e78e"
+    },
+    {
+      "bytes": 2269,
+      "path": "results/geometry/configuration_stability.csv",
+      "sha256": "86cf8700594d1b4f0eddf3700f43ac49e5d63ed98f9e518f8726da585a58a488"
+    },
+    {
+      "bytes": 7469,
+      "path": "results/geometry/development_extra_task_kernels.npz",
+      "sha256": "5b66a0ed48fbdf8ccbf72421a5f6fb2c0a9958c955d7033454a631b627d72ffa"
+    },
+    {
+      "bytes": 79607,
+      "path": "results/geometry/development_main_task_kernels.npz",
+      "sha256": "17cb2110cd19925880b9fec6629ed447d8d34c6ada3f0c53c3bb55f53c6a0378"
+    },
+    {
+      "bytes": 83890,
+      "path": "results/geometry/external_8b_task_kernels.npz",
+      "sha256": "36a09877271ec1bd08e4907942b4c447a150b26d0f807aa9102d2f5a69374004"
+    },
+    {
+      "bytes": 21625,
+      "path": "results/geometry/front_back_by_task.csv",
+      "sha256": "dee562c1e7ecb450829ad494eaa1584a7286bac1d656138509737359e98101de"
+    },
+    {
+      "bytes": 755,
+      "path": "results/geometry/front_back_summary.csv",
+      "sha256": "d8fc19e9c2fcd88136a1668880f3ee311b2ce9b8f84a6da7584758c5d564b31f"
+    },
+    {
+      "bytes": 10959,
+      "path": "results/geometry/overlap_with_existing.csv",
+      "sha256": "9eb4d63c6bcea15c2f735a33edab04fececa6fcfe80c6d52bc11427a6107cb23"
+    },
+    {
+      "bytes": 10849,
+      "path": "results/geometry/query_dispersion.csv",
+      "sha256": "5cef737f08e1d200c88ea05b9e910f4405b8b8543e0955fae245280145e00c94"
+    },
+    {
+      "bytes": 1427,
+      "path": "results/geometry/task_template_gain.csv",
+      "sha256": "ce05c5dd24c177e2445a1708ff652fd1ef07b1ceac549a117c524afbaed9caf3"
+    },
+    {
+      "bytes": 5163,
+      "path": "results/geometry/template_lag_profile.csv",
+      "sha256": "d4334dba2b563b74bd071feae3953e8ad68ecf429dd029f5fd09805b03305309"
+    },
+    {
+      "bytes": 12633,
+      "path": "results/geometry/template_shape.csv",
+      "sha256": "074c64ef66db58539ac4e072ddfe22ab19f2d45146b17f267f878906ce098782"
+    },
+    {
+      "bytes": 10964,
+      "path": "results/geometry/templates.npz",
+      "sha256": "6c1d530fdec9ddeb85b634861236060c8c17b840e0a7c5a8bc4394f1d4433196"
+    }
+  ],
+  "schema": "himoe.token_geometry.manifest.v1"
+}

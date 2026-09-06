@@ -13,6 +13,13 @@ The primary external result is **439 TP / 80 FP**: 77.84% risk recall,
 lead among detected risks is 12 queries. This operating point improves over
 the old task-prototype cold-start detector by +115 TP and -7 FP.
 
+That result is measured on **tasks the calibration corpus already contains**:
+all 39 external tasks are inside the 40-task reference. Under leave-one-suite-out
+recalibration the guard reaches **73.40% recall and 78.26% precision** (micro,
+414 TP / 115 FP), or 62.93% / 88.04% macro-averaged over the four folds. See
+`docs/LOSO_VALIDATION_REPORT_ZH.md`. Both numbers stand; each must be quoted
+with its condition.
+
 See `REPORT_ZH.md` for the mechanism audit, limitations, comparisons, and raw
 two-GPU replay. See `method/ONLINE_INTRINSIC_GUARD_V7_PROTOCOL.md` for the
 frozen equations.

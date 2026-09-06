@@ -52,11 +52,15 @@ class GMMTokenizer:
     max_iter: int = 150
     n_init: int = 2
     reg_covar: float = 1e-4
+    unknown_weight: float = 1e-3
+    unknown_quantile: float = 0.001
 
     def fit(self, values: np.ndarray) -> "GMMTokenizer":
         values = np.asarray(values, dtype=np.float32)
         if len(values) < self.n_words * 10:
             raise ValueError("too few training queries for requested vocabulary")
+        if not 0.0 < self.unknown_weight < 1.0:
+            raise ValueError("unknown_weight must lie in (0, 1)")
         self.model = GaussianMixture(
             n_components=self.n_words,
             covariance_type="diag",
@@ -67,7 +71,21 @@ class GMMTokenizer:
             random_state=self.seed,
         )
         self.model.fit(values)
+        # A flat background component so a query far from every healthy word can be
+        # reported as out-of-vocabulary instead of being forced onto its nearest word.
+        _, _, lexical = self.transform(values)
+        self.unknown_log_density_ = float(np.quantile(lexical, self.unknown_quantile))
         return self
+
+    def unknown_posterior(self, lexical_log_likelihood: np.ndarray) -> np.ndarray:
+        """Return ``P(out-of-vocabulary | g)`` against the flat background component."""
+        if not hasattr(self, "unknown_log_density_"):
+            raise ValueError("tokenizer must be fitted before scoring")
+        known = np.log1p(-self.unknown_weight) + np.asarray(
+            lexical_log_likelihood, dtype=np.float64
+        )
+        unknown = np.log(self.unknown_weight) + self.unknown_log_density_
+        return np.exp(unknown - np.logaddexp(known, unknown))
 
     def component_log_likelihood(self, values: np.ndarray) -> np.ndarray:
         """Return log p(z | word), excluding mixture weights."""
