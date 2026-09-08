@@ -1,7 +1,7 @@
 # 报警后修复控制实验：晚报警是否可救（设计）
 
 日期：2026-09-08
-状态：设计草案，待用户批准后冻结；冻结前不跑任何 GPU 采集。
+状态：2026-09-08 17:17 UTC 冻结。用户口头批准（"直接开始完成"），P0 冒烟通过后主体启动；本文件之后只追加 amendments，不改正文。
 前置：`moe-trap-control/ADAPTIVE_CONTROL_EXPLORATION.zh.md`、`moe-progress-ratio-v12-0906/docs/RECOVERY_EXPERIMENT.md`、
 `analysis_moe_execution_signals/horizon_recovery_report.md`、`analysis_committor/REPORT.zh.md`、
 `himoe-vla-moe-value-ppt-2026-09-01.md` P11/P12。
@@ -176,3 +176,12 @@ horizon 扩展与 A0 复现。P0 之后冻结本文件，再跑主体。P0 数�
 - 新增 `prepare_repair_experiment.py`：抽样、三种分叉时刻、物理类别、计划哈希。
 - 新增 `analyze_repair_experiment.py`：终点、分层、结构读数回归、图。
 - 独立审计沿用 `audit_adaptive_control.py` 的 C0 与配对检查，加修复阶段守卫检查。
+
+## 11. Amendments（冻结后追加，只记录不改正文）
+
+- **P0 冒烟（2026-09-08 16:58 到 17:10 UTC）**：3 条失败主轨迹、8 个事件（含 2 个在线触发的 early）、48 条分支、1,212 次 VLA 查询、169 个修复 chunk，独立审计通过。C0 三条逐位复现，说明在线物理判定不扰动重放。
+- **控制器标定**：gain 0.8、单位 0.05 m 下，回退阶段全部 `reached`，最远一次 0.379 m 用了 6 个 chunk，其余 2 到 3 个 chunk；脚本化抓取在摩卡壶上 `lifted=True`，在翻倒的汤罐和位移的汤罐上 `lifted=False`。常量不改。
+- **存储**：冒烟实测约 66 KiB/次查询，计划上界改用 80 KiB/次，原文的 190 KiB 是保守估计。
+- **主体规模**：因磁盘只剩 15 GB、并行会话在同一目录写入，主体取每任务 6 条失败加 2 条成功，实际 42 失败、9 成功，成功侧只有 5 个任务有 kNN 误报可取。上界 5.13 GiB，配额 6 GiB。
+- **事件重合**：kNN 首报加一恰等于 q44 时只保留 mid；early 与已有事件同 query 时不另建事件，只在该事件上标 `early_coincident`。
+- **与并行会话的关系**：同日另一会话在 GPU 0 到 3 完成了固定后撤模块（抬 4 cm、回撤 4 cm、夹爪不动）与辨识动力学 MPC 的实验，v7/v8 触发下后撤救回 1/20。本实验的臂全部张开夹爪并回到更远的目标，两者互补，不重复。
