@@ -81,9 +81,12 @@ def noise_for(main_id, replicate, index, candidate=0):
         (10, 24)).astype(np.float32)
 
 
+BYTES_PER_QUERY = 80 * 1024   # smoke 2026-09-08 measured 74.3 MB for ~1,120 stored queries (~66 KiB each)
+
+
 def branch_bound(arms, replicates, events=3):
     queries = (WINDOW_STEPS // 10 + 1) * len(arms) * replicates * events
-    return queries * 190 * 1024 + 8 * 1024**2
+    return queries * BYTES_PER_QUERY + 8 * 1024**2
 
 
 def scheduled_jobs(plan, inventory, output):

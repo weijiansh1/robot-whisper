@@ -11,8 +11,8 @@ from pathlib import Path
 import re
 import shutil
 
-from repair_control import (ARMS, CONTRACT, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL, REFERENCE, PARAMETERS,
-                            branch_bound, events_for, load_plan)
+from repair_control import (ARMS, BYTES_PER_QUERY, CONTRACT, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL, REFERENCE,
+                            PARAMETERS, branch_bound, events_for, load_plan)
 from collection_protocol import HERE, PARAMETERS_SHA256, stable_id
 from collection_storage import atomic_json, digest
 
@@ -94,7 +94,7 @@ def run(args):
             parent_manifest_sha256=digest(directory / "main/manifest.json"),
             noise_seed=original["seed"], init_index=original["init_index"], first_alarm=first, failed=failed,
             events=events_for(parent["main_id"], first, int(parent["main_queries"]), failed))
-        task["max_output_bytes"] = task["parent_queries"] * 190 * 1024 + 4 * 1024**2
+        task["max_output_bytes"] = task["parent_queries"] * BYTES_PER_QUERY + 4 * 1024**2
         tasks.append(task)
     branch_bytes = sum(branch_bound(list(ARMS), args.replicates) for _ in tasks)
     bound = sum(t["max_output_bytes"] for t in tasks) + branch_bytes
