@@ -129,18 +129,49 @@ scripted_regrasp（回退、下降、闭合、抬起 8 cm 再交还）在 188 �
 瓶颈已经定位到三处，全部可以用物理守卫在线判定：再幻抓（38/188，50 步内可判）、拿着物体放不进（55/188）、
 误报时物体已在手中（3/7）。
 
-## 11. 第二轮：监督切换控制器 v2（预注册）
+## 11. 第二轮：监督切换控制器 v2（已跑完，预注册预测不成立）
 
-模式 {VLA, RETRACT, PLACE}，守卫每个 chunk 评估一次，全部是物理规则：
-- G0 否决：fork 时目标已抬起 ≥ 2 cm，则不干预（对失败主轨迹 mid 事件为 0/42，只影响误报）。
-- G1 报警：kNN-20 首报 +1（不变），执行 A4。
-- G2 再幻抓：夹爪闭合 ∧ 目标未抬起 ∧ 目标未移动 ∧ （末端离闭合位姿 ≥ 5 cm 或闭合停留 ≥ 40 步）→ 再执行 A4，最多共 3 次干预。
-- G3 拿着不放：目标持续抬起 ≥ 120 步且未满足谓词数没有减少（成功主轨迹里正常搬运 50 到 80 步，救回分支中位 70 步）→ PLACE：
-  升到区域上方 15 cm，平移到区域中心，下降到区域面 + 物体半高 + 2 cm，张开，上升 8 cm，交还。
-三个臂：G0+G1+G2、G0+G1+G3、G0+G1+G2+G3。第一段与主体 A4 逐位相同，到第一次额外干预为止（配对由构造保证）。
-重用主体的快照与 fork 物理，不重放 C0。预测：全监督臂在失败主轨迹 B 端点 ≥ 25/84（mid），
-误报毁伤 ≤ 4/14（A4 是 10/14 被毁）。低于 A4 的 12/84 即判 v2 失败。
+数据 `design/repair_supervisor_main_20260908/`（825 MB），审计 `design/repair_supervisor_main_audit_20260908.json`：passed，
+51 条主轨迹、101 个事件、606 条分支、13,350 行 VLA 查询、3,512 行修复 chunk，每条分支与 v1 孪生分支
+（A4，或 G0 否决时的 new_noise）在第一次额外干预之前逐位相同。分析 `design/repair_supervisor_main_analysis_20260908/`。
 
+模式 {VLA, RETRACT, PLACE}，守卫全部是物理规则（定义见设计文件 §11 的 v2 修正）：G0 否决（fork 时目标已抬起）、
+G2 再幻抓（闭合 ∧ 不在手 ∧ 目标未动 ∧ 末端离开 ≥ 5 cm 或闭合 ≥ 40 步 → 再回退，每次抬高 5 cm）、
+G3 拿着不放（在手 ≥ 120 步无谓词进展 → 升、平移到区域较空一侧、下降到接触、张开、上升）。最多 3 次干预。
+预注册预测：全监督臂 mid ≥ 25/84，误报毁伤 ≤ 4/14；低于 A4 的 12/84 判失败。
+
+| 时刻 | G0+G2 | G0+G3 | G0+G2+G3 | 孪生 A4 | G2 触发数 | G3 触发数 |
+|---|---|---|---|---|---|---|
+| early B（n=20） | 4 | 6 | 4 | 6 | 13 | 0 |
+| mid B / A（n=84） | 11 / 11 | 12 / 12 | 11 / 11 | 12 / 12 | 38 | 5 |
+| late B / A（n=84） | 11 / 0 | 11 / 0 | 11 / 0 | 11 / 0 | 33 | 6 |
+
+**判读：v2 失败。** 全监督臂 mid 11/84 < 12/84。按守卫是否触发分层（三种时刻合并，188 条 / 臂）：
+- G2 触发的 84 条：v2 救回 2，孪生救回 5（1 胜 4 负）。4 次失败全是同一种情形：G2 在 fork 后 200 到 240 步
+  以 `phantom_departed` 触发，而孪生分支在 30 到 60 步之后靠 VLA 自己再次抓取成功。"闭合空抓、离开、再回来抓"
+  是 VLA 自身重试的一部分，守卫把它打断了。第二次、第三次回退（抬高 5 cm）也没有打破吸引子：39 条用满 2 次额外回退，
+  仍无救回。
+- G3 触发的 11 条：0 救回。放到盘子上的 3 个杯子落在盘心 2 到 4 cm 内，但倾角 39 到 84 度（拎着杯沿放下就倒），
+  谓词不成立；放进篮子的 7 次里下降在篮沿或另一个物体上方就"接触"停止，物体留在篮外或篮沿。
+- 没有额外干预的 94 到 178 条：与孪生完全相同（0 胜 0 负），验证了配对构造。
+- G0 否决只在 1 条成功主轨迹（2 条分支）上触发，两条都保住了（孪生 new_noise 也成功）。误报毁伤从 A4 的 10/14 降到 8/14，
+  没有达到 ≤ 4/14。
+
+按主轨迹计，v2 任一臂至少救回一次的 12/42，A4 是 11/42：多出的 1 条（SCENE6 白杯）来自 mid 的一次 G2 后成功。
+
+结论：在这套策略上，交还之后的结果由 VLA 自己的能力决定，物理守卫再切换一次不增加救回；
+打断 VLA 的自发重试反而有害。"优秀方法"没有在这两轮里出现。当前最好的仍是单次 A4，
+每分支 14%，配上误报毁伤，在 Long 上净收益约为零（349 条会报警的失败 × 12/84 ≈ 50 次救回，
+71 条误报的成功 × 10/14 ≈ 51 次毁坏，925 条里）。
+
+## 11.1 两轮之后还剩什么可做
+
+- 报警精度是净收益的主导项：只要误报毁伤不降到 4/14 以下，任何修复都是零和。方向是在 kNN 报警上叠加物理否决
+  （目标已在手、或最近 20 步内目标位移 > 2 cm 就不干预），这在本轮数据里可以离线评估。
+- 幻抓吸引子对高度不敏感（+5 cm、+10 cm 都复现），对平面噪声也不敏感（噪声臂更差）。要打破它得改接近方向或夹爪朝向，
+  这超出了"只回退"的修复类别。
+- PLACE 需要姿态：杯子要竖着放，篮子要沿长轴对齐。这是脚本化操作而不是"让策略回到能力区"，是否值得做取决于
+  用户是否接受外部控制器完成任务的最后一步。
 ## 12. 复现
 
 ```
@@ -148,4 +179,8 @@ python3 audit_repair_experiment.py --run design/repair_main_20260908 --out desig
 python3 analyze_repair_experiment.py --run design/repair_main_20260908 --out design/repair_main_analysis_20260908
 python3 diagnose_repair_branches.py --run design/repair_main_20260908 --out design/repair_main_analysis_20260908/handback_diagnostics.json
 # 环境内谓词重算（LIBERO 环境，渲染卡 4）：见 evaluate_repair_end_states.py 的 docstring
+# v2
+python3 prepare_repair_experiment.py --stage supervisor --replicates 2 --output design/repair_plans_20260908/supervisor_main.json
+python3 audit_repair_experiment.py --run design/repair_supervisor_main_20260908 --out design/repair_supervisor_main_audit_20260908.json
+python3 analyze_repair_supervisor.py --run design/repair_supervisor_main_20260908 --v1-branches design/repair_main_analysis_20260908/branches.csv --out design/repair_supervisor_main_analysis_20260908
 ```
