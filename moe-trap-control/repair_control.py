@@ -59,7 +59,7 @@ def events_for(main_id, knn_first, length, failed):
     if q >= 0 and q + 1 < length:
         events.append(dict(event_id=event_id(main_id, "mid", q + 1), timing="mid", start_query=q + 1,
                            alarm_query=q, deployable=True))
-    if failed and LATE_QUERY < length:
+    if failed and LATE_QUERY < length and not any(e["start_query"] == LATE_QUERY for e in events):
         events.append(dict(event_id=event_id(main_id, "late", LATE_QUERY), timing="late", start_query=LATE_QUERY,
                            alarm_query=q, deployable=False))
     return events

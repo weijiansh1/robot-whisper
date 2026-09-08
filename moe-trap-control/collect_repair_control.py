@@ -279,9 +279,12 @@ class RepairSession:
                         still = float(np.linalg.norm(target["position"] - closure["object"])) < STILL_M
                         if departed and still:
                             early = q
-                            event = early_event(self.args.main_id, q)
-                            self.report["events"].append(event)
-                            targets[q] = event
+                            if q in targets:
+                                targets[q]["early_coincident"] = True
+                            else:
+                                event = early_event(self.args.main_id, q)
+                                self.report["events"].append(event)
+                                targets[q] = event
                 if closure is not None and ap >= CLOSE_APERTURE:
                     closure = None
                 previous_ap = ap

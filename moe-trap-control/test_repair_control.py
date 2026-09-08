@@ -147,3 +147,9 @@ def test_repair_plan_covers_all_arms():
     kind, ctrl, target = repair_plan("scripted_regrasp", physics, eef, "abc", 1)
     assert kind == "regrasp" and ctrl.phase.max_chunks == 6
     assert repair_plan("retract_above_target", dict(target_position=None), eef, "abc", 0)[0] == "unavailable"
+
+
+def test_late_event_dropped_when_mid_alarm_lands_on_it():
+    from repair_control import events_for, LATE_QUERY
+    events = events_for("abc", knn_first=LATE_QUERY - 1, length=52, failed=True)
+    assert [e["timing"] for e in events] == ["mid"] and events[0]["start_query"] == LATE_QUERY
