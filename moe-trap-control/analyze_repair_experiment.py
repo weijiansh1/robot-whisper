@@ -56,8 +56,40 @@ def stalled_after(positions):
     return None
 
 
+def rest_tilts(run_dir):
+    """Per-object median tilt over fork states whose object never moved; some meshes rest with a horizontal body z-axis."""
+    samples = defaultdict(list)
+    for path in run_dir.glob("tasks/*/replay/events/*/physics.json"):
+        p = json.loads(path.read_text())
+        if p.get("target_position") is None:
+            continue
+        moved = np.linalg.norm(np.asarray(p["target_position"]) - np.asarray(p["initial_target_position"]))
+        if moved < 0.02:
+            samples[p["target_name"]].append(float(p["tilt_deg"]))
+    return {name: float(np.median(v)) for name, v in samples.items()}
+
+
+def physical_class_v2(p, rest):
+    """Amended 2026-09-08 before any outcome table was opened: tilt is judged relative to the object's rest tilt,
+    an unmoved object is untouched whatever its body-frame tilt, and 'far from the end effector' is not 'dropped'."""
+    if p.get("target_position") is None:
+        return p["physical_class"]
+    if p.get("grasped"):
+        return "in_hand"
+    position, initial = np.asarray(p["target_position"]), np.asarray(p["initial_target_position"])
+    displacement = float(np.linalg.norm(position - initial))
+    if position[2] < p["table_z"] - 0.03:
+        return "dropped_or_tipped"
+    if displacement < 0.02:
+        return "untouched"
+    if abs(float(p["tilt_deg"]) - rest.get(p["target_name"], 0.0)) > 45.0:
+        return "dropped_or_tipped"
+    return "displaced_reachable"
+
+
 def branch_rows(run_dir):
     rows = []
+    rest = rest_tilts(run_dir)
     for task_dir in sorted((run_dir / "tasks").glob("*/branches")):
         result = json.loads((task_dir / "result.json").read_text())
         if result["status"] != "completed":
@@ -75,7 +107,8 @@ def branch_rows(run_dir):
             row = dict(main_id=main_id, failed=failed, base_task=result["variant"]["task_name"].split("_view_")[0],
                 benchmark=result["variant"]["benchmark"], category=result["variant"]["category"],
                 event_id=branch["event_id"], timing=branch["timing"], start_query=branch["start_query"],
-                physical_class=branch["physical_class"], target_name=branch["target_name"],
+                physical_class=branch["physical_class"], physical_class_v2=physical_class_v2(physics, rest),
+                target_name=branch["target_name"],
                 eef_to_target_m=physics.get("eef_to_target_m"), aperture_at_fork=physics.get("aperture"),
                 arm=branch["arm"], replicate=branch["replicate"],
                 success_window=bool(branch["success"]), success_original=bool(branch["success_within_original"]),
@@ -161,6 +194,7 @@ def cluster_bootstrap(rows, arm, timing, baseline="new_noise", n_boot=2000, seed
 
 
 def run(args):
+    rest = rest_tilts(args.run)
     rows = branch_rows(args.run)
     failed = [r for r in rows if r["failed"]]
     success = [r for r in rows if not r["failed"]]
@@ -168,8 +202,11 @@ def run(args):
         parents=len({r["main_id"] for r in rows}), failed_parents=len({r["main_id"] for r in failed}),
         success_parents=len({r["main_id"] for r in success}),
         by_timing_arm=counts(failed, lambda r: (r["timing"], r["arm"])),
-        by_timing_class_arm=counts(failed, lambda r: (r["timing"], r["physical_class"], r["arm"])),
-        by_class=counts(failed, lambda r: (r["physical_class"],)),
+        by_timing_class_arm=counts(failed, lambda r: (r["timing"], r["physical_class_v2"], r["arm"])),
+        by_class=counts(failed, lambda r: (r["physical_class_v2"],)),
+        by_class_arm=counts(failed, lambda r: (r["physical_class_v2"], r["arm"])),
+        by_class_v1=counts(failed, lambda r: (r["physical_class"],)),
+        rest_tilts=rest,
         harm_by_timing_arm=counts(success, lambda r: (r["timing"], r["arm"])),
         paired_vs_new_noise=paired_vs_baseline(failed),
         bootstrap={"%s|%s" % (t, a): cluster_bootstrap(failed, a, t) for t in ("early", "mid", "late") for a in ARMS if a != "new_noise"},
