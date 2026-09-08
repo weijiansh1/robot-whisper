@@ -89,12 +89,45 @@ def branch_bound(arms, replicates, events=3):
     return queries * BYTES_PER_QUERY + 8 * 1024**2
 
 
+# ---------------------------------------------------------------------------- supervisor v2
+PROTOCOL_V2 = "moe_control.repair_supervisor.v2"
+SUPERVISOR_ARMS = {
+    "supervisor_regrasp_guard": dict(repair="retract", target="above_target", guards=["G0", "G2"]),
+    "supervisor_place_assist": dict(repair="retract", target="above_target", guards=["G0", "G3"]),
+    "supervisor_full": dict(repair="retract", target="above_target", guards=["G0", "G2", "G3"]),
+}
+SUPERVISOR = dict(max_interventions=3, lifted_m=0.02, phantom_departure_m=0.05, phantom_hold_steps=40,
+                  phantom_moved_m=0.01, phantom_escalation_m=0.05, carry_patience_steps=120, place_height_m=0.15, place_clearance_m=0.02,
+                  place_rise_m=0.08, place_rise_chunks=3, place_transfer_chunks=6, place_lower_chunks=4,
+                  place_retreat_chunks=2, place_tolerance_m=0.02)
+CONTRACT_V2 = dict(CONTRACT,
+    repair="supervisory switching {VLA, RETRACT, PLACE}; physical guards evaluated every env step, switches at chunk "
+           "boundaries; at most 3 interventions per suffix; no model call inside a primitive",
+    guards="G0 veto: target lifted >= 0.02 m at the fork -> no first-stage repair; in-hand := closed aperture, target lifted "
+           ">= 0.02 m above rest, within 0.20 m of the eef and moving with it; G2 phantom: closed aperture, target not in hand "
+           "and unmoved since closure, eef departed >= 0.05 m or closure held >= 40 steps -> RETRACT above target, 0.05 m "
+           "higher at each repeat; G3 carry: target in hand >= 120 consecutive steps without a goal predicate turning true -> "
+           "PLACE: rise, transfer above the goal region, descend until contact, release, retreat; every primitive is cut at "
+           "the 300-step window",
+    first_stage="identical to retract_above_target of moe_control.repair_recovery.v1 (same fork snapshot, same noise "
+                "streams) so every branch is paired with its v1 twin up to the first extra intervention",
+    replay="fork snapshots and fork physics reused from the audited v1 run; no C0 replay")
+
+
 def scheduled_jobs(plan, inventory, output):
-    jobs = []
+    jobs, replay_run = [], plan.get("replay_run")
     for task in plan["tasks"]:
         parent_id = task["main_id"]
         base = dict(inventory[task["variant_id"]], main_id=parent_id,
                     noise_seed=int(task["noise_seed"]), init_index=int(task["init_index"]))
+        if replay_run:
+            replay_directory = str(Path(replay_run) / "tasks" / parent_id / "replay")
+            jobs.append(dict(base, job_id=parent_id + "/branches", depends_on=None,
+                             sampling=dict(kind="branches", parent=task, arms=plan["arms"], replicates=plan["replicates"],
+                                           timings=plan.get("timings"), supervisor=plan.get("supervisor"),
+                                           replay_directory=replay_directory,
+                                           max_output_bytes=branch_bound(plan["arms"], plan["replicates"]))))
+            continue
         replay_id = parent_id + "/replay"
         jobs.append(dict(base, job_id=replay_id, depends_on=None,
                          sampling=dict(kind="replay", parent=task, max_output_bytes=task["max_output_bytes"])))
@@ -109,16 +142,26 @@ def scheduled_jobs(plan, inventory, output):
 def load_plan(path, model="long"):
     plan = json.loads(Path(path).read_text())
     verify_frozen_alarm()
-    if (plan["protocol"] != PROTOCOL or plan["contract"] != CONTRACT or model != "long" or
-            plan["allowed_gpus"] != list(GPUS) or plan["render_gpus"] != list(RENDER_GPUS) or
-            plan["frozen_parameters_sha256"] != PARAMETERS_SHA256 or plan["arms_registry"] != ARMS or
-            plan["controller"] != CONTROLLER):
+    v2 = plan["protocol"] == PROTOCOL_V2
+    if v2:
+        if (plan["contract"] != CONTRACT_V2 or plan["arms_registry"] != SUPERVISOR_ARMS or plan["supervisor"] != SUPERVISOR
+                or not set(plan["arms"]) <= set(SUPERVISOR_ARMS) or not plan.get("replay_run")):
+            raise ValueError("Supervisor plan contract changed")
+        audit = json.loads(Path(plan["replay_audit"]).read_text())
+        if audit["status"] != "passed" or audit["plan_sha256"] != digest(Path(plan["replay_run"]) / "plan.json"):
+            raise ValueError("Supervisor plan needs an audited v1 run")
+    elif plan["protocol"] != PROTOCOL or plan["contract"] != CONTRACT or plan["arms_registry"] != ARMS:
         raise ValueError("Repair plan contract changed")
-    if not set(plan["arms"]) <= set(ARMS) or "new_noise" not in plan["arms"]:
+    elif not set(plan["arms"]) <= set(ARMS) or "new_noise" not in plan["arms"]:
         raise ValueError("Arms must be registered and include the new_noise baseline")
+    if (model != "long" or plan["allowed_gpus"] != list(GPUS) or plan["render_gpus"] != list(RENDER_GPUS) or
+            plan["frozen_parameters_sha256"] != PARAMETERS_SHA256 or plan["controller"] != CONTROLLER):
+        raise ValueError("Repair plan contract changed")
     for source, expected in plan["source_sha256"].items():
         if digest(source) != expected:
-            raise ValueError("Repair input changed: " + source)
+            raise ValueError("Repair plan source changed: " + source)
+    if plan["parameter_fitting"] or plan["training"] or plan["model"] != "long":
+        raise ValueError("Repair plan must be train-free")
     if not plan["tasks"] or len({t["main_id"] for t in plan["tasks"]}) != len(plan["tasks"]):
         raise ValueError("Empty/duplicated repair parents")
     for task in plan["tasks"]:
@@ -131,6 +174,6 @@ def load_plan(path, model="long"):
         for filename, key in (("main_complete.json", "parent_commit_sha256"), ("main/manifest.json", "parent_manifest_sha256")):
             if digest(directory / filename) != task[key]:
                 raise ValueError("Parent commit changed")
-        if task["events"] != events_for(task["main_id"], task["first_alarm"], task["parent_queries"], task["failed"]):
+        if not v2 and task["events"] != events_for(task["main_id"], task["first_alarm"], task["parent_queries"], task["failed"]):
             raise ValueError("Repair trigger positions changed")
     return plan

@@ -11,8 +11,9 @@ from pathlib import Path
 import re
 import shutil
 
-from repair_control import (ARMS, BYTES_PER_QUERY, CONTRACT, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL, REFERENCE,
-                            PARAMETERS, branch_bound, events_for, load_plan)
+from repair_control import (ARMS, BYTES_PER_QUERY, CONTRACT, CONTRACT_V2, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL,
+                            PROTOCOL_V2, REFERENCE, PARAMETERS, SUPERVISOR, SUPERVISOR_ARMS, branch_bound, events_for,
+                            load_plan)
 from collection_protocol import HERE, PARAMETERS_SHA256, stable_id
 from collection_storage import atomic_json, digest
 
@@ -38,7 +39,58 @@ def base_task(task_name):
     return None
 
 
+def supervisor_plan(args):
+    """v2: reuse the audited v1 run's parents, fork snapshots and fork physics; only the arms change."""
+    run_dir, audit_path = Path(args.replay_run), Path(args.replay_audit)
+    v1 = json.loads((run_dir / "plan.json").read_text())
+    audit = json.loads(audit_path.read_text())
+    if audit["status"] != "passed" or audit["plan_sha256"] != digest(run_dir / "plan.json") or v1["protocol"] != PROTOCOL:
+        raise ValueError("Supervisor plan needs an audited v1 run")
+    tasks = [dict(t) for t in v1["tasks"]]
+    if args.stage == "supervisor_smoke":
+        wanted = {b: 0 for b in args.smoke_bases}
+        chosen = []
+        for task in tasks:
+            if args.smoke_parents:
+                if task["main_id"] in args.smoke_parents:
+                    chosen.append(task)
+            elif task["failed"] and task["base_task"] in wanted and wanted[task["base_task"]] < 1:
+                wanted[task["base_task"]] += 1
+                chosen.append(task)
+        if not args.smoke_parents:
+            chosen += [t for t in tasks if not t["failed"]][:1]
+        tasks = chosen
+    arms = list(SUPERVISOR_ARMS)
+    for task in tasks:
+        task["max_output_bytes"] = 0
+    bound = sum(branch_bound(arms, args.replicates) for _ in tasks)
+    if shutil.disk_usage(HERE).free - bound < 8 * 1024**3:
+        raise ValueError("Supervisor plan exceeds conservative disk headroom: %.2f GiB" % (bound / 1024**3))
+    sources = [run_dir / "plan.json", audit_path, REFERENCE, PARAMETERS, HERE / "repair_control.py",
+               HERE / "repair_controller.py", HERE / "collect_repair_control.py", HERE / "prepare_repair_experiment.py"]
+    plan = dict(protocol=PROTOCOL_V2, model="long", stage=args.stage, arms=arms, arms_registry=SUPERVISOR_ARMS,
+        controller=CONTROLLER, supervisor=SUPERVISOR, replicates=args.replicates, contract=CONTRACT_V2,
+        timings=list(args.timings), replay_run=str(run_dir), replay_audit=str(audit_path),
+        selection="every parent of the audited v1 run (%s); fork snapshots and physics reused; no outcome read" % v1["stage"],
+        source_sha256={str(p): digest(p) for p in sources}, frozen_parameters_sha256=PARAMETERS_SHA256,
+        tasks=tasks, allowed_gpus=list(GPUS), render_gpus=list(RENDER_GPUS), replicas_per_gpu=args.replicas,
+        workers_per_gpu=args.replicas, mps=True, parameter_fitting=False, training=False,
+        base_task_counts=dict(Counter(t["base_task"] for t in tasks)),
+        failed_parents=sum(t["failed"] for t in tasks), success_parents=sum(not t["failed"] for t in tasks),
+        planned_events=sum(len(t["events"]) for t in tasks), maximum_output_bytes=bound,
+        storage_quota_gib=args.storage_quota_gib, disk_floor_gib=8)
+    if args.output.exists():
+        raise ValueError("Refusing to replace a frozen plan")
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    atomic_json(args.output, plan)
+    load_plan(args.output)
+    print(json.dumps(dict(plan=str(args.output), sha256=digest(args.output), parents=len(tasks), arms=arms,
+        failed=plan["failed_parents"], successes=plan["success_parents"], maximum_gib=bound / 1024**3)))
+
+
 def run(args):
+    if args.stage.startswith("supervisor"):
+        return supervisor_plan(args)
     parents, sources = [], []
     for stem in AUDITS:
         path = HERE / ("design/%s_audit_20260908.json" % stem)
@@ -124,7 +176,14 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("smoke", "main"), required=True)
+    parser.add_argument("--stage", choices=("smoke", "main", "supervisor_smoke", "supervisor"), required=True)
+    parser.add_argument("--replay-run", default=str(HERE / "design/repair_main_20260908"))
+    parser.add_argument("--replay-audit", default=str(HERE / "design/repair_main_audit_20260908.json"))
+    parser.add_argument("--timings", nargs="+", default=["early", "mid", "late"])
+    parser.add_argument("--smoke-parents", nargs="*", default=[])
+    parser.add_argument("--smoke-bases", nargs="+", default=[
+        "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+        "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy"])
     parser.add_argument("--failed-per-task", type=int, default=6)
     parser.add_argument("--success-per-task", type=int, default=2)
     parser.add_argument("--replicates", type=int, default=2)

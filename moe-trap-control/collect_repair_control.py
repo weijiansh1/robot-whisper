@@ -26,10 +26,11 @@ import traceback
 
 import numpy as np
 
-from repair_control import (ARMS, CONTRACT, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL, HORIZON_STEPS, WINDOW_STEPS,
-                            RouteRisk, early_event, noise_for, seed_for)
-from repair_controller import (CLOSE, CLOSE_APERTURE, DEPARTURE_M, NEAR_M, OPEN, STILL_M, ProportionalRetract,
-                               aperture, eef_position, object_top_offset, physical_class, resolve_target,
+from repair_control import (ARMS, CONTRACT, CONTRACT_V2, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL, PROTOCOL_V2,
+                            HORIZON_STEPS, SUPERVISOR_ARMS, WINDOW_STEPS, RouteRisk, early_event, noise_for, seed_for)
+from repair_controller import (CLOSE, CLOSE_APERTURE, DEPARTURE_M, NEAR_M, OPEN, STILL_M, CarryGuard, ContactDescent,
+                               HandState, PhantomGuard, ProportionalRetract, aperture, eef_position, goal_region,
+                               object_top_offset, physical_class, place_point, place_waypoints, resolve_target,
                                retract_chunk, tilt_degrees)
 from collect_preflight_worker import (component_digests, input_digest, restore, snapshot,
                                       valid_response, verify_egl_device)
@@ -69,7 +70,7 @@ def _json_safe(value):
 
 def repair_plan(arm, physics, eef, main_id, replicate):
     """Pure planning: returns (kind, controller_or_none, target_or_none) for one arm at one fork state."""
-    spec = ARMS[arm]
+    spec = ARMS[arm] if arm in ARMS else SUPERVISOR_ARMS[arm]
     if spec["repair"] == "none":
         return "none", None, None
     if spec["repair"] == "open":
@@ -150,7 +151,9 @@ class RepairSession:
             if metadata[key] != original["model_metadata"][key]:
                 raise ValueError("Model identity differs: " + key)
         args.output.mkdir(parents=True, exist_ok=False)
-        self.report = dict(status="running", protocol=PROTOCOL, contract=CONTRACT, controller=CONTROLLER,
+        v2 = args.control.get("supervisor") is not None
+        self.report = dict(status="running", protocol=PROTOCOL_V2 if v2 else PROTOCOL, contract=CONTRACT_V2 if v2 else CONTRACT,
+            controller=CONTROLLER, supervisor=args.control.get("supervisor"),
             main_id=args.main_id, job_kind=args.control["kind"], variant=self.row, parent_directory=str(self.parent),
             parent_commit_sha256=self.task["parent_commit_sha256"], parent_manifest_sha256=self.task["parent_manifest_sha256"],
             model=args.model, model_metadata=metadata, gpu=args.gpu, render_gpu=args.render_gpu,
@@ -433,6 +436,198 @@ class RepairSession:
                       repair_success=bool(success))
         return obs, steps, success
 
+    # ------------------------------------------------------------------ supervisor v2
+    def _phase(self, writer, index, name, ctrl, gripper, obs, steps, replicate, observer=None, limit=None, target_name=None):
+        """Run one proportional phase to completion; returns (obs, steps, index, success, reason)."""
+        phase, success = ctrl.phase, False
+        while not phase.done and not phase.exhausted and not success and (limit is None or limit(steps) > 0):
+            eef0 = eef_position(obs)
+            chunk = ctrl.next_chunk(eef0)
+            chunk[:, 6] = gripper
+
+            def watch(o, phase=phase):
+                phase.observe(eef_position(o), self._target_state(target_name)[0] if target_name else None)
+                if observer is not None:
+                    observer(o)
+            before = np.asarray(self.env.get_sim_state(), np.float64).copy()
+            obs, count, success, _ = self.advance(obs, chunk, 10 if limit is None else min(10, limit(steps)), steps, replicate, observer=watch)
+            after = np.asarray(self.env.get_sim_state(), np.float64).copy()
+            self.repair_rows(writer, index, name, chunk, before, after, eef0, obs, count, success,
+                             phase.target, phase.history[-1] if phase.history else float("nan"), phase.reason)
+            steps += count
+            index += 1
+        return obs, steps, index, success, phase.reason
+
+    def _still_chunk(self, writer, index, name, gripper, obs, steps, replicate, limit=None):
+        eef0 = eef_position(obs)
+        chunk = retract_chunk(eef0, eef0, 0.0, CONTROLLER["unit_metres"], gripper=gripper)
+        before = np.asarray(self.env.get_sim_state(), np.float64).copy()
+        obs, count, success, _ = self.advance(obs, chunk, 10 if limit is None else min(10, limit(steps)), steps, replicate)
+        after = np.asarray(self.env.get_sim_state(), np.float64).copy()
+        self.repair_rows(writer, index, name, chunk, before, after, eef0, obs, count, success, eef0, 0.0, name)
+        return obs, steps + count, index + 1, success
+
+    def _target_state(self, name):
+        inner = self.env.env
+        position = np.asarray(inner.sim.data.body_xpos[inner.obj_body_id[name]], np.float64).copy()
+        unsatisfied = sum(not inner._eval_predicate(list(g)) for g in inner.parsed_problem["goal_state"])
+        return position, int(unsatisfied)
+
+    def run_supervised(self, arm, physics, obs, steps, replicate, directory, branch, q0, monitor, writer):
+        """First stage identical to retract_above_target, then VLA chunks under physical guards G2/G3."""
+        spec = SUPERVISOR_ARMS[arm]
+        sup = self.args.control["supervisor"]
+        fork_steps = int(steps)
+        name = physics.get("target_name")
+        repair_writer = ShardWriter(directory / "repair", block_size=4)
+        interventions, rindex, success = [], 0, False
+        branch.update(interventions=interventions, first_extra_intervention_query=None, guards=list(spec["guards"]))
+        try:
+            if name is None:
+                branch.update(repair_kind="unavailable", repair_target=None)
+            else:
+                target0 = np.asarray(physics["target_position"], np.float64)
+                initial0 = np.asarray(physics["initial_target_position"], np.float64)
+                rest_z = float(min(target0[2], initial0[2]))
+                lifted_at_fork = bool(target0[2] - initial0[2] >= sup["lifted_m"])
+                if "G0" in spec["guards"] and lifted_at_fork:
+                    interventions.append(dict(guard="G0", kind="veto", query_index=0, start_step=0, steps=0, reason="lifted_at_fork"))
+                    branch.update(repair_kind="veto", repair_target=None, twin="new_noise")
+                else:
+                    kind, controller, target = repair_plan("retract_above_target", physics, eef_position(obs), self.args.main_id, replicate)
+                    branch.update(repair_kind=kind, repair_target=np.asarray(target).tolist(), twin="retract_above_target")
+                    obs, steps, rindex, success, reason = self._phase(repair_writer, rindex, "retract", controller, OPEN, obs, steps, replicate)
+                    interventions.append(dict(guard="G1", kind="retract", query_index=0, start_step=0,
+                                              steps=int(steps - fork_steps), reason=reason))
+                    branch["retract_reason"] = reason
+            branch["handback_step"] = int(steps - fork_steps)
+            branch["action_steps"] = int(steps - fork_steps)
+            if success:
+                branch.update(success=True, success_step=branch["action_steps"])
+            phantom = carry = hand = None
+            if name is not None:
+                hand = HandState(rest_z, sup["lifted_m"])
+                if "G2" in spec["guards"]:
+                    phantom = PhantomGuard(sup["phantom_departure_m"], sup["phantom_hold_steps"], sup["phantom_moved_m"])
+                if "G3" in spec["guards"]:
+                    carry = CarryGuard(sup["carry_patience_steps"])
+            fired = {}
+
+            def remaining(current_steps):
+                return WINDOW_STEPS - int(current_steps - fork_steps)
+
+            def observe(o):
+                if hand is not None:
+                    position, unsatisfied = self._target_state(name)
+                    eef, ap, step = eef_position(o), aperture(o), self._guard_step
+                    in_hand = hand.update(eef, ap, position)
+                    if not fired:
+                        verdict = phantom.observe(eef, ap, position, step, in_hand) if phantom is not None else None
+                        if verdict is None and carry is not None:
+                            verdict = carry.observe(unsatisfied, step, in_hand)
+                        if verdict is not None:
+                            fired["guard"] = "G2" if verdict.startswith("phantom") else "G3"
+                            fired["reason"] = verdict
+                self._guard_step += 1
+
+            self._guard_step = int(steps)
+            while not branch["success"] and branch["action_steps"] < WINDOW_STEPS:
+                index = branch["queries"]
+                q = q0 + index
+                request, response, inference = self.query(obs, noise_for(self.args.main_id, replicate, index, 0))
+                branch["deployment_model_queries"] += 1
+                alarm = monitor.update(response[PROBS_KEY])
+                vector, score = self.risk.current(monitor)
+                before = np.asarray(self.env.get_sim_state(), np.float64).copy()
+                limit = min(10, WINDOW_STEPS - branch["action_steps"])
+                self._guard_step = int(steps)
+                obs, count, success, simulation = self.advance(obs, response["actions"], limit, steps, replicate, observer=observe)
+                after = np.asarray(self.env.get_sim_state(), np.float64).copy()
+                if not np.isfinite(after).all():
+                    raise ValueError("Non-finite branch physics")
+                row = self.record(request, response, q, steps, count, before, after, success, alarm, inference, simulation)
+                row.update(relative_query=np.int32(index), candidate_id=np.int16(0),
+                    policy_seed=np.uint32(seed_for(self.args.main_id, replicate, index, "policy", 0)),
+                    environment_first_seed=np.uint32(seed_for(self.args.main_id, replicate, steps, "environment")),
+                    environment_last_seed=np.uint32(seed_for(self.args.main_id, replicate, steps + count - 1, "environment")),
+                    requested_action_count=np.int16(limit), knn_score=np.float32(score), knn_vector=vector,
+                    steps_since_fork=np.int32(steps - fork_steps), intervention_count=np.int16(len(interventions)))
+                writer.append(row)
+                steps += count
+                branch.update(queries=index + 1, action_steps=steps - fork_steps, success=success)
+                if success:
+                    branch["success_step"] = branch["action_steps"]
+                    break
+                if fired and len(interventions) < sup["max_interventions"] and branch["action_steps"] < WINDOW_STEPS:
+                    guard, reason = fired["guard"], fired["reason"]
+                    start = int(steps - fork_steps)
+                    if branch["first_extra_intervention_query"] is None:
+                        branch["first_extra_intervention_query"] = index + 1
+                    record = dict(guard=guard, kind=None, query_index=index + 1, start_step=start, steps=0, reason=reason)
+                    interventions.append(record)
+                    if guard == "G2":
+                        position, _ = self._target_state(name)
+                        repeats = sum(i["guard"] == "G2" for i in interventions) - 1
+                        target = position + np.array([0.0, 0.0, CONTROLLER["above_m"] + repeats * sup["phantom_escalation_m"]])
+                        ctrl = ProportionalRetract(target, CONTROLLER["gain"], CONTROLLER["unit_metres"], CONTROLLER["tolerance_m"],
+                                                   CONTROLLER["settle_steps"], CONTROLLER["max_chunks"], gripper=OPEN)
+                        obs, steps, rindex, success, phase_reason = self._phase(repair_writer, rindex, "retract", ctrl, OPEN, obs, steps, replicate, limit=remaining)
+                        record.update(kind="retract", target=target.tolist(), phase_reason=phase_reason)
+                    else:
+                        region = goal_region(self.env, name)
+                        if region is None:
+                            record.update(kind="no_region")
+                            carry = None
+                        else:
+                            position, _ = self._target_state(name)
+                            others = [np.asarray(p, np.float64) for n, p in self.movable_positions().items() if n != name]
+                            point, occupied = place_point(region, others)
+                            way = place_waypoints(eef_position(obs), position, region, physics.get("top_offset_m", 0.02),
+                                                  sup["place_height_m"], sup["place_clearance_m"], sup["place_rise_m"], point=point)
+                            record.update(kind="place", region=region["name"], region_centre=region["centre"].tolist(),
+                                          region_half=region["half"].tolist(), place_point=point.tolist(), occupied=occupied,
+                                          waypoints={k: np.asarray(v).tolist() for k, v in way.items()})
+                            reasons = {}
+                            for phase_name, waypoint, chunks in (("rise", way["rise"], sup["place_rise_chunks"]),
+                                                                 ("transfer", way["transfer"], sup["place_transfer_chunks"])):
+                                if success:
+                                    break
+                                ctrl = ProportionalRetract(waypoint, CONTROLLER["gain"], CONTROLLER["unit_metres"], sup["place_tolerance_m"],
+                                                           CONTROLLER["settle_steps"], chunks, gripper=CLOSE)
+                                obs, steps, rindex, success, reasons[phase_name] = self._phase(repair_writer, rindex, phase_name, ctrl, CLOSE, obs, steps, replicate, limit=remaining)
+                            if not success:
+                                floor_target = way["lower"] - np.array([0.0, 0.0, sup["place_clearance_m"] + physics.get("top_offset_m", 0.02)])
+                                ctrl = ContactDescent(floor_target, CONTROLLER["gain"] / 2, CONTROLLER["unit_metres"], CONTROLLER["settle_steps"], sup["place_lower_chunks"])
+                                obs, steps, rindex, success, reasons["lower"] = self._phase(repair_writer, rindex, "lower", ctrl, CLOSE, obs, steps, replicate, limit=remaining, target_name=name)
+                            if not success:
+                                obs, steps, rindex, success = self._still_chunk(repair_writer, rindex, "release", OPEN, obs, steps, replicate, limit=remaining)
+                            if not success:
+                                retreat = eef_position(obs) + np.array([0.0, 0.0, sup["place_rise_m"]])
+                                ctrl = ProportionalRetract(retreat, CONTROLLER["gain"], CONTROLLER["unit_metres"], sup["place_tolerance_m"],
+                                                           CONTROLLER["settle_steps"], sup["place_retreat_chunks"], gripper=OPEN)
+                                obs, steps, rindex, success, reasons["retreat"] = self._phase(repair_writer, rindex, "retreat", ctrl, OPEN, obs, steps, replicate, limit=remaining)
+                            record["phase_reasons"] = reasons
+                    record["steps"] = int(steps - fork_steps - start)
+                    if phantom is not None:
+                        phantom.reset()
+                    if carry is not None:
+                        carry.reset()
+                    fired = {}
+                    branch.update(action_steps=steps - fork_steps, success=success)
+                    if success:
+                        branch["success_step"] = branch["action_steps"]
+                elif fired:
+                    fired = {}
+                if branch["queries"] % 8 == 0:
+                    self.save()
+            branch["shards_repair"] = repair_writer.close()
+        finally:
+            repair_writer.close()
+        branch.update(repair_steps=int(sum(i["steps"] for i in interventions)), repair_chunks=rindex,
+                      repair_reason=interventions[0]["reason"] if interventions else "none",
+                      repair_success=bool(interventions and branch["success"] and branch["success_step"] <= interventions[0]["steps"]))
+        return obs, steps
+
     def branches(self):
         spec = self.args.control
         replay_dir = Path(spec["replay_directory"])
@@ -446,7 +641,10 @@ class RepairSession:
         self.report["c0"] = dict(status="passed", compared_queries=0, replay_directory=str(replay_dir),
             replay_result_sha256=digest(replay_dir / "result.json"), replay_branch_sha256=digest(replay_dir / "c0/branch.json"))
         main_rows = list(records(self.parent / "main"))
+        timings = spec.get("timings")
         for event in events:
+            if timings and event["timing"] not in timings:
+                continue
             saved = load_snapshot(replay_dir / "events" / event["event_id"] / "snapshot")
             physics = json.loads((replay_dir / "events" / event["event_id"] / "physics.json").read_text())
             if digest(replay_dir / "events" / event["event_id"] / "physics.json") != event["physics_sha256"]:
@@ -464,7 +662,8 @@ class RepairSession:
                     obs = restore(self.env, saved, self.rng)
                     monitor = copy.deepcopy(prefix_monitor)
                     fork_steps = int(saved["action_steps"])
-                    branch = dict(status="running", arm=arm, control=ARMS[arm], replicate=replicate, event_id=event["event_id"],
+                    branch = dict(status="running", arm=arm, control=ARMS[arm] if arm in ARMS else SUPERVISOR_ARMS[arm],
+                        replicate=replicate, event_id=event["event_id"],
                         timing=event["timing"], deployable=event["deployable"], start_query=q0,
                         physical_class=physics["physical_class"], target_name=physics["target_name"],
                         parent_main_id=self.args.main_id, parent_commit_sha256=self.task["parent_commit_sha256"],
@@ -474,6 +673,19 @@ class RepairSession:
                         deployment_model_queries=0, handback_step=None)
                     self.report["branches"].append(branch)
                     directory.mkdir(parents=True, exist_ok=False)
+                    if arm in SUPERVISOR_ARMS:
+                        writer = ShardWriter(directory / "suffix")
+                        try:
+                            self.run_supervised(arm, physics, obs, fork_steps, replicate, directory, branch, q0, monitor, writer)
+                            branch["shards"] = writer.close()
+                        finally:
+                            writer.close()
+                        branch["success_within_original"] = bool(branch["success"] and branch["success_step"] <= branch["original_remaining_steps"])
+                        branch["status"] = "completed"
+                        atomic_json(directory / "branch.json", branch)
+                        self.close_env()
+                        self.save()
+                        continue
                     obs, steps, success = self.run_repair(arm, physics, obs, fork_steps, replicate, directory, branch)
                     branch["action_steps"] = steps - fork_steps
                     branch["handback_step"] = branch["action_steps"]

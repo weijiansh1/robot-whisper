@@ -11,19 +11,42 @@ import numpy as np
 
 from collection_routes import PROBS_KEY
 from collection_storage import atomic_json, digest, load_snapshot, records
-from repair_control import ARMS, PROTOCOL, WINDOW_STEPS, seed_for
+from repair_control import ARMS, PROTOCOL, PROTOCOL_V2, SUPERVISOR_ARMS, WINDOW_STEPS, seed_for
+
+REPAIR_REASONS = ("reached", "max_chunks", "open", "close", "", "regrasp", "release", "contact")
+
+
+def twin_prefix_equal(directory, twin_dir, limit):
+    """v2 branches must reproduce their v1 twin bitwise up to the first extra intervention."""
+    mine = list(records(directory / "suffix"))
+    theirs = list(records(twin_dir / "suffix"))
+    n = len(mine) if limit is None else min(limit, len(mine))
+    n = min(n, len(theirs))   # the twin may have ended earlier (success inside the window): compare the overlap
+    for a, b in zip(mine[:n], theirs[:n]):
+        if str(a["input_sha256"]) != str(b["input_sha256"]) or not np.array_equal(a["actions"], b["actions"]):
+            return False
+    return True
 
 
 def audit_task(task_dir, plan_task, plan):
-    findings, replay_dir = [], task_dir / "replay"
-    replay = json.loads((replay_dir / "result.json").read_text())
+    v2 = plan["protocol"] == PROTOCOL_V2
+    findings = []
+    if v2:
+        replay_dir = Path(plan["replay_run"]) / "tasks" / plan_task["main_id"] / "replay"
+        replay = json.loads((replay_dir / "result.json").read_text())
+        mine = json.loads((task_dir / "branches/result.json").read_text()) if (task_dir / "branches/result.json").exists() else None
+        if mine is not None and mine["c0"].get("replay_result_sha256") != digest(replay_dir / "result.json"):
+            findings.append("replay_source_hash")
+    else:
+        replay_dir = task_dir / "replay"
+        replay = json.loads((replay_dir / "result.json").read_text())
+        if replay["c0"]["compared_queries"] != plan_task["parent_queries"]:
+            findings.append("c0_query_count")
+        if replay["c0"]["online_knn_first"] != plan_task["first_alarm"]:
+            findings.append("knn_trigger_mismatch")
     if replay["status"] != "completed" or replay["c0"]["status"] != "passed":
         findings.append("replay_not_passed")
-    if replay["c0"]["compared_queries"] != plan_task["parent_queries"]:
-        findings.append("c0_query_count")
-    if replay["c0"]["online_knn_first"] != plan_task["first_alarm"]:
-        findings.append("knn_trigger_mismatch")
-    events = replay["events"]
+    events = [e for e in replay["events"] if not plan.get("timings") or e["timing"] in plan["timings"]]
     for event in events:
         location = replay_dir / "events" / event["event_id"]
         manifest = json.loads((location / "snapshot/manifest.json").read_text())
@@ -55,8 +78,16 @@ def audit_task(task_dir, plan_task, plan):
             for row in records(directory / "repair"):
                 repair_rows += 1
                 steps += int(row["executed_action_count"])
-                if str(row["reason"].astype(str)) not in ("reached", "max_chunks", "open", "close", "", "regrasp"):
+                if str(row["reason"].astype(str)) not in REPAIR_REASONS:
                     findings.append("repair_reason:%s" % row["reason"])
+        if v2:
+            twin = branch.get("twin")
+            if len(branch.get("interventions", [])) > plan["supervisor"]["max_interventions"]:
+                findings.append("too_many_interventions:%s/%s" % (branch["event_id"][:8], branch["arm"]))
+            if twin is not None:
+                twin_dir = replay_dir.parent / "branches/branches" / branch["event_id"] / ("repeat%d" % branch["replicate"]) / twin
+                if not twin_prefix_equal(directory, twin_dir, branch.get("first_extra_intervention_query")):
+                    findings.append("twin_prefix:%s/%s" % (branch["event_id"][:8], branch["arm"]))
         if branch.get("repair_steps", 0) != steps:
             findings.append("repair_steps:%s/%s" % (branch["event_id"][:8], branch["arm"]))
         if (directory / "suffix/manifest.json").exists():
@@ -85,7 +116,10 @@ def audit_task(task_dir, plan_task, plan):
 def run(args):
     plan = json.loads((args.run / "plan.json").read_text())
     summary = json.loads((args.run / "summary.json").read_text())
-    if plan["protocol"] != PROTOCOL or plan["arms_registry"] != ARMS:
+    if plan["protocol"] == PROTOCOL_V2:
+        if plan["arms_registry"] != SUPERVISOR_ARMS:
+            raise ValueError("Wrong supervisor registry")
+    elif plan["protocol"] != PROTOCOL or plan["arms_registry"] != ARMS:
         raise ValueError("Wrong protocol")
     tasks = [audit_task(args.run / "tasks" / t["main_id"], t, plan) for t in plan["tasks"]]
     report = dict(status="passed" if all(not t["findings"] for t in tasks) else "failed", run=str(args.run),

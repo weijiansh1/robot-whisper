@@ -1,0 +1,227 @@
+{
+  "protocol": "moe_control.repair_supervisor.v2",
+  "model": "long",
+  "stage": "supervisor_smoke",
+  "arms": [
+    "supervisor_regrasp_guard",
+    "supervisor_place_assist",
+    "supervisor_full"
+  ],
+  "arms_registry": {
+    "supervisor_regrasp_guard": {
+      "repair": "retract",
+      "target": "above_target",
+      "guards": [
+        "G0",
+        "G2"
+      ]
+    },
+    "supervisor_place_assist": {
+      "repair": "retract",
+      "target": "above_target",
+      "guards": [
+        "G0",
+        "G3"
+      ]
+    },
+    "supervisor_full": {
+      "repair": "retract",
+      "target": "above_target",
+      "guards": [
+        "G0",
+        "G2",
+        "G3"
+      ]
+    }
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "supervisor": {
+    "max_interventions": 3,
+    "lifted_m": 0.02,
+    "phantom_departure_m": 0.05,
+    "phantom_hold_steps": 40,
+    "phantom_moved_m": 0.01,
+    "phantom_escalation_m": 0.05,
+    "carry_patience_steps": 120,
+    "place_height_m": 0.15,
+    "place_clearance_m": 0.02,
+    "place_rise_m": 0.08,
+    "place_rise_chunks": 3,
+    "place_transfer_chunks": 6,
+    "place_lower_chunks": 4,
+    "place_retreat_chunks": 2,
+    "place_tolerance_m": 0.02
+  },
+  "replicates": 1,
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "supervisory switching {VLA, RETRACT, PLACE}; physical guards evaluated every env step, switches at chunk boundaries; at most 3 interventions per suffix; no model call inside a primitive",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false,
+    "guards": "G0 veto: target lifted >= 0.02 m at the fork -> no first-stage repair; G2 phantom: closed aperture, target not lifted and unmoved since closure, eef departed >= 0.05 m or closure held >= 40 steps -> RETRACT above target, 0.05 m higher at each repeat; G3 carry: target lifted >= 120 consecutive steps without a goal predicate turning true -> PLACE into the goal region",
+    "first_stage": "identical to retract_above_target of moe_control.repair_recovery.v1 (same fork snapshot, same noise streams) so every branch is paired with its v1 twin up to the first extra intervention",
+    "replay": "fork snapshots and fork physics reused from the audited v1 run; no C0 replay"
+  },
+  "timings": [
+    "mid"
+  ],
+  "replay_run": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908",
+  "replay_audit": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_audit_20260908.json",
+  "selection": "every parent of the audited v1 run (main); fork snapshots and physics reused; no outcome read",
+  "source_sha256": {
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908/plan.json": "953bac54dcaa1ab45c3a5f2c62340ae48e94f3e4b73de29590284f429fa9ed34",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_audit_20260908.json": "aae6fac6ca245f66ec8add471409360f260e461811b1eb9469463cd9c08afa4e",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/frozen_alarm_comparison_20260908/profiles/global_reference.npz": "e8076c132610be0288c0d7435902c1238751c17bf1fcc1dfb6991aa97350b581",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/frozen_alarm_comparison_20260908/profiles/parameters.json": "f4e65d359411309756b008423d14d8f3e5d6bf604ee71b63ae8a7e510c5f8216",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/repair_control.py": "15f739101d4e0364ee16a776de3887c552afdd8ec4614b68196ef9403c927a58",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/repair_controller.py": "91f8870cef18b24106ff6e9616d7c7b5c3f32475fdd4558e974bea0db953c4df",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/collect_repair_control.py": "676f9091d5af66ae5b24a3fb5710f31061023346898b6c2667e841d1a28757aa",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/prepare_repair_experiment.py": "2246609310ea2a8719fa249e631278a80329a023b65f9fdc7650cfc944bd8cfe"
+  },
+  "frozen_parameters_sha256": "f4e65d359411309756b008423d14d8f3e5d6bf604ee71b63ae8a7e510c5f8216",
+  "tasks": [
+    {
+      "main_id": "64f84f7361cd2d37d96f5271",
+      "variant_id": "00a81276b4690c5063cbdac6",
+      "benchmark": "plus",
+      "category": "Objects Layout",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/64f84f7361cd2d37d96f5271",
+      "parent_queries": 52,
+      "parent_commit_sha256": "6fe9fe5976c3ad54e43c10f5919400a7b9d9a2bb4530341ecac4d0feeb9a702e",
+      "parent_manifest_sha256": "3f85d8a02a1c4c44d5ff344a7b6a541948bd67c535a339d3b335574152e6a17b",
+      "noise_seed": 1363944789,
+      "init_index": 0,
+      "first_alarm": 24,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "f57bd663199e7ef4237adde1",
+          "timing": "mid",
+          "start_query": 25,
+          "alarm_query": 24,
+          "deployable": true
+        },
+        {
+          "event_id": "f6e09392914aede9b38c40a8",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 24,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "a97e2467b5341216d6b65d61",
+      "variant_id": "14a8d85b7ae5b5c67030a543",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/a97e2467b5341216d6b65d61",
+      "parent_queries": 52,
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "parent_manifest_sha256": "958e126966619e491f98cebe69ed7c3cb61dccf59a895d527175dc1d9d45d482",
+      "noise_seed": 2995109210,
+      "init_index": 0,
+      "first_alarm": 28,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "150e6b8bff698b7060b8ba93",
+          "timing": "mid",
+          "start_query": 29,
+          "alarm_query": 28,
+          "deployable": true
+        },
+        {
+          "event_id": "32ed49e15e17d840fb203a4f",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 28,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "2581e264e7a153e025f34a5e",
+      "variant_id": "32409a5bac8858b2e505c8e1",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/2581e264e7a153e025f34a5e",
+      "parent_queries": 52,
+      "parent_commit_sha256": "f642af910fc11d3a7a161f15f5db90670708c8486f6f0461b055dce62fea92c9",
+      "parent_manifest_sha256": "2a16cdbc89523a9dd2a1dadb9ef6a1ff470e18ac2c6245d9ab1d659bb5d03845",
+      "noise_seed": 745074313,
+      "init_index": 0,
+      "first_alarm": 16,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "b8f5573369fdaf8d4e9ceea1",
+          "timing": "mid",
+          "start_query": 17,
+          "alarm_query": 16,
+          "deployable": true
+        },
+        {
+          "event_id": "f0b2cc653be52f5081fe18fc",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 16,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    }
+  ],
+  "allowed_gpus": [
+    4,
+    5
+  ],
+  "render_gpus": [
+    4,
+    5
+  ],
+  "replicas_per_gpu": 8,
+  "workers_per_gpu": 8,
+  "mps": true,
+  "parameter_fitting": false,
+  "training": false,
+  "base_task_counts": {
+    "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket": 1,
+    "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket": 1,
+    "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate": 1
+  },
+  "failed_parents": 3,
+  "success_parents": 0,
+  "planned_events": 6,
+  "maximum_output_bytes": 93732864,
+  "storage_quota_gib": 9,
+  "disk_floor_gib": 8
+}
