@@ -1,0 +1,533 @@
+#!/usr/bin/env python3
+"""Use allowed GPUs for real, bounded Pro/Plus collection and C0 preflight."""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import contextlib
+import hashlib
+import json
+import os
+from pathlib import Path
+import queue
+import shutil
+import signal
+import socket
+import subprocess
+import threading
+import time
+
+import numpy as np
+import probe_process_scaling as scaling
+from benchmarks.run_benchmarks import BASE, ROOTS, environment, variants
+from collection_routes import CAPTURE_KEY, FIELDS, ALL_FIELDS
+from collection_storage import atomic_json, digest
+from collection_worker_pool import PersistentWorker
+from collection_mps import PrivateMPS
+from collection_protocol import PARAMETERS_SHA256, load_plan, verify_frozen_alarm
+
+probe = scaling.probe
+HERE = Path(__file__).resolve().parent
+
+
+SUITES = dict(goal="libero_goal", spatial="libero_spatial", object="libero_object", long="libero_10")
+
+
+def select_jobs(per_category, model="goal"):
+    groups = {}
+    for benchmark in ("pro", "plus"):
+        for row in variants(benchmark):
+            if row["suite"] == SUITES[model]:
+                groups.setdefault((benchmark, row["category"]), []).append(row)
+    groups = {key: sorted(rows, key=lambda row: hashlib.sha256(row["variant_id"].encode()).hexdigest())
+              for key, rows in groups.items()}
+    return [groups[key][index] for index in range(per_category) for key in sorted(groups)
+            if index < len(groups[key])]
+
+
+def storage_used(directory):
+    total = 0
+    for path in directory.rglob("*"):
+        try:
+            if path.is_file():
+                total += path.stat().st_size
+        except FileNotFoundError:
+            pass  # A writer may atomically rename its temporary file during the scan.
+    return total
+
+
+def replica_port(gpu, port_base, model, replica=0, port_stride=10):
+    return port_base + gpu * port_stride + probe.MODELS.index(model) + replica * 5
+
+
+def open_replica(stack, gpu, port_base, model, replica=0, port_stride=10):
+    port = replica_port(gpu, port_base, model, replica, port_stride)
+    connection = stack.enter_context(probe.connect("ws://127.0.0.1:%d" % port, compression=None,
+        max_size=None, open_timeout=10, close_timeout=5, ping_interval=None))
+    frame = connection.recv(timeout=15)
+    if isinstance(frame, str):
+        raise RuntimeError(frame)
+    metadata = probe.msgpack_numpy.unpackb(frame)
+    probe._verify_bundle_identity(metadata, port, gpu, 0, model)
+    if not metadata.get("isolated_process") or metadata.get("replica_index") != replica:
+        raise ValueError("Isolated replica identity mismatch")
+    return connection, metadata
+
+
+def verify_server(gpu, port_base, model="goal", replicas=1, port_stride=10):
+    with contextlib.ExitStack() as stack:
+        old, original = probe.open_endpoint(stack, "127.0.0.1", gpu, model)
+        connections = [open_replica(stack, gpu, port_base, model, replica, port_stride) for replica in range(replicas)]
+        for _, current in connections:
+            probe.check_checkpoint(current, model)
+            if not current.get("collection_full_hb_supported") or current.get("collection_hidden_capture"):
+                raise ValueError("Collection capture metadata mismatch")
+            for key in ("checkpoint_sha256", "normalization_stats_sha256", "libero_wrist_layout",
+                        "himoe_upstream_commit", "himoe_working_tree_diff_sha256"):
+                if original[key] != current[key]:
+                    raise ValueError("Original policy identity differs: " + key)
+        for seed in (102000 + gpu, 103000 + gpu):
+            request = probe.observation(model, seed, capture=True)
+            expected, _ = probe.infer(old, request, model)
+            request[CAPTURE_KEY] = True
+            with concurrent.futures.ThreadPoolExecutor(max_workers=replicas) as pool:
+                outputs = list(pool.map(lambda pair: probe.infer(pair[0], request, model)[0], connections))
+            for actual in outputs:
+                for key in ("actions", "routing/expert_ids", "routing/expert_weights", "routing/layer_indices"):
+                    np.testing.assert_array_equal(actual[key], expected[key], err_msg=key)
+                if actual["flow/noise_sha256"] != expected["flow/noise_sha256"]:
+                    raise ValueError("Flow noise identity changed")
+                for field in ALL_FIELDS:
+                    np.testing.assert_array_equal(actual[field], outputs[0][field], err_msg=field)
+        return dict(gpu=gpu, original_pid=original["bundle_process_pid"],
+                    replica_pids=[metadata["bundle_process_pid"] for _, metadata in connections],
+                    actions_and_top4_exact=True, concurrent_full_hb_exact=True, checked_seeds=2,
+                    full_route_shapes={field: list(actual[field].shape) for field in ALL_FIELDS})
+
+
+def run(args):
+    args.output = args.output.resolve()
+    if args.workers_per_gpu not in (1, 2, 4, 8) or not 1 <= args.per_category <= 10:
+        raise ValueError("Use 1/2/4/8 environment workers and 1..10 cases per category")
+    if min(args.job_timeout, args.storage_quota_gib, args.disk_floor_gib) <= 0:
+        raise ValueError("Timeout and storage bounds must be positive")
+    if args.workers_per_gpu < args.replicas:
+        raise ValueError("Each inference replica needs at least one environment worker")
+    if any(gpu not in probe.ALLOWED_GPUS for gpu in args.gpus):
+        raise ValueError("Physical GPU 6 is excluded")
+    port_stride = max(10, 5 * args.replicas)
+    active_alarm_sources = verify_frozen_alarm()
+    jobs = select_jobs(args.per_category, args.model)
+    if args.variants is not None:
+        inventory = {row["variant_id"]: row for benchmark in ("pro", "plus") for row in variants(benchmark)}
+        if len(set(args.variants)) != len(args.variants):
+            raise ValueError("Explicit variants must be unique")
+        jobs = [inventory[variant_id] for variant_id in args.variants]
+        if any(row["suite"] != SUITES[args.model] for row in jobs):
+            raise ValueError("Explicit variants must match the selected model")
+    if args.retry_from is not None:
+        previous = json.loads((args.retry_from / "summary.json").read_text())
+        if previous.get("formal_collection"):
+            raise ValueError("Formal retries require an explicit frozen --plan preserving main IDs, seeds and init indices")
+        inventory = {row["variant_id"]: row for benchmark in ("pro", "plus") for row in variants(benchmark)}
+        retry_ids = [task["variant"]["variant_id"] for task in previous["tasks"]
+                     if task["status"] != "completed" or (task.get("c0") or {}).get("status") != "passed"]
+        if len(set(retry_ids)) != len(retry_ids):
+            raise ValueError("Retry manifest has duplicate variants")
+        jobs = [inventory[variant_id] for variant_id in retry_ids]
+        if not jobs or any(row["suite"] != SUITES[args.model] for row in jobs):
+            raise ValueError("Retry requires unfinished tasks for the selected model")
+    plan = None
+    continuation = getattr(args, "continuation_plan", None) is not None
+    control = getattr(args, "control_plan", None) is not None
+    repair = getattr(args, "repair_plan", None) is not None
+    reuse = continuation or control or repair
+    plan_path = (args.repair_plan if repair else args.control_plan if control else
+                 args.continuation_plan if continuation else args.plan)
+    if plan_path is not None:
+        if not args.paired_branches:
+            raise ValueError("Formal plan requires all paired branches")
+        if repair:
+            from repair_control import load_plan as load_repair_plan
+            plan = load_repair_plan(plan_path, args.model)
+        elif control:
+            from adaptive_control import load_plan as load_control_plan
+            plan = load_control_plan(plan_path, args.model)
+        elif continuation:
+            from continuation_experiment import load_plan as load_continuation_plan
+            plan = load_continuation_plan(plan_path, args.model)
+        else:
+            plan = load_plan(plan_path, args.model, pending_only=True)
+        for key, actual in (("allowed_gpus", list(args.gpus)), ("replicas_per_gpu", args.replicas),
+                            ("workers_per_gpu", args.workers_per_gpu), ("mps", args.mps)):
+            if plan[key] != actual:
+                raise ValueError("Runtime differs from frozen plan: " + key)
+        inventory = {row["variant_id"]: row for benchmark in ("pro", "plus") for row in variants(benchmark)}
+        jobs = [dict(inventory[task["variant_id"]], main_id=task["main_id"],
+                     noise_seed=int(task["noise_seed"]), init_index=int(task["init_index"]), sampling=task)
+                for task in plan["tasks"]]
+        if repair:
+            from repair_control import scheduled_jobs as repair_scheduled_jobs
+            jobs = repair_scheduled_jobs(plan, inventory, args.output)
+        elif control:
+            from adaptive_control import scheduled_jobs
+            jobs = scheduled_jobs(plan, inventory, args.output)
+        if any(row["suite"] != SUITES[args.model] for row in jobs):
+            raise ValueError("Plan model/suite mismatch")
+        if continuation:
+            jobs.sort(key=lambda row: (-row["sampling"]["max_output_bytes"], row["main_id"]))
+    if len(jobs) < len(args.gpus):
+        raise ValueError("There must be at least one real task per GPU")
+    render_gpus = args.render_gpus or tuple(gpu for gpu in args.gpus if gpu not in (1, 2))
+    if not render_gpus:
+        raise ValueError("EGL replay failed on GPUs 1/2; select --render-gpus from 0,3,4,5,7")
+    render_map = {gpu: render_gpus[index % len(render_gpus)] for index, gpu in enumerate(args.gpus)}
+    if plan is not None and list(render_gpus) != plan["render_gpus"]:
+        raise ValueError("Renderer differs from frozen plan")
+    if shutil.disk_usage(HERE).free < args.disk_floor_gib * 1024**3:
+        raise RuntimeError("Disk free space is below the configured floor")
+    args.output.mkdir(parents=True, exist_ok=False)
+    (args.output / "logs").mkdir()
+    sources = [HERE / name for name in ("run_collection_preflight.py", "collect_preflight_worker.py",
+               "collection_routes.py", "collection_storage.py", "serve_isolated_model.py", "probe_collection_render.py",
+               "collection_noise.py", "collection_worker_pool.py", "collection_mps.py", "collection_protocol.py",
+               "audit_collection_preflight.py", "audit_collection_experiment.py", "analyze_collection_experiment.py")]
+    if continuation:
+        sources += [HERE / name for name in ("continuation_experiment.py", "collect_long_continuation.py",
+                    "audit_long_continuation.py", "prepare_long_continuation.py")]
+    if control:
+        sources += [HERE / name for name in ("adaptive_control.py", "collect_adaptive_control.py",
+                    "prepare_adaptive_control.py", "audit_adaptive_control.py")]
+    if repair:
+        sources += [HERE / name for name in ("adaptive_control.py", "repair_control.py", "repair_controller.py",
+                    "collect_repair_control.py", "prepare_repair_experiment.py")]
+    (args.output / "sources").mkdir()
+    for path in sources:
+        shutil.copy2(path, args.output / "sources" / path.name)
+    report = dict(status="loading", started_utc=probe.now(), gpus=args.gpus, excluded_gpu=6,
+        workers_per_gpu=args.workers_per_gpu, render_gpu_map=render_map, exact_noise_fastpath=args.exact_noise_fastpath,
+        batch_size=1, model=args.model, hidden_capture=False, replicas_per_gpu=args.replicas,
+        persistent_environments=True, mps_enabled=args.mps, port_stride=port_stride,
+        intervention=args.paired_branches, main_intervention=False,
+        continuation_experiment=continuation, adaptive_control_experiment=control, repair_experiment=repair,
+        new_main_coverage=not reuse,
+        scheduling="c0_then_independent_event_repeat_queue" if (control or repair) else "largest_reserved_work_first" if continuation else "frozen_queue_order",
+        formal_manifest_modified=False, formal_collection=plan is not None, original_servers_replaced=False,
+        storage_quota_gib=args.storage_quota_gib, disk_floor_gib=args.disk_floor_gib,
+        source_sha256={str(path): digest(path) for path in sources},
+        frozen_active_alarm_sources=active_alarm_sources,
+        frozen_alarm_sha256=digest(HERE / "design/frozen_alarm_comparison_20260908/profiles/parameters.json"),
+        tasks=[dict(variant=row, main_id=row.get("main_id"),
+                    status="waiting_c0" if row.get("depends_on") else "queued",
+                    output=str(args.output / "tasks" / row.get("job_id", row.get("main_id", row["variant_id"])))) for row in jobs])
+    if plan is not None:
+        shutil.copy2(plan_path, args.output / "plan.json")
+        report["plan_sha256"] = digest(args.output / "plan.json")
+    if args.retry_from is not None:
+        report["retry_from"] = str(args.retry_from.resolve())
+        report["retry_manifest_sha256"] = digest(args.retry_from / "summary.json")
+    atomic_json(args.output / "summary.json", report)
+    servers, logs, active_envs, controllers = {}, [], {}, {}
+    stop = threading.Event()
+    dispatch_stop = threading.Event()
+    lock = threading.Lock()
+    pool = None
+    samples = []
+    pending = queue.Queue()
+    dependents = {}
+    for index, row in enumerate(jobs):
+        if row.get("depends_on"):
+            dependents.setdefault(row["depends_on"], []).append(index)
+        else:
+            pending.put(index)
+
+    def stop_signal(_signal, _frame):
+        stop.set()
+
+    signal.signal(signal.SIGTERM, stop_signal)
+    signal.signal(signal.SIGINT, stop_signal)
+
+    def env_worker(gpu, worker_index):
+        workers = {}
+        replica = worker_index % args.replicas
+        try:
+            while not stop.is_set() and not dispatch_stop.is_set():
+                try:
+                    index = pending.get(timeout=.5) if (control or repair) else pending.get_nowait()
+                except queue.Empty:
+                    if control or repair:
+                        with lock:
+                            unfinished = any(task["status"] in ("queued", "waiting_c0", "running") for task in report["tasks"])
+                        if unfinished:
+                            continue
+                    return
+                row = jobs[index]
+                record = report["tasks"][index]
+                seed = row.get("noise_seed", 20260908 + int(row["variant_id"][:6], 16))
+                benchmark = row["benchmark"]
+                if benchmark not in workers:
+                    worker_script = ("collect_repair_control.py" if repair else "collect_adaptive_control.py" if control
+                                     else "collect_long_continuation.py" if continuation else "collect_preflight_worker.py")
+                    command = [str(BASE / "envs/libero/bin/python"), "-u", str(HERE / worker_script),
+                        "--benchmark", benchmark, "--worker-loop", "--model", args.model, "--gpu", str(gpu),
+                        "--render-gpu", str(render_map[gpu]),
+                        "--port", str(replica_port(gpu, args.port_base, args.model, replica, port_stride))]
+                    if args.paired_branches:
+                        command.append("--paired-branches")
+                    if args.exact_noise_fastpath:
+                        command.append("--exact-noise-fastpath")
+                    log_path = args.output / "logs" / ("env_gpu%d_slot%d_%s.log" % (gpu, worker_index, benchmark))
+                    worker = PersistentWorker(command, environment(benchmark, render_map[gpu], "egl"),
+                        str(ROOTS[benchmark]), log_path.open("w"))
+                    workers[benchmark] = worker
+                    with lock:
+                        active_envs[worker.process.pid] = worker.process
+                worker = workers[benchmark]
+                with lock:
+                    record.update(status="running", gpu=gpu, render_gpu=render_map[gpu], worker=worker_index,
+                        replica=replica, pid=worker.process.pid, seed=seed, worker_log=str(worker.log.name))
+                started = time.monotonic()
+                try:
+                    message = dict(variant=row["variant_id"], seed=seed, output=record["output"],
+                        main_id=row.get("main_id"), init_index=row.get("init_index", 0))
+                    if continuation:
+                        message["continuation"] = row["sampling"]
+                    if control or repair:
+                        message["control"] = row["sampling"]
+                    outcome = worker.execute(message, args.job_timeout, stop)
+                except Exception as error:
+                    outcome = dict(exit_code=-1, error=repr(error))
+                    worker.close()
+                    workers.pop(benchmark)
+                    with lock:
+                        active_envs.pop(worker.process.pid, None)
+                path = Path(record["output"]) / "result.json"
+                result = json.loads(path.read_text()) if path.exists() else {}
+                with lock:
+                    completed = outcome["exit_code"] == 0 and result.get("status") == "completed"
+                    status = "completed" if completed else "failed"
+                    if completed and (result.get("c0") or {}).get("status") != "passed":
+                        status = "fidelity_failed"
+                    if status != "completed":
+                        dispatch_stop.set()
+                    record.update(status=status, exit_code=outcome["exit_code"],
+                                  error=outcome.get("error", result.get("error")),
+                                  worker_job_index=outcome.get("worker_job_index"),
+                                  elapsed_seconds=time.monotonic() - started,
+                                  queries=result.get("queries", 0), action_steps=result.get("action_steps", 0),
+                                  success=result.get("success", False), first_alarm_query=result.get("first_alarm_query"),
+                                  c0=result.get("c0"), branches=result.get("branches", []),
+                                  actual_model_queries=result.get("actual_model_queries"),
+                                  candidate_queries=result.get("candidate_queries", 0),
+                                  reused_candidate_queries=result.get("reused_candidate_queries", 0),
+                                  main_complete=result.get("main_complete", False))
+                    if (control or repair) and status == "completed":
+                        for child in dependents.get(row["job_id"], []):
+                            report["tasks"][child]["status"] = "queued"
+                            pending.put(child)
+                print("TASK " + json.dumps({key: record.get(key) for key in
+                    ("gpu", "status", "queries", "action_steps", "success", "first_alarm_query")}), flush=True)
+                pending.task_done()
+        finally:
+            for worker in workers.values():
+                worker.close()
+                with lock:
+                    active_envs.pop(worker.process.pid, None)
+
+    try:
+        for gpu in args.gpus:
+            free = int(subprocess.run(["nvidia-smi", "-i", str(gpu), "--query-gpu=memory.free",
+                "--format=csv,noheader,nounits"], check=True, capture_output=True, text=True).stdout.strip())
+            required_free = 39000 if args.replicas > 1 else 30000
+            if free < required_free:
+                raise RuntimeError("GPU %d needs %d MiB free including rendering headroom" % (gpu, required_free))
+            for replica in range(args.replicas):
+                with socket.socket() as sock:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    sock.bind(("127.0.0.1", replica_port(gpu, args.port_base, args.model, replica, port_stride)))
+            log = (args.output / "logs" / ("model_gpu%d.log" % gpu)).open("w")
+            logs.append(log)
+            env = dict(os.environ, OMP_NUM_THREADS="2", OPENBLAS_NUM_THREADS="1", MKL_NUM_THREADS="1",
+                       MALLOC_ARENA_MAX="2", MALLOC_TRIM_THRESHOLD_="131072")
+            if args.mps:
+                controllers[gpu] = PrivateMPS(gpu, args.output / ("gpu%d" % gpu))
+                report.setdefault("mps_start", {})[gpu] = controllers[gpu].start()
+                env.update({key: value for key, value in controllers[gpu].env.items()
+                            if key.startswith("CUDA_")})
+            servers[gpu] = subprocess.Popen([str(scaling.MODEL_PYTHON), "-u", str(HERE / "serve_isolated_model.py"),
+                "--gpu", str(gpu), "--base-port", str(args.port_base + gpu * port_stride), "--models", args.model,
+                "--replicas", str(args.replicas), "--full-hb-capture"],
+                env=env, stdout=log, stderr=subprocess.STDOUT)
+        report["temporary_model_pids"] = {gpu: process.pid for gpu, process in servers.items()}
+        atomic_json(args.output / "summary.json", report)
+        waiting = {(gpu, replica) for gpu in args.gpus for replica in range(args.replicas)}
+        deadline = time.monotonic() + 600
+        while waiting:
+            if stop.is_set() or time.monotonic() > deadline:
+                raise RuntimeError("Model startup interrupted or timed out")
+            for gpu, replica in list(waiting):
+                if servers[gpu].poll() is not None:
+                    raise RuntimeError("Model worker exited on GPU %d" % gpu)
+                with socket.socket() as sock:
+                    sock.settimeout(.2)
+                    if sock.connect_ex(("127.0.0.1", replica_port(gpu, args.port_base, args.model, replica, port_stride))) == 0:
+                        waiting.remove((gpu, replica))
+            stop.wait(.5)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(args.gpus)) as checks:
+            report["model_equivalence"] = list(checks.map(
+                lambda gpu: verify_server(gpu, args.port_base, args.model, args.replicas, port_stride), args.gpus))
+        report["temporary_replica_pids"] = [pid for row in report["model_equivalence"] for pid in row["replica_pids"]]
+        if args.mps:
+            report["mps_clients"] = {row["gpu"]: controllers[row["gpu"]].verify_clients(row["replica_pids"])
+                                    for row in report["model_equivalence"]}
+        report["status"] = "collecting"
+        report["collection_started_utc"] = probe.now()
+        collection_started = time.monotonic()
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=len(args.gpus) * args.workers_per_gpu)
+        futures = [pool.submit(env_worker, gpu, worker) for worker in range(args.workers_per_gpu) for gpu in args.gpus]
+        iteration = 0
+        while not all(future.done() for future in futures):
+            for future in futures:
+                if future.done():
+                    future.result()
+            if any(process.poll() is not None for process in servers.values()):
+                raise RuntimeError("A model service exited during collection")
+            used = storage_used(args.output)
+            active_count = sum(task["status"] == "running" for task in report["tasks"])
+            max_task_bytes = max(row["horizon_steps"] for row in jobs) // 10 * (10 if args.paired_branches else 2) * 180 * 1024 + 8 * 1024**2
+            reserve = max_task_bytes * (active_count + 1)
+            if reuse:
+                active_bounds = [task["variant"]["sampling"]["max_output_bytes"] for task in report["tasks"]
+                                 if task["status"] == "running"]
+                queued_bounds = [task["variant"]["sampling"]["max_output_bytes"] for task in report["tasks"]
+                                 if task["status"] == "queued"]
+                reserve = sum(active_bounds) + max(queued_bounds, default=0)
+            if shutil.disk_usage(args.output).free - reserve < args.disk_floor_gib * 1024**3 or used + reserve > args.storage_quota_gib * 1024**3:
+                report["stop_reason"] = "storage_limit"
+                dispatch_stop.set()
+            sample = probe.telemetry(args.gpus)
+            sample["host_memory_bytes"] = int(Path("/sys/fs/cgroup/memory.current").read_text())
+            sample["host_cpu_stat"] = {key: int(value) for key, value in
+                (line.split() for line in Path("/sys/fs/cgroup/cpu.stat").read_text().splitlines())}
+            with lock:
+                sample["active_tasks_by_gpu"] = {gpu: sum(task["status"] == "running" and task["gpu"] == gpu
+                    for task in report["tasks"]) for gpu in args.gpus}
+                sample["queued_tasks"] = sum(task["status"] == "queued" for task in report["tasks"])
+                samples.append(sample)
+                for task in report["tasks"]:
+                    path = Path(task["output"]) / "result.json"
+                    if task["status"] == "running" and path.exists():
+                        progress = json.loads(path.read_text())
+                        task.update(queries=progress["queries"], action_steps=progress["action_steps"],
+                                    branches=progress.get("branches", []), c0=progress.get("c0"),
+                                    first_alarm_query=progress["first_alarm_query"], success=progress["success"],
+                                    main_complete=progress["main_complete"])
+                report["storage_bytes"] = used
+                report["completed_tasks"] = sum(task["status"] == "completed" for task in report["tasks"])
+                report["latest_gpu_sample"] = sample
+                atomic_json(args.output / "summary.json", report)
+            if iteration % 5 == 0:
+                print("PROGRESS " + json.dumps(dict(completed=report["completed_tasks"], total=len(jobs),
+                    main_queries=sum(task.get("queries", 0) for task in report["tasks"]),
+                    paired_queries=sum(branch["queries"] for task in report["tasks"] for branch in task.get("branches", [])),
+                    gpu_util={row["gpu"]: row["utilization_percent"] for row in sample["gpus"]})), flush=True)
+            iteration += 1
+            stop.wait(2)
+        for future in futures:
+            future.result()
+        report["collection_elapsed_seconds"] = time.monotonic() - collection_started
+        report["completed_tasks"] = sum(task["status"] == "completed" for task in report["tasks"])
+        report["main_queries"] = sum(task.get("queries", 0) for task in report["tasks"])
+        report["c0_queries"] = sum((task.get("c0") or {}).get("compared_queries", 0) for task in report["tasks"])
+        report["paired_branch_queries"] = sum(branch["queries"] for task in report["tasks"] for branch in task.get("branches", []))
+        report["queries_per_second"] = (report["main_queries"] + report["c0_queries"] + report["paired_branch_queries"]) / report["collection_elapsed_seconds"]
+        if reuse:
+            report["candidate_queries"] = sum(task["candidate_queries"] for task in report["tasks"])
+            report["reused_candidate_queries"] = sum(task["reused_candidate_queries"] for task in report["tasks"])
+            report["actual_model_queries"] = sum(task["actual_model_queries"] or 0 for task in report["tasks"])
+            report["queries_per_second"] = report["actual_model_queries"] / report["collection_elapsed_seconds"]
+        report["c0_passed"] = sum((task.get("c0") or {}).get("status") == "passed" for task in report["tasks"])
+        report["c0_fidelity_failed"] = sum((task.get("c0") or {}).get("status") == "fidelity_failed" for task in report["tasks"])
+        report["gpu_summary"] = [dict(gpu=gpu,
+            mean_utilization_percent=float(np.mean([r["utilization_percent"] for s in samples for r in s["gpus"] if r["gpu"] == gpu])),
+            mean_power_w=float(np.mean([r["power_w"] for s in samples for r in s["gpus"] if r["gpu"] == gpu])),
+            max_power_w=max(r["power_w"] for s in samples for r in s["gpus"] if r["gpu"] == gpu),
+            max_memory_mib=max(r["memory_mib"] for s in samples for r in s["gpus"] if r["gpu"] == gpu)) for gpu in args.gpus]
+        busy_samples = [sample for sample in samples if all(
+            sample["active_tasks_by_gpu"][gpu] >= args.replicas for gpu in args.gpus)]
+        report["all_replicas_supplied_samples"] = len(busy_samples)
+        report["all_replicas_supplied_mean_utilization_percent"] = float(np.mean([
+            row["utilization_percent"] for sample in busy_samples for row in sample["gpus"]])) if busy_samples else None
+        report["reused_environment_tasks"] = sum((task.get("worker_job_index") or 0) > 1 for task in report["tasks"])
+        report["host_peak_memory_bytes"] = max(sample["host_memory_bytes"] for sample in samples)
+        report["host_mean_cpu_cores"] = (samples[-1]["host_cpu_stat"]["usage_usec"] - samples[0]["host_cpu_stat"]["usage_usec"]) / (
+            1e6 * max(samples[-1]["monotonic"] - samples[0]["monotonic"], 1e-6))
+        report["status"] = "completed" if all(task["status"] == "completed" for task in report["tasks"]) else "incomplete"
+        atomic_json(args.output / "gpu_samples.json", samples)
+    except BaseException as error:
+        report["status"] = "failed"
+        report["error"] = repr(error)
+        raise
+    finally:
+        stop.set()
+        with lock:
+            processes = list(active_envs.values())
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
+        if pool is not None:
+            pool.shutdown(wait=True)
+        for process in servers.values():
+            if process.poll() is None:
+                process.terminate()
+        for process in servers.values():
+            try:
+                process.wait(timeout=45)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=10)
+        for log in logs:
+            log.close()
+        report["mps_cleanup"] = {}
+        for gpu, controller in controllers.items():
+            try:
+                report["mps_cleanup"][gpu] = controller.close()
+            except Exception as error:
+                report["mps_cleanup"][gpu] = dict(error=repr(error))
+                report["status"] = "cleanup_failed"
+        report["temporary_models_stopped"] = all(process.poll() is not None for process in servers.values())
+        report["live_replica_pids_after_cleanup"] = [pid for pid in report.get("temporary_replica_pids", [])
+            if Path("/proc/%d" % pid).exists()]
+        report["environment_workers_stopped"] = all(process.poll() is not None for process in processes)
+        report["finished_utc"] = probe.now()
+        atomic_json(args.output / "summary.json", report)
+    print("SUMMARY " + json.dumps({key: report.get(key) for key in
+        ("status", "main_queries", "c0_queries", "paired_branch_queries", "queries_per_second", "c0_passed", "c0_fidelity_failed")}), flush=True)
+    return 0 if report["status"] == "completed" else 1
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--gpus", type=probe.validate_gpus, default=probe.ALLOWED_GPUS)
+    parser.add_argument("--render-gpus", type=probe.validate_gpus)
+    parser.add_argument("--model", choices=tuple(SUITES), default="goal")
+    parser.add_argument("--replicas", type=int, choices=(1, 2, 4, 8), default=1)
+    parser.add_argument("--mps", action="store_true")
+    parser.add_argument("--paired-branches", action="store_true")
+    parser.add_argument("--exact-noise-fastpath", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--workers-per-gpu", type=int, default=2)
+    parser.add_argument("--per-category", type=int, default=2)
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--retry-from", type=Path)
+    selection.add_argument("--variants", nargs="+")
+    selection.add_argument("--plan", type=Path)
+    selection.add_argument("--continuation-plan", type=Path)
+    selection.add_argument("--control-plan", type=Path)
+    selection.add_argument("--repair-plan", type=Path)
+    parser.add_argument("--port-base", type=int, default=8900)
+    parser.add_argument("--job-timeout", type=float, default=900)
+    parser.add_argument("--storage-quota-gib", type=float, default=4)
+    parser.add_argument("--disk-floor-gib", type=float, default=8)
+    parser.add_argument("--output", type=Path, default=HERE / "design/collection_preflight_20260908")
+    raise SystemExit(run(parser.parse_args()))

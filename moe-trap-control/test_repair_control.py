@@ -103,3 +103,47 @@ def test_tilt_degrees_identity_and_flat():
     from repair_controller import tilt_degrees
     assert tilt_degrees([1.0, 0.0, 0.0, 0.0]) == pytest.approx(0.0)
     assert tilt_degrees([0.0, 1.0, 0.0, 0.0]) == pytest.approx(180.0)
+
+
+def test_repair_events_three_fork_times():
+    from repair_control import events_for, LATE_QUERY, early_event
+    events = events_for("abc", knn_first=25, length=52, failed=True)
+    assert [e["timing"] for e in events] == ["mid", "late"]
+    assert events[0]["start_query"] == 26 and events[1]["start_query"] == LATE_QUERY == 44
+    assert events_for("abc", knn_first=25, length=52, failed=False) == events[:1]
+    assert events_for("abc", knn_first=-1, length=52, failed=True) == [dict(events[1], alarm_query=-1)]
+    assert early_event("abc", 30)["timing"] == "early" and early_event("abc", 30)["start_query"] == 30
+    assert len({e["event_id"] for e in events + [early_event("abc", 30)]}) == 3
+
+
+def test_arm_registry_orders_by_strength():
+    from repair_control import ARMS, seed_for, noise_for
+    assert list(ARMS) == ["new_noise", "open_only", "retract_history", "retract_above_target",
+                          "retract_above_target_noisy", "scripted_regrasp"]
+    assert ARMS["retract_above_target_noisy"]["xy_noise_m"] == 0.02
+    assert seed_for("abc", 0, 0, "policy") != seed_for("abc", 1, 0, "policy")
+    assert noise_for("abc", 0, 3).shape == (10, 24)
+    with pytest.raises(ValueError):
+        seed_for("abc", 0, 0, "other")
+
+
+def test_repair_plan_covers_all_arms():
+    from collect_repair_control import repair_plan
+    physics = dict(history_pose=[0.1, 0.2, 1.0], target_position=[0.3, 0.0, 0.9])
+    eef = np.array([0.0, 0.0, 1.0])
+    assert repair_plan("new_noise", physics, eef, "abc", 0)[0] == "none"
+    kind, ctrl, target = repair_plan("open_only", physics, eef, "abc", 0)
+    assert kind == "open" and ctrl is None and np.allclose(target, eef)
+    kind, ctrl, target = repair_plan("retract_history", physics, eef, "abc", 0)
+    assert kind == "retract" and np.allclose(target, [0.1, 0.2, 1.0])
+    kind, ctrl, target = repair_plan("retract_history", dict(physics, history_pose=None), eef, "abc", 0)
+    assert np.allclose(target, [0.0, 0.0, 1.10])
+    kind, ctrl, target = repair_plan("retract_above_target", physics, eef, "abc", 0)
+    assert kind == "retract" and np.allclose(target, [0.3, 0.0, 1.0])
+    kind, _, noisy = repair_plan("retract_above_target_noisy", physics, eef, "abc", 0)
+    assert kind == "retract" and abs(noisy[2] - 1.0) < 1e-9 and np.linalg.norm(noisy[:2] - [0.3, 0.0]) < 0.1
+    _, _, noisy_again = repair_plan("retract_above_target_noisy", physics, eef, "abc", 0)
+    assert np.allclose(noisy, noisy_again)
+    kind, ctrl, target = repair_plan("scripted_regrasp", physics, eef, "abc", 1)
+    assert kind == "regrasp" and ctrl.phase.max_chunks == 6
+    assert repair_plan("retract_above_target", dict(target_position=None), eef, "abc", 0)[0] == "unavailable"
