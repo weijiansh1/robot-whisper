@@ -443,9 +443,9 @@ def run(args):
         report["paired_branch_queries"] = sum(branch["queries"] for task in report["tasks"] for branch in task.get("branches", []))
         report["queries_per_second"] = (report["main_queries"] + report["c0_queries"] + report["paired_branch_queries"]) / report["collection_elapsed_seconds"]
         if reuse:
-            report["candidate_queries"] = sum(task["candidate_queries"] for task in report["tasks"])
-            report["reused_candidate_queries"] = sum(task["reused_candidate_queries"] for task in report["tasks"])
-            report["actual_model_queries"] = sum(task["actual_model_queries"] or 0 for task in report["tasks"])
+            report["candidate_queries"] = sum(task.get("candidate_queries") or 0 for task in report["tasks"])
+            report["reused_candidate_queries"] = sum(task.get("reused_candidate_queries") or 0 for task in report["tasks"])
+            report["actual_model_queries"] = sum(task.get("actual_model_queries") or 0 for task in report["tasks"])
             report["queries_per_second"] = report["actual_model_queries"] / report["collection_elapsed_seconds"]
         report["c0_passed"] = sum((task.get("c0") or {}).get("status") == "passed" for task in report["tasks"])
         report["c0_fidelity_failed"] = sum((task.get("c0") or {}).get("status") == "fidelity_failed" for task in report["tasks"])

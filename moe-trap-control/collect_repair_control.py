@@ -52,6 +52,21 @@ def _listify(value):
     return value
 
 
+def _json_safe(value):
+    """JSON without NaN: non-finite floats become null, numpy scalars/arrays become Python values."""
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, np.ndarray):
+        return _json_safe(value.tolist())
+    if isinstance(value, (np.floating, float)):
+        return float(value) if np.isfinite(value) else None
+    if isinstance(value, (np.integer, np.bool_)):
+        return value.item()
+    return value
+
+
 def repair_plan(arm, physics, eef, main_id, replicate):
     """Pure planning: returns (kind, controller_or_none, target_or_none) for one arm at one fork state."""
     spec = ARMS[arm]
@@ -292,7 +307,7 @@ class RepairSession:
                     location = self.args.output / "events" / targets[q]["event_id"] / "snapshot"
                     save_snapshot(location, snapshot(self.env, obs, self.rng, q, steps, self.prompt))
                     physics = self.fork_physics(obs, target, initial_positions, proprio_history, closure, q, steps)
-                    atomic_json(location.parent / "physics.json", physics)
+                    atomic_json(location.parent / "physics.json", _json_safe(physics))
                     targets[q].update(snapshot_manifest_sha256=digest(location / "manifest.json"), action_steps_before=steps,
                                       physical_class=physics["physical_class"], target_name=physics["target_name"],
                                       physics_sha256=digest(location.parent / "physics.json"))
@@ -329,7 +344,7 @@ class RepairSession:
         c0.update(status="passed", online_knn_first=first, frozen_threshold=self.risk.threshold,
                   early_query=early, initial_positions=_listify(initial_positions))
         atomic_json(self.args.output / "c0/branch.json", c0)
-        atomic_json(self.args.output / "c0_physics.json", physics_rows)
+        atomic_json(self.args.output / "c0_physics.json", _json_safe(physics_rows))
         for event in self.report["events"]:
             atomic_json(self.args.output / "events" / event["event_id"] / "event.json", event)
         self.close_env()
