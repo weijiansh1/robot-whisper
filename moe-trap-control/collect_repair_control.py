@@ -305,7 +305,8 @@ class RepairSession:
                     near = float(np.linalg.norm(eef - target["position"])) < NEAR_M
                     if closure is None and ap < CLOSE_APERTURE and previous_ap >= CLOSE_APERTURE and near:
                         closure = dict(query=q, eef=eef.copy(), object=target["position"].copy(), name=target["name"])
-                    if closure is not None and early is None and ap < CLOSE_APERTURE and target["name"] == closure["name"]:
+                    if (closure is not None and early is None and ap < CLOSE_APERTURE and target["name"] == closure["name"]
+                            and self.task.get("early_trigger", True)):
                         departed = float(np.linalg.norm(eef - closure["eef"])) >= DEPARTURE_M
                         still = float(np.linalg.norm(target["position"] - closure["object"])) < STILL_M
                         if departed and still:

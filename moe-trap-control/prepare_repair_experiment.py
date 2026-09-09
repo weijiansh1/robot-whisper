@@ -133,6 +133,10 @@ def run(args):
     if args.stage == "smoke":
         bases = [b for b in PICK_PLACE_BASES if failed_groups.get(b)][:3]
         chosen = [(ordered(failed_groups[b])[0], True) for b in bases]
+    elif args.stage == "gated":
+        cohort = {t["main_id"]: t["failed"] for t in json.loads(Path(args.cohort_plan).read_text())["tasks"]}
+        chosen = [(t, f) for f, groups in ((True, failed_groups), (False, success_groups)) for group in groups.values()
+                  for t in group if t["main_id"] in cohort and cohort[t["main_id"]] == f]
     else:
         for base in PICK_PLACE_BASES:
             chosen += [(t, True) for t in ordered(failed_groups.get(base, []))[:args.failed_per_task]]
@@ -152,14 +156,16 @@ def run(args):
             parent_commit_sha256=digest(directory / "main_complete.json"),
             parent_manifest_sha256=digest(directory / "main/manifest.json"),
             noise_seed=original["seed"], init_index=original["init_index"], first_alarm=first, failed=failed,
-            events=events_for(parent["main_id"], first, int(parent["main_queries"]), failed))
+            events=events_for(parent["main_id"], first, int(parent["main_queries"]), failed, args.wait_queries),
+            early_trigger=not args.no_early_trigger)
         task["max_output_bytes"] = task["parent_queries"] * BYTES_PER_QUERY + 4 * 1024**2
         tasks.append(task)
-    branch_bytes = sum(branch_bound(list(ARMS), args.replicates) for _ in tasks)
+    arms = args.arms or list(ARMS)
+    branch_bytes = sum(branch_bound(arms, args.replicates, events=1 if args.wait_queries else 3) for _ in tasks)
     bound = sum(t["max_output_bytes"] for t in tasks) + branch_bytes
     if shutil.disk_usage(HERE).free - bound < 8 * 1024**3:
         raise ValueError("Repair plan exceeds conservative disk headroom: %.2f GiB" % (bound / 1024**3))
-    plan = dict(protocol=PROTOCOL, model="long", stage=args.stage, arms=list(ARMS), arms_registry=ARMS,
+    plan = dict(protocol=PROTOCOL, model="long", stage=args.stage, arms=arms, arms_registry=ARMS, wait_queries=args.wait_queries,
         controller=CONTROLLER, replicates=args.replicates, contract=CONTRACT,
         selection="fixed hash within pick-place base task; failed parents need a kNN-20 alarm at q<=44 and a full 52-query run; "
                   "success parents need a kNN-20 false alarm; nothing else about outcomes or branches is read",
@@ -183,7 +189,11 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("smoke", "main", "supervisor_smoke", "supervisor", "regulator_smoke", "regulator"), required=True)
+    parser.add_argument("--stage", choices=("smoke", "main", "gated", "supervisor_smoke", "supervisor", "regulator_smoke", "regulator"), required=True)
+    parser.add_argument("--wait-queries", type=int, default=0)
+    parser.add_argument("--no-early-trigger", action="store_true")
+    parser.add_argument("--arms", nargs="*", default=[])
+    parser.add_argument("--cohort-plan", default=str(HERE / "design/repair_plans_20260908/main.json"))
     parser.add_argument("--replay-run", default=str(HERE / "design/repair_main_20260908"))
     parser.add_argument("--replay-audit", default=str(HERE / "design/repair_main_audit_20260908.json"))
     parser.add_argument("--timings", nargs="+", default=["early", "mid", "late"])

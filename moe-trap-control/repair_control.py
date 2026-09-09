@@ -53,9 +53,16 @@ def event_id(main_id, timing, start):
     return stable_id(PROTOCOL, main_id, timing, int(start))
 
 
-def events_for(main_id, knn_first, length, failed):
+def events_for(main_id, knn_first, length, failed, wait=0):
+    """Fork events: mid = alarm + 1 and late = q44; with wait > 0 a single 'wait%d' event at alarm + 1 + wait instead."""
     events = []
     q = int(knn_first)
+    if wait:
+        start = q + 1 + int(wait)
+        if q >= 0 and start < length:
+            events.append(dict(event_id=event_id(main_id, "wait%d" % wait, start), timing="wait%d" % wait, start_query=start,
+                               alarm_query=q, deployable=True))
+        return events
     if q >= 0 and q + 1 < length:
         events.append(dict(event_id=event_id(main_id, "mid", q + 1), timing="mid", start_query=q + 1,
                            alarm_query=q, deployable=True))
@@ -191,7 +198,8 @@ def load_plan(path, model="long"):
         for filename, key in (("main_complete.json", "parent_commit_sha256"), ("main/manifest.json", "parent_manifest_sha256")):
             if digest(directory / filename) != task[key]:
                 raise ValueError("Parent commit changed")
-        if not v2 and task["events"] != events_for(task["main_id"], task["first_alarm"], task["parent_queries"], task["failed"]):
+        if not v2 and task["events"] != events_for(task["main_id"], task["first_alarm"], task["parent_queries"], task["failed"],
+                                                   int(plan.get("wait_queries", 0))):
             raise ValueError("Repair trigger positions changed")
     return plan
 
