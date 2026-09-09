@@ -686,7 +686,7 @@ class RepairSession:
         alpha, z_offset = REGULATOR_ARMS[arm].get("alpha"), REGULATOR_ARMS[arm].get("z_offset_m")
         fork_steps, context = int(steps), {}
         self._regulator_engaged = True
-        branch.update(twin="new_noise", first_extra_intervention_query=None, features=list(features), handback_step=0,
+        branch.update(twin="new_noise" if replicate < 2 else None, first_extra_intervention_query=None, features=list(features), handback_step=0,
                       repair_steps=0, repair_kind="regulate", modified_steps=0, gate_close_steps=0, gate_open_steps=0,
                       servo_effort=0.0)
         while not branch["success"] and branch["action_steps"] < WINDOW_STEPS:
@@ -740,7 +740,8 @@ class RepairSession:
         for arm in spec["arms"]:
             features, engage, alpha = EPISODE_ARMS[arm]["features"], EPISODE_ARMS[arm]["engage"], EPISODE_ARMS[arm].get("alpha")
             z_offset = EPISODE_ARMS[arm].get("z_offset_m")
-            for replicate in range(int(spec["replicates"])):
+            offset = int(spec.get("replicate_offset", 0))
+            for replicate in range(offset, offset + int(spec["replicates"])):
                 directory = self.args.output / "episodes" / arm / ("repeat%d" % replicate)
                 directory.mkdir(parents=True, exist_ok=False)
                 self.new_env(extended=False)
@@ -844,7 +845,8 @@ class RepairSession:
                 if int(row["query"]) >= q0:
                     break
                 prefix_monitor.update(row[PROBS_KEY])
-            for replicate in range(int(spec["replicates"])):
+            offset = int(spec.get("replicate_offset", 0))
+            for replicate in range(offset, offset + int(spec["replicates"])):
                 for arm in spec["arms"]:
                     directory = self.args.output / "branches" / event["event_id"] / ("repeat%d" % replicate) / arm
                     self.new_env(extended=True)

@@ -84,9 +84,12 @@ def noise_for(main_id, replicate, index, candidate=0):
 BYTES_PER_QUERY = 80 * 1024   # smoke 2026-09-08 measured 74.3 MB for ~1,120 stored queries (~66 KiB each)
 
 
+JOB_SLACK_BYTES = 2 * 1024**2   # per-job metadata; was 8 MiB until 2026-09-09 (measured < 1 MiB)
+
+
 def branch_bound(arms, replicates, events=3):
     queries = (WINDOW_STEPS // 10 + 1) * len(arms) * replicates * events
-    return queries * BYTES_PER_QUERY + 8 * 1024**2
+    return queries * BYTES_PER_QUERY + JOB_SLACK_BYTES
 
 
 # ---------------------------------------------------------------------------- supervisor v2
@@ -127,11 +130,13 @@ def scheduled_jobs(plan, inventory, output):
                              sampling=dict(kind="branches", parent=task, arms=plan["arms"], replicates=plan["replicates"],
                                            timings=plan.get("timings"), supervisor=plan.get("supervisor"),
                                                regulator=plan.get("regulator"), replay_directory=replay_directory,
+                                               replicate_offset=plan.get("replicate_offset", 0),
                                                max_output_bytes=branch_bound(plan["arms"], plan["replicates"]))))
             if plan.get("episode_arms"):
                 jobs.append(dict(base, job_id=parent_id + "/episodes", depends_on=None,
                                  sampling=dict(kind="episodes", parent=task, arms=plan["episode_arms"],
                                                replicates=plan["replicates"], regulator=plan["regulator"],
+                                               replicate_offset=plan.get("replicate_offset", 0),
                                                max_output_bytes=episode_bound(plan["episode_arms"], plan["replicates"]))))
             continue
         replay_id = parent_id + "/replay"
@@ -195,7 +200,9 @@ def load_plan(path, model="long"):
 PROTOCOL_V3 = "moe_control.repair_regulator.v3"
 REGULATOR = dict(law="shared", alpha=0.7, authority_steps=60, kp_shared=10.0, z_offset_m=0.05, lifted_m=0.02,
                  carry_patience_steps=120, close_gate_xy_m=0.07, close_gate_dz_min_m=-0.03, close_gate_dz_max_m=0.13,
-                 close_gate_extent_margin_m=0.02,
+                 close_gate_extent_margin_m=0.02, fully_closed_m=0.012, stall_far_m=0.15, stall_steps=120,
+                 carry_fast_patience_steps=60, release_margin_z_fast_m=0.05, close_assist_xy_m=0.03,
+                 close_assist_dz_max_m=0.10, close_assist_steps=20, close_assist_hold_steps=10,
                  release_margin_xy_m=0.02, release_margin_z_m=0.10, body_region_radius_m=0.06, body_region_height_m=0.08)
 REGULATOR_ARMS = {
     "gate_close": dict(features=["close_gate"]),
@@ -203,6 +210,9 @@ REGULATOR_ARMS = {
     "shared_full": dict(features=["close_gate", "shared", "carry", "release_gate"]),
     "shared_full_alpha1": dict(features=["close_gate", "shared", "carry", "release_gate"], alpha=1.0),
     "shared_full_z10": dict(features=["close_gate", "shared", "carry", "release_gate"], z_offset_m=0.10),
+    "vla_fork": dict(features=[]),
+    "shared_v4a": dict(features=["close_gate", "shared", "carry", "release_gate", "stall", "hold_gate", "carry_fast"], z_offset_m=0.10),
+    "shared_v4b": dict(features=["close_gate", "shared", "carry", "release_gate", "stall", "hold_gate", "carry_fast", "close_assist"], z_offset_m=0.10),
 }
 EPISODE_ARMS = {
     "vla": dict(features=[], engage="never"),
@@ -210,6 +220,8 @@ EPISODE_ARMS = {
     "shared_full_alarmed": dict(features=["close_gate", "shared", "carry", "release_gate"], engage="knn_alarm"),
     "shared_full_alpha1": dict(features=["close_gate", "shared", "carry", "release_gate"], alpha=1.0, engage="always"),
     "shared_full_z10": dict(features=["close_gate", "shared", "carry", "release_gate"], z_offset_m=0.10, engage="always"),
+    "shared_v4a": dict(features=["close_gate", "shared", "carry", "release_gate", "stall", "hold_gate", "carry_fast"], z_offset_m=0.10, engage="always"),
+    "shared_v4b": dict(features=["close_gate", "shared", "carry", "release_gate", "stall", "hold_gate", "carry_fast", "close_assist"], z_offset_m=0.10, engage="always"),
 }
 CONTRACT_V3 = dict(CONTRACT,
     repair="no switching: the VLA runs every chunk; a shared-control law edits each executed env step: "
@@ -232,4 +244,4 @@ CONTRACT_V3 = dict(CONTRACT,
 
 
 def episode_bound(arms, replicates):
-    return (HORIZON_STEPS // 10 + 1) * len(arms) * replicates * BYTES_PER_QUERY + 8 * 1024**2
+    return (HORIZON_STEPS // 10 + 1) * len(arms) * replicates * BYTES_PER_QUERY + JOB_SLACK_BYTES

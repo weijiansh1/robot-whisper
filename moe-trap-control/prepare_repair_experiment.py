@@ -77,7 +77,7 @@ def supervisor_plan(args):
         episode_arms_registry=EPISODE_ARMS if regulator else {},
         controller=CONTROLLER, supervisor=None if regulator else SUPERVISOR, regulator=REGULATOR if regulator else None,
         replicates=args.replicates, contract=CONTRACT_V3 if regulator else CONTRACT_V2,
-        timings=list(args.timings), replay_run=str(run_dir), replay_audit=str(audit_path),
+        timings=list(args.timings), replay_run=str(run_dir), replay_audit=str(audit_path), replicate_offset=args.replicate_offset,
         selection="every parent of the audited v1 run (%s); fork snapshots and physics reused; no outcome read" % v1["stage"],
         source_sha256={str(p): digest(p) for p in sources}, frozen_parameters_sha256=PARAMETERS_SHA256,
         tasks=tasks, allowed_gpus=list(GPUS), render_gpus=list(RENDER_GPUS), replicas_per_gpu=args.replicas,
@@ -190,6 +190,7 @@ if __name__ == "__main__":
     parser.add_argument("--smoke-parents", nargs="*", default=[])
     parser.add_argument("--skip-episodes", action="store_true")
     parser.add_argument("--fork-arms", nargs="*", default=[])
+    parser.add_argument("--replicate-offset", type=int, default=0)
     parser.add_argument("--episode-arms", nargs="*", default=[])
     parser.add_argument("--skip-forks", action="store_true")
     parser.add_argument("--smoke-bases", nargs="+", default=[

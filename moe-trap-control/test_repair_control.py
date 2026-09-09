@@ -354,3 +354,40 @@ def test_closed_empty_gripper_is_opened_at_once_and_alpha_one_takes_full_authori
     full = SharedControl(dict(REGULATOR, alpha=1.0), ["close_gate", "shared"], rest_z=1.0)
     out, log = full.step(hold, [0.0, 0.0, 1.1], 0.01, target)
     assert out[6] == -1.0 and out[0] == 1.0                                    # alpha 1: the servo owns the motion
+
+
+def test_stall_evidence_and_hold_gate_and_close_assist():
+    from repair_controller import SharedControl
+    from repair_control import REGULATOR
+    target = np.array([0.4, 0.0, 1.0])
+    wander = np.array([0.2, 0.1, 0, 0, 0, 0, -1.0], np.float32)                 # open gripper, drifting, no close command
+    reg = SharedControl(REGULATOR, ["close_gate", "shared", "stall"], rest_z=1.0)
+    for i in range(REGULATOR["stall_steps"]):
+        out, log = reg.step(wander, [0.0, 0.0, 1.1], 0.08, target)
+        assert log[5] == 0.0                                                    # no evidence yet: untouched
+    out, log = reg.step(wander, [0.0, 0.0, 1.1], 0.08, target)
+    assert log[2] == 2.0 and out[0] > wander[0]                                 # stall evidence: authority toward the object
+    region = dict(centre=np.array([0.3, 0.0, 1.0]), half=np.array([0.1, 0.1, 0.05]), predicate="In")
+    hold = SharedControl(REGULATOR, ["carry", "release_gate", "hold_gate", "carry_fast"], rest_z=1.0)
+    release = np.array([0, 0, 0, 0, 0, 0, -1.0], np.float32)
+    # half-closed on the object beside the rim, motion not tracking: the hold gate still vetoes OPEN outside the region
+    out, log = hold.step(release, [0.0, 0.0, 1.06], 0.03, np.array([0.0, 0.0, 1.03]), region=region, place_point=region["centre"], unsatisfied=1)
+    assert out[6] == 1.0 and log[3] == 1.0
+    for _ in range(REGULATOR["carry_fast_patience_steps"]):
+        out, log = hold.step(release, [0.0, 0.0, 1.06], 0.03, np.array([0.0, 0.0, 1.03]), region=region, place_point=region["centre"], unsatisfied=1)
+    assert out[0] > 0                                                            # fast carry pull after 60 steps
+    assist = SharedControl(REGULATOR, ["close_gate", "close_assist"], rest_z=1.0)
+    still = np.array([0, 0, 0, 0, 0, 0, -1.0], np.float32)
+    for i in range(REGULATOR["close_assist_steps"]):
+        out, log = assist.step(still, [0.01, 0.0, 1.05], 0.08, np.array([0.0, 0.0, 1.0]))
+        assert out[6] == -1.0
+    out, log = assist.step(still, [0.01, 0.0, 1.05], 0.08, np.array([0.0, 0.0, 1.0]))
+    assert out[6] == 1.0 and log[3] == 2.0                                      # assisted closure after 20 steps in the tight envelope
+
+
+def test_fresh_replicates_use_the_offset():
+    from repair_control import scheduled_jobs, REGULATOR
+    plan = dict(replay_run="/run/v1", arms=["vla_fork"], episode_arms=["vla"], replicates=1, replicate_offset=2,
+                timings=["mid"], regulator=REGULATOR, tasks=[dict(main_id="m1", variant_id="v1", noise_seed=3, init_index=0)])
+    jobs = scheduled_jobs(plan, {"v1": dict(benchmark="pro")}, "/out")
+    assert all(j["sampling"]["replicate_offset"] == 2 for j in jobs)

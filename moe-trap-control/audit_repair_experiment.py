@@ -37,7 +37,8 @@ def audit_episodes(task_dir, plan_task, plan):
     result = json.loads(path.read_text())
     if result["status"] != "completed":
         findings.append("episodes_not_completed")
-    expected = {(a, r) for a in plan["episode_arms"] for r in range(plan["replicates"])}
+    offset = int(plan.get("replicate_offset", 0))
+    expected = {(a, r) for a in plan["episode_arms"] for r in range(offset, offset + plan["replicates"])}
     seen, rows = set(), 0
     for episode in result.get("episodes", []):
         seen.add((episode["arm"], episode["replicate"]))
@@ -106,7 +107,8 @@ def audit_task(task_dir, plan_task, plan):
     if result is None or result["status"] != "completed":
         findings.append("branches_not_completed")
         return dict(main_id=plan_task["main_id"], findings=findings, events=len(events), branches=0)
-    expected = {(e["event_id"], r, a) for e in events for r in range(plan["replicates"]) for a in plan["arms"]}
+    offset = int(plan.get("replicate_offset", 0))
+    expected = {(e["event_id"], r, a) for e in events for r in range(offset, offset + plan["replicates"]) for a in plan["arms"]}
     seen, suffix_rows, repair_rows, hidden = set(), 0, 0, False
     for branch in result["branches"]:
         key = (branch["event_id"], branch["replicate"], branch["arm"])

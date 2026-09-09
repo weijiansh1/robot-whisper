@@ -417,6 +417,7 @@ class SharedControl:
         self.c, self.features = dict(config), set(features)
         self.hand = HandState(rest_z, config["lifted_m"])
         self.t, self.authority_until, self.carry = 0, -1, None
+        self.far_since, self.near_since, self.assist_until = None, None, -1
         self.engaged = True
         self.gate_xy_m = max(float(config["close_gate_xy_m"]), float(extent) + float(config["close_gate_extent_margin_m"]))
         self.gate_dz_max_m = max(float(config["close_gate_dz_max_m"]), float(extent) + float(config["close_gate_extent_margin_m"]))
@@ -445,6 +446,9 @@ class SharedControl:
         if not self.engaged:
             return a, log
         alpha = self.c["alpha"]
+        horizontal = float(np.linalg.norm(eef[:2] - target[:2]))
+        holding = (ap < CLOSE_APERTURE and ap > self.c["fully_closed_m"] and horizontal <= self.gate_xy_m and
+                   self.c["close_gate_dz_min_m"] <= float(eef[2] - target[2]) <= self.gate_dz_max_m)
         if not in_hand:
             self.carry = None
             empty = not self.anything_graspable(eef, target, others)
@@ -453,6 +457,29 @@ class SharedControl:
                 log[2] = 1.0
                 if "shared" in self.features:
                     self.authority_until = self.t + self.c["authority_steps"]
+            if "stall" in self.features:
+                # wandering with an open gripper far from every unsatisfied object is evidence too
+                if ap >= CLOSE_APERTURE and horizontal > self.c["stall_far_m"]:
+                    self.far_since = self.t if self.far_since is None else self.far_since
+                    if self.t - self.far_since >= self.c["stall_steps"] and self.t > self.authority_until:
+                        self.authority_until = self.t + self.c["authority_steps"]
+                        log[2] = 2.0            # stall evidence (logged in the gate column with value 2)
+                        self.far_since = None
+                else:
+                    self.far_since = None
+            if "close_assist" in self.features:
+                tight = (ap >= CLOSE_APERTURE and horizontal <= self.c["close_assist_xy_m"] and
+                         self.c["close_gate_dz_min_m"] <= float(eef[2] - target[2]) <= self.c["close_assist_dz_max_m"])
+                if tight:
+                    self.near_since = self.t if self.near_since is None else self.near_since
+                    if self.t - self.near_since >= self.c["close_assist_steps"] and self.t > self.assist_until:
+                        self.assist_until = self.t + self.c["close_assist_hold_steps"]
+                        self.near_since = None
+                else:
+                    self.near_since = None
+                if self.t <= self.assist_until:
+                    a[6] = CLOSE
+                    log[3] = 2.0            # assisted closure (logged in the open-gate column with value 2)
             if "shared" in self.features and self.t <= self.authority_until:
                 goal = target + np.array([0.0, 0.0, self.c["z_offset_m"]])
                 u = self._servo(goal - eef)
@@ -460,15 +487,19 @@ class SharedControl:
                 log[:2] = alpha * u[:2]
         else:
             self.authority_until = -1
+            self.far_since = self.near_since = None
+        if in_hand or ("hold_gate" in self.features and holding):
             if "carry" in self.features and unsatisfied is not None:
                 if self.carry is None or int(unsatisfied) < self.carry["unsatisfied"]:
                     self.carry = dict(since=self.t, unsatisfied=int(unsatisfied))
-                if place_point is not None and self.t - self.carry["since"] >= self.c["carry_patience_steps"]:
+                patience = self.c["carry_fast_patience_steps"] if "carry_fast" in self.features else self.c["carry_patience_steps"]
+                if place_point is not None and self.t - self.carry["since"] >= patience:
                     u = self._servo(np.asarray(place_point, np.float64)[:2] - target[:2])
                     a[:2] = ((1.0 - alpha) * a[:2] + alpha * u).astype(np.float32)
                     log[:2] = alpha * u
+            margin_z = self.c["release_margin_z_fast_m"] if "hold_gate" in self.features else self.c["release_margin_z_m"]
             if "release_gate" in self.features and a[6] < 0 and region is not None and not inside_region(
-                    target, region, self.c["release_margin_xy_m"], self.c["release_margin_z_m"],
+                    target, region, self.c["release_margin_xy_m"], margin_z,
                     self.c["body_region_radius_m"], self.c["body_region_height_m"]):
                 a[6] = CLOSE
                 log[3] = 1.0

@@ -109,6 +109,29 @@ def run(args):
         if r["success_window"]:
             rescued[r["arm"]].add(r["main_id"])
     summary["fork_parents_rescued"] = {a: len(v) for a, v in rescued.items()}
+    # in-run pairing against the no-regulator fork arm (fresh replicates have no v1 twin)
+    control = {(r["event_id"], r["replicate"]): r["success_window"] for r in forks if r["arm"] == "vla_fork"}
+    if control:
+        pairs = {}
+        for a in plan["arms"]:
+            if a == "vla_fork":
+                continue
+            for label, subset in (("failed", failed), ("success", success)):
+                both = [(r, control[(r["event_id"], r["replicate"])]) for r in subset if r["arm"] == a and (r["event_id"], r["replicate"]) in control]
+                pairs["%s|%s" % (a, label)] = dict(pairs=len(both), arm_success=sum(r["success_window"] for r, _ in both),
+                                                 control_success=sum(c for _, c in both),
+                                                 wins=sum(r["success_window"] and not c for r, c in both),
+                                                 losses=sum(c and not r["success_window"] for r, c in both))
+        summary["fork_paired_vs_vla_fork"] = pairs
+        by_timing = {}
+        for a in plan["arms"]:
+            for t in ("mid", "late"):
+                both = [(r, control[(r["event_id"], r["replicate"])]) for r in failed if r["arm"] == a and r["timing"] == t and (r["event_id"], r["replicate"]) in control]
+                if both:
+                    by_timing["%s|%s" % (t, a)] = dict(n=len(both), success=sum(r["success_window"] for r, _ in both),
+                                                       control=sum(c for _, c in both), wins=sum(r["success_window"] and not c for r, c in both),
+                                                       losses=sum(c and not r["success_window"] for r, c in both))
+        summary["fork_by_timing_vs_vla_fork"] = by_timing
     ef, es = [r for r in episodes if r["failed"]], [r for r in episodes if not r["failed"]]
     summary["episodes_failed_parents"] = {a: episode_cell([r for r in ef if r["arm"] == a]) for a in plan["episode_arms"]}
     summary["episodes_success_parents"] = {a: episode_cell([r for r in es if r["arm"] == a]) for a in plan["episode_arms"]}
@@ -144,6 +167,10 @@ def run(args):
             v["a4_window"], v["wins_vs_a4"], v["losses_vs_a4"], v["modified"], v["gate_close_steps"], v["gate_open_steps"]))
     print("  harm (success parents, window):", {a: "%d/%d (new_noise %d, A4 %d)" % (v["window"], v["n"], v["new_noise_window"], v["a4_window"])
                                                 for a, v in summary["fork_harm_success_parents"].items()})
+    for k, v in summary.get("fork_by_timing_vs_vla_fork", {}).items():
+        print("  vs vla_fork %-22s n=%3d success=%2d control=%2d wins=%2d losses=%2d" % (k, v["n"], v["success"], v["control"], v["wins"], v["losses"]))
+    for k, v in summary.get("fork_paired_vs_vla_fork", {}).items():
+        print("  vs vla_fork %-26s pairs=%3d arm=%2d control=%2d wins=%2d losses=%2d" % (k, v["pairs"], v["arm_success"], v["control_success"], v["wins"], v["losses"]))
     print("== full episodes")
     for label in ("failed", "success"):
         for a, v in summary["episodes_%s_parents" % label].items():
