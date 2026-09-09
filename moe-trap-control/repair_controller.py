@@ -447,7 +447,8 @@ class SharedControl:
         alpha = self.c["alpha"]
         if not in_hand:
             self.carry = None
-            if "close_gate" in self.features and a[6] > 0 and not self.anything_graspable(eef, target, others):
+            empty = not self.anything_graspable(eef, target, others)
+            if "close_gate" in self.features and a[6] > 0 and empty:
                 a[6] = OPEN
                 log[2] = 1.0
                 if "shared" in self.features:

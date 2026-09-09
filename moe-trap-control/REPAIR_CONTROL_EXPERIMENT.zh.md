@@ -173,13 +173,67 @@ G3 拿着不放（在手 ≥ 120 步无谓词进展 → 升、平移到区域较
   这超出了"只回退"的修复类别。
 - PLACE 需要姿态：杯子要竖着放，篮子要沿长轴对齐。这是脚本化操作而不是"让策略回到能力区"，是否值得做取决于
   用户是否接受外部控制器完成任务的最后一步。
-## 12. 复现
+## 12. 第三轮：反馈调节，证据触发的共享控制 v3（2026-09-09）
+
+用户指出"回退只是一种方法，你知道反馈调节吗"。这一轮不再切换，VLA 每个 chunk 照常推理，一条反馈律在每个执行步上改动作：
+u = (1 − a)·u_VLA + a·u_servo。协议 `moe_control.repair_regulator.v3`，设计修正见设计文件 §11。
+
+**标定（只用 v1 重放，不看结果）。** 22 次抬起成功的闭合，末端到物体原点水平 ≤ 0.063 m、竖直 0 到 0.10 m；
+81 次幻抓闭合的水平距离中位 0.20 m。也就是策略在离物体 20 cm 的地方"想象"自己抓到了：它对物体位置近乎开环，
+调节器补的正是这个位置反馈。闭合门控包络取 max(0.07 m, 物体包围半径 + 0.02 m)，干扰物用严格 0.07 m。
+
+**律。** 平时 a = 0，只保留一条门控：VLA 发 CLOSE 而指间没有任何可抓物体时不执行闭合，这就是幻抓的物理证据；
+随后 60 步 a = 0.7，伺服（增益 10 /m，饱和 ±1）把末端拉到离末端最近的未完成物体上方 5 cm；在手后权限全部交回策略；
+在手 ≥ 120 步无谓词进展时拉向放置点；OPEN 只在物体位于目标区域内时执行。所有量都是测得的物理状态。
+
+**冒烟里淘汰的版本（如实记录）。** 常开 PI 伺服（kp 6、ki 0.3、上限 0.5）520 步每步都在改动作，
+把摩卡壶成功回合拖失败，弃用。目标取"第一个未满足谓词"会在两物体任务里拉向策略没打算抓的那个，改为离末端最近的未完成物体。
+门控只看目标物体会在握着第二只壶时误判幻抓、强制张开，改为指间有任何物体都不拦。
+
+**数据。** 两部分，都通过独立审计：
+- fork 分支：v1 的 101 个 fork 快照 × 2 重复 × {gate_close, shared_approach, shared_full}，738 条（主跑 606 + 磁盘触底后补跑 132），
+  孪生是 v1 的 new_noise，逐位配对到第一次修改的动作。
+- 完整回合：51 条主轨迹从 q0 起 × 2 重复 × {vla, shared_full 常开, shared_full 报警后启用}，306 条；vla 第 0 次重复 51/51 逐位复现主轨迹。
+
+**完整回合（这是"VLA + 调节器"作为新策略的成功率）。**
+
+| 主轨迹 | vla | shared_full 常开 | 报警后启用 |
+|---|---|---|---|
+| 失败 42 条 × 2 | 4/84 | **10/84**（配对 6 胜 0 负） | 9/84（5 胜 0 负） |
+| 成功 9 条 × 2 | 15/18 | 15/18（0 胜 0 负） | 15/18（0 胜 0 负） |
+
+零毁伤：常开时调节器在 18 条成功回合里全部处于激活状态、改了其中 6 条的动作，没有一条被毁。
+失败回合里调节器改动作的中位步数 107/520，成功回合中位 0。救回集中在 SCENE2 罐头任务（7/12 对 vla 2/12），
+壶、书、奶酪盒、SCENE1 仍是 0/12。物理证据（被拦下的闭合）在 61 条有证据的失败回合里 41 条早于 kNN 报警，中位早 6 个查询；
+20/84 条失败回合从头到尾没有产生证据。
+
+**fork 分支（与 v1 的 A4、new_noise 同一 fork、同一噪声）。**
+
+| 时刻 | gate_close | shared_approach | shared_full | new_noise | A4 |
+|---|---|---|---|---|---|
+| early B（n=20） | 0 | 0 | 0 | 0 | 6 |
+| mid B / A（n=84） | 0 / 0 | 5 / 4 | **6 / 4** | 0 / 0 | 12 / 12 |
+| late B / A（n=84） | 4 / 0 | 8 / 0 | **8 / 0** | 2 / 0 | 11 / 0 |
+| 成功主轨迹 mid 误报 14 条仍成功 | 13 | 12 | 12 | 12 | 4 |
+
+对 new_noise：shared_full mid 6 胜 0 负、late 6 胜 0 负；对 A4：mid 4 胜 10 负、late 4 胜 7 负。
+
+**判读。** 共享控制是三轮里第一个对误报无害的修复（误报分支 12/14 等于 new_noise，A4 是 4/14；完整回合成功侧 0 负），
+从 q0 起给失败回合净增 6/84。但从 fork 点看它比回退弱（6/84 对 12/84）：门控在 fork 时立刻把空握的夹爪张开并交出 0.7 的权限，
+可 VLA 保留的 0.3 一直在把末端拉回它自己的目标，伺服 60 步内常常到不了物体上方；A4 是权限 1.0 且走到 2 cm 内才交还。
+下一步只改一个量：a = 1.0（`shared_full_alpha1`），看能否在保持证据门控的前提下拿回 A4 的救回率。
+
+## 13. 复现
 
 ```
 python3 audit_repair_experiment.py --run design/repair_main_20260908 --out design/repair_main_audit_20260908.json
 python3 analyze_repair_experiment.py --run design/repair_main_20260908 --out design/repair_main_analysis_20260908
 python3 diagnose_repair_branches.py --run design/repair_main_20260908 --out design/repair_main_analysis_20260908/handback_diagnostics.json
 # 环境内谓词重算（LIBERO 环境，渲染卡 4）：见 evaluate_repair_end_states.py 的 docstring
+# v3（磁盘余量不足时拆成 episodes / forks 两个计划先后跑，再合并分析）
+python3 prepare_repair_experiment.py --stage regulator --replicates 2 --skip-forks --output design/repair_plans_20260909/regulator_episodes.json
+python3 prepare_repair_experiment.py --stage regulator --replicates 2 --skip-episodes --output design/repair_plans_20260909/regulator_forks.json
+python3 analyze_repair_regulator.py --run design/repair_regulator_forks_20260909 --extra-runs design/repair_regulator_forks_retry_20260909 design/repair_regulator_episodes_20260909 --out design/repair_regulator_analysis_20260909
 # v2
 python3 prepare_repair_experiment.py --stage supervisor --replicates 2 --output design/repair_plans_20260908/supervisor_main.json
 python3 audit_repair_experiment.py --run design/repair_supervisor_main_20260908 --out design/repair_supervisor_main_audit_20260908.json

@@ -201,17 +201,20 @@ REGULATOR_ARMS = {
     "gate_close": dict(features=["close_gate"]),
     "shared_approach": dict(features=["close_gate", "shared"]),
     "shared_full": dict(features=["close_gate", "shared", "carry", "release_gate"]),
+    "shared_full_alpha1": dict(features=["close_gate", "shared", "carry", "release_gate"], alpha=1.0),
 }
 EPISODE_ARMS = {
     "vla": dict(features=[], engage="never"),
     "shared_full": dict(features=["close_gate", "shared", "carry", "release_gate"], engage="always"),
     "shared_full_alarmed": dict(features=["close_gate", "shared", "carry", "release_gate"], engage="knn_alarm"),
+    "shared_full_alpha1": dict(features=["close_gate", "shared", "carry", "release_gate"], alpha=1.0, engage="always"),
 }
 CONTRACT_V3 = dict(CONTRACT,
     repair="no switching: the VLA runs every chunk; a shared-control law edits each executed env step: "
            "u = (1 - a) u_VLA + a u_servo with a = 0 until the graspable-envelope gate blocks a closure (CLOSE commanded while "
            "neither the target (extent-based envelope) nor any other movable object (strict 0.07 m envelope) sits between "
-           "the fingers: physical evidence of a phantom grasp); then a = 0.7 for 60 "
+           "the fingers: physical evidence of a phantom grasp; an already closed empty gripper counts the same way because "
+           "the policy keeps commanding CLOSE); then a = 0.7 (alpha1 arms: 1.0) for 60 "
            "steps pulling the end effector above the nearest unsatisfied object; "
            "in hand the policy keeps authority unless the carry stalls 120 steps (pull toward the place point); "
            "OPEN executes only inside the goal region",

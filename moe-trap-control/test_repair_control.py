@@ -341,3 +341,16 @@ def test_closure_gate_respects_any_object_in_the_envelope():
     assert out[6] == 1.0 and log[2] == 0.0 and log[5] == 0.0
     out, log = reg.step(close, [0.0, 0.0, 1.03], 0.05, target, others=[(np.array([0.4, 0.0, 1.0]), 0.05)])
     assert out[6] == -1.0 and log[2] == 1.0
+
+
+def test_closed_empty_gripper_is_opened_at_once_and_alpha_one_takes_full_authority():
+    from repair_controller import SharedControl
+    from repair_control import REGULATOR
+    hold = np.array([-1.0, 0, 0, 0, 0, 0, 1.0], np.float32)                  # VLA keeps the gripper closed, moves away
+    target = np.array([0.3, 0.0, 1.0])
+    reg = SharedControl(REGULATOR, ["close_gate", "shared"], rest_z=1.0)
+    out, log = reg.step(hold, [0.0, 0.0, 1.1], 0.01, target)                  # closed on nothing at the fork
+    assert out[6] == -1.0 and log[2] == 1.0 and -1.0 < out[0] < 1.0           # opened, partial authority
+    full = SharedControl(dict(REGULATOR, alpha=1.0), ["close_gate", "shared"], rest_z=1.0)
+    out, log = full.step(hold, [0.0, 0.0, 1.1], 0.01, target)
+    assert out[6] == -1.0 and out[0] == 1.0                                    # alpha 1: the servo owns the motion
