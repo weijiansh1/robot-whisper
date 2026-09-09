@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>机械臂卡住的时候,模型自己知道吗?— MoE 路由的在线检测与救援</title>
+<meta name="description" content="HiMoE-VLA 的 MoE 路由在推理时免费写下一份日志。一个自归一化的比值读它,能在 rollout 中段判出这条会不会失败(352/512 条两批语料,同一个阈值);在报警那一步重采样噪声,一条原本跑满 52 步失败的 rollout 8 步完成任务。">
+<style>
+:root{
+  --bg:#0b0f14; --panel:#0e141b; --panel2:#101820; --line:#1d2833; --tick:#38495a;
+  --ink:#e8eef3; --dim:#8b9aa7; --faint:#5d6d7b;
+  --ok:#5aa9e6; --bad:#e08c4a; --alarm:#f0644a; --gold:#e8c56a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.85 -apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:var(--ok);text-decoration:none}
+a:hover{text-decoration:underline}
+b,strong{font-weight:650;color:var(--ink)}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px}
+.serif{font-family:Georgia,"Songti SC","Noto Serif CJK SC",serif}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ── hero ─────────────────────────────────────────── */
+.hero{min-height:92vh;display:grid;place-items:center;position:relative;
+  background:
+    radial-gradient(1100px 520px at 78% -10%,rgba(90,169,230,.10),transparent 60%),
+    radial-gradient(900px 480px at 12% 108%,rgba(224,140,74,.08),transparent 60%),
+    var(--bg)}
+.hero__in{max-width:880px;padding:96px 24px;text-align:left}
+.eyebrow{font-size:13px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;margin:0 0 18px}
+h1{margin:0;font-size:clamp(30px,5.4vw,52px);line-height:1.22;font-weight:700;letter-spacing:.01em}
+h1 .hl{color:var(--ok)}
+.hero__sub{margin:22px 0 0;font-size:clamp(15px,2vw,18px);color:var(--dim);max-width:46em}
+.chip{display:inline-flex;align-items:center;gap:10px;margin-top:26px;padding:9px 16px;
+  border:1px solid var(--line);border-radius:999px;background:var(--panel);font-size:13.5px;color:var(--dim)}
+.chip__dot{width:8px;height:8px;border-radius:50%;background:var(--alarm);
+  box-shadow:0 0 10px var(--alarm)}
+.poem{margin:30px 0 0;font-style:italic;color:var(--faint);font-size:15px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
+.btn{display:inline-block;padding:11px 22px;border:1px solid var(--tick);border-radius:8px;
+  color:var(--ink);font-size:14.5px;transition:border-color .2s,background .2s}
+.btn:hover{border-color:var(--ok);text-decoration:none;background:rgba(90,169,230,.06)}
+.btn--primary{background:var(--ok);border-color:var(--ok);color:#06131d;font-weight:650}
+.btn--primary:hover{background:#7ebbee}
+.lang{position:absolute;top:22px;right:26px;font-size:13.5px;color:var(--faint)}
+.scrolldn{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);color:var(--faint);font-size:12px;letter-spacing:.2em}
+
+/* ── sections ─────────────────────────────────────── */
+.section{padding:96px 0}
+.section--alt{background:var(--panel)}
+.kicker{font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:0 0 14px}
+.kicker b{color:var(--gold);font-weight:700}
+h2{margin:0 0 18px;font-size:clamp(23px,3.4vw,32px);line-height:1.35;font-weight:700}
+.lede{font-size:17px;color:var(--dim);max-width:44em;margin:0 0 34px}
+.lede b{color:var(--ink)}
+
+figure{margin:38px 0}
+figure img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+figcaption{margin-top:12px;font-size:13.8px;color:var(--dim);line-height:1.7}
+.figtag{display:inline-block;margin-right:.7em;padding:1px 8px;border:1px solid var(--tick);
+  border-radius:4px;font-size:11.5px;color:var(--faint);letter-spacing:.06em;vertical-align:1px}
+
+.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:34px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px}
+.card__num{font-size:12px;color:var(--faint);letter-spacing:.15em}
+.card h3{margin:8px 0 8px;font-size:16.5px}
+.card p{margin:0;font-size:14.3px;color:var(--dim);line-height:1.75}
+
+.steps{list-style:none;margin:34px 0 0;padding:0;display:grid;gap:14px}
+.steps li{display:grid;grid-template-columns:74px 1fr;gap:18px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+.steps__k{font-family:ui-monospace,SFMono-Regular,monospace;font-size:13px;color:var(--gold);padding-top:3px}
+.steps h3{margin:0 0 6px;font-size:16px}
+.steps p{margin:0;font-size:14.3px;color:var(--dim)}
+.note{margin-top:26px;padding:16px 20px;border-left:3px solid var(--tick);background:var(--panel2);
+  border-radius:0 10px 10px 0;font-size:14.3px;color:var(--dim)}
+
+/* five-question index */
+.qdx{list-style:none;margin:34px 0 0;padding:0;counter-reset:q;display:grid;gap:10px}
+.qdx a{display:grid;grid-template-columns:56px 1fr;gap:16px;align-items:baseline;
+  padding:16px 20px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);
+  color:var(--ink);transition:border-color .2s}
+.qdx a:hover{border-color:var(--ok);text-decoration:none}
+.qdx__n{font-size:12.5px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase}
+.qdx__q{font-size:16px;font-weight:650}
+.qdx__a{grid-column:2;font-size:13.8px;color:var(--dim);margin-top:2px}
+
+/* stats strip */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:34px 0 0}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px 18px 14px;text-align:left}
+.stat b{display:block;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.stat span{display:block;margin-top:4px;font-size:12.8px;color:var(--dim);line-height:1.6}
+
+/* video pair */
+.vids{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:38px 0}
+@media(max-width:720px){.vids{grid-template-columns:1fr}}
+.vid{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.vid video{width:100%;border-radius:8px;background:#000;display:block}
+.vid figcaption{margin-top:10px}
+.vid .tag{font-weight:700;font-size:13.5px}
+.tag--ok{color:var(--ok)} .tag--bad{color:var(--bad)}
+
+/* live iframe */
+.live{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:34px;background:#000}
+.live iframe{display:block;width:100%;height:640px;border:0}
+
+table{width:100%;border-collapse:collapse;margin:30px 0 0;font-size:14.3px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--faint);font-weight:600;font-size:12.8px;letter-spacing:.06em;text-transform:uppercase}
+td{color:var(--dim)} td b{font-variant-numeric:tabular-nums}
+tr.hi td{color:var(--ink)}
+
+.footer{padding:70px 0 90px;color:var(--faint);font-size:13.8px}
+.footer a{color:var(--dim)}
+hr.sep{border:0;border-top:1px solid var(--line);margin:0}
+code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.92em;color:var(--gold);
+  background:rgba(232,197,106,.07);padding:1px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <div class="lang"><a href="en.html">EN</a> · 中文</div>
+  <div class="hero__in">
+    <p class="eyebrow reveal">HiMoE-VLA · KITCHEN_SCENE8 · 双摩卡壶上灶</p>
+    <h1 class="reveal">机械臂卡住的时候,<br><span class="hl">模型自己知道吗?</span></h1>
+    <p class="hero__sub reveal">一台 VLA 在仿真里反复失败:手臂停在半空,或者在两个壶之间来回绕圈,直到时间耗尽。
+      它的 MoE 路由器每一步都在写一份没人读的日志。我们读了 —— 发现失败在日志里<b>看得见</b>,
+      而且看见之后<b>来得及做点什么</b>。</p>
+    <div class="chip reveal"><span class="chip__dot"></span>
+      <b>路由报警&nbsp;→&nbsp;就地重采样&nbsp;→&nbsp;救回</b></div>
+    <p class="poem serif reveal">轨迹是模型做过的事;路由是它当时的状态。</p>
+    <div class="cta reveal">
+      <a class="btn btn--primary" href="#acts">看那次救援</a>
+      <a class="btn" href="live.html">看 50 秒短片</a>
+      <a class="btn" href="#q">五个问题</a>
+    </div>
+  </div>
+  <span class="scrolldn">SCROLL</span>
+</header>
+
+<!-- ============================ IDEA ============================ -->
+<section class="section" id="idea">
+  <div class="wrap">
+    <p class="kicker reveal">一个想法</p>
+    <h2 class="reveal">失败不是一种行为,是一种状态 —— 状态在路由里。</h2>
+    <p class="lede reveal">这台 π0 型 VLA 的每个控制步里,32 个专家中的 top-4 被路由器点名。
+      手臂正常干活时,点名单随观测不停轮换;<b>手臂一卡住,观测停了,点名单也冻住了</b>。
+      所以不用看画面、不用装传感器 —— 数一数"这一步的专家和上一步重合多少",失败自己会显形。</p>
+
+    <figure class="reveal">
+      <img src="assets/fig_rescue.png" loading="lazy"
+        alt="一条 rollout 的路由变化率曲线。白线为共享历史,第 32 步一个红圈标出报警;之后橙线(原噪声)一路走低跑满 52 步失败,蓝线(重采样)回升并在第 40 步标注完成。虚线为判据 θ=0.95。">
+      <figcaption><span class="figtag">图 1</span>
+        整个故事在一张图里:一条 rollout 在线跑,<b>第 32 步路由报警</b>(红圈)。
+        就在那一步存下模拟器状态、换一条 flow-noise 继续 —— 蓝线 <b>8 步完成任务</b>;
+        原噪声继续 —— 橙线跑满 52 步失败。<b>三条线全部是实测路由</b>,蓝线取自服务端
+        route store(episode 170002002),没有一段是示意。</figcaption>
+    </figure>
+
+    <div class="pillars">
+      <article class="card reveal"><span class="card__num">01</span>
+        <h3>日志是免费的</h3>
+        <p>路由选择是 MoE 前向传播的副产品 —— 模型不做这个选择就没法运行。读它不加一次推理、不加一个探针。</p></article>
+      <article class="card reveal"><span class="card__num">02</span>
+        <h3>一个比值就够</h3>
+        <p>最近 4 步的路由变化 ÷ 自己开头 8 步的路由变化。无量纲,所以一个阈值跨场景、跨语料直接用,不需要任何组内标定。</p></article>
+      <article class="card reveal"><span class="card__num">03</span>
+        <h3>报警可以兑现</h3>
+        <p>报警那一步不是终点:存状态、重采样,原本必败的 rollout 被救了回来。检测第一次闭环成了干预。</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ METHOD ============================ -->
+<section class="section section--alt" id="method">
+  <div class="wrap">
+    <p class="kicker reveal">怎么读这份日志</p>
+    <h2 class="reveal">三步:集合重叠 → 自归一 → 持续性。</h2>
+    <p class="lede reveal">读数刻意保持在最笨的形态 —— 没有学习、没有标定、没有超过四个的自由参数。
+      每一步都有对应的反面教训:更聪明的版本我们都试过,都输了。</p>
+
+    <ol class="steps">
+      <li class="reveal"><span class="steps__k">top-4</span><div>
+        <h3>数集合重叠,不认专家身份</h3>
+        <p>相邻两个控制步,每个 (层 × token) 位点比较两份 top-4 名单:<code>1 − |交| / |并|</code>,
+        对 HB 12–15 层 × 10 个 action token 取平均。把 32 个专家整体重新编号,这个数<b>一位都不变</b> ——
+        它只问"还是不是同一批",从不问"是哪一批"。这不是洁癖:静态的专家身份能以 99.6–100% 的准确率
+        认出初始场景,却在严格留出组后对成败只值 +2.2 个点。<b>身份是场景指纹,变化才是状态。</b></p></div></li>
+      <li class="reveal"><span class="steps__k">r(t)</span><div>
+        <h3>除以自己的开头</h3>
+        <p><code>r(t) = 最近 4 步的均值 ÷ 自己最早 8 步的均值</code>。分母来自这条 rollout 自身,
+        所以 r 无量纲 —— 阈值不用按场景调。这一步是阈值能跨语料搬动的全部原因(见问题二)。</p></div></li>
+      <li class="reveal"><span class="steps__k">K=3</span><div>
+        <h3>连续三步才算数</h3>
+        <p>r(t) 本身在 1.0 上下抖 ±10%,成功的 rollout 也有 9% 的步落在 θ 之下。单次穿越什么都不是;
+        <b>连续 3 步低于 θ=0.95</b> 才报警。这一条把名义 25% 的越线率压成实测 5–16% 的误报。</p></div></li>
+    </ol>
+
+    <p class="note reveal">全部配置:<code>HB 12–15 · 去噪第 9 轮 · action token · top-4 · W=4 · W₀=8 · K=3 · θ=0.95</code>。
+      这些常数在两批语料上冻结,之后所有实验(包括下面那次救援)一位未动。</p>
+  </div>
+</section>
+
+<!-- ===================== THE FIVE QUESTIONS ===================== -->
+<section class="section" id="q">
+  <div class="wrap">
+    <p class="kicker reveal">按你会问的顺序</p>
+    <h2 class="reveal">一个读数要过五关,顺序不能乱。</h2>
+    <p class="lede reveal">看不出失败的读数是装饰;拿不到手的读数上不了线;兑现不了的报警是没人看的仪表盘;
+      而一个不肯说自己边界的结果,五关全过也不可信。</p>
+    <ol class="qdx">
+      <li class="reveal"><a href="#sees"><span class="qdx__n">一</span><span class="qdx__q">它能看出失败吗?</span>
+        <span class="qdx__a">352 + 512 条两批独立语料,判对 80.1% / 82.0%(基线 66.8% / 57.8%)。</span></a></li>
+      <li class="reveal"><a href="#free"><span class="qdx__n">二</span><span class="qdx__q">这读数真是白拿的吗?</span>
+        <span class="qdx__a">日志天然存在;同一个阈值在两批语料上误报逐档对齐(逐档差 0–2 个点,平均 1.4)。</span></a></li>
+      <li class="reveal"><a href="#acts"><span class="qdx__n">三</span><span class="qdx__q">报警那一刻能做什么?</span>
+        <span class="qdx__a">存状态、换噪声:8 条重采样里 3 条救回;实跑一条,52 步的失败变成 8 步的成功。</span></a></li>
+      <li class="reveal"><a href="#marks"><span class="qdx__n">四</span><span class="qdx__q">它标记的到底是什么?</span>
+        <span class="qdx__a">是"卡住",不是"必败"—— 203 次报警里 19 条后来自己走了出来,而它们确实卡过。</span></a></li>
+      <li class="reveal"><a href="#limits"><span class="qdx__n">五</span><span class="qdx__q">它不是什么?</span>
+        <span class="qdx__a">没有预警;分不出救得回与救不回;也选不出该执行哪个候选。每一条都有实验钉死。</span></a></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ======================= ONE ======================= -->
+<section class="section section--alt" id="sees">
+  <div class="wrap">
+    <p class="kicker reveal"><b>一</b> · 它能看出失败吗</p>
+    <h2 class="reveal">352 条分支一起画,分化肉眼可见。</h2>
+    <p class="lede reveal">语料 A 是一个刻意刁钻的构造:22 个"同一模拟器状态"各扇出 16 条分支,
+      彼此只差一条 flow-noise 流。<b>同一个起点、同一个任务,只换噪声,117 条成功、235 条失败</b> ——
+      而路由把两群分开。</p>
+
+    <figure class="reveal">
+      <img src="assets/fig_fan.png" loading="lazy"
+        alt="352 条 r(t) 曲线的扇面,蓝色为成功、橙色为失败;每条分支报警的那一步画点,红点密集于失败一侧,蓝点稀疏。">
+      <figcaption><span class="figtag">图 2</span>
+        352 条分支的 r(t)。橙 = 失败(235),蓝 = 成功(117);
+        <b>点 = 各自报警的那一步</b>:红点 184 个(抓到的失败),蓝点 19 个(误报)。
+        报警时刻 q18–q36,中位 q28 —— 52 步 horizon 的 54% 处。</figcaption>
+    </figure>
+
+    <div class="stats">
+      <div class="stat reveal"><b>80.1%</b><span>语料 A 判对(352 条,基线 66.8%)</span></div>
+      <div class="stat reveal"><b>82.0%</b><span>语料 B 判对(512 条,基线 57.8%)</span></div>
+      <div class="stat reveal"><b>78.3% / 16.2%</b><span>A:检出 / 误报</span></div>
+      <div class="stat reveal"><b>81.5% / 17.6%</b><span>B:检出 / 误报</span></div>
+    </div>
+
+    <p class="note reveal">判定窗口取在全体分支仍在运行的等机会区间(A:τ&lt;37,B:t&lt;35),
+      每条分支拿到相同次数的触发机会 —— 把窗口放开到 horizon,同一检测器会虚报到 98%,
+      那 20 个点是"它还没结束"这条免费信息,不是路由的功劳。本页所有数字都在等机会窗口内。</p>
+  </div>
+</section>
+
+<!-- ======================= TWO ======================= -->
+<section class="section" id="free">
+  <div class="wrap">
+    <p class="kicker reveal"><b>二</b> · 这读数真是白拿的吗</p>
+    <h2 class="reveal">日志免费,阈值也免费:一个 θ,两批语料。</h2>
+    <p class="lede reveal">"免费"有两层。第一层浅:路由选择是 MoE 前向的副产品,记录它不加算力。
+      第二层深:<b>因为 r(t) 除的是自己的开头,阈值成了无量纲数</b> ——
+      在语料 A 上定的 θ,搬到从未见过的语料 B,误报率逐档吻合。这才是能部署的那种免费。</p>
+
+    <figure class="reveal" style="max-width:640px">
+      <img src="assets/fig_transfer.png" loading="lazy"
+        alt="横轴为同一个阈值 θ,纵轴为误报率。语料 A 与语料 B 两条折线在 0.875 到 0.975 五个档位上几乎重合。">
+      <figcaption><span class="figtag">图 3</span>
+        同一个 θ 在两批独立采集的语料上产生的误报率,逐档对齐(逐档差 0–2 个点,平均 1.4)。
+        对照:连续概率距离(Hellinger 等)做不到这一点 —— 除过自身基线后分布的离散度仍随语料漂移,
+        θ 一搬就散。<b>计数比值的离散网格把尺度钉死了。</b></figcaption>
+    </figure>
+
+    <p class="lede reveal" style="margin-top:26px">还有一问该问:top-4 名单里写着专家编号,
+      算不算偷用了身份?我们把同一个 Hellinger 距离拆成两半验过 ——
+      <b>只看排序后形状</b>(完全无身份)得 78.1%,<b>只看身份重排</b>得 74.4%,合起来 80.1%。
+      信号主要是"路由变得多集中",身份只值约 2 个点;而集合重叠对专家重编号不变,拿的是前者。</p>
+  </div>
+</section>
+
+<!-- ======================= THREE ======================= -->
+<section class="section section--alt" id="acts">
+  <div class="wrap">
+    <p class="kicker reveal"><b>三</b> · 报警那一刻能做什么</p>
+    <h2 class="reveal">52 步的失败,8 步的成功 —— 同一个状态,只差一条噪声。</h2>
+    <p class="lede reveal">检测器不是仪表盘,是扳机。一条 rollout 在线跑,第 32 步报警;
+      <b>就在那一步</b>存下完整模拟器状态,采 8 条新的 flow-noise 各自续跑。
+      左边是原噪声的结局,右边是其中一条重采样 —— 两段视频从同一个物理状态开始。</p>
+
+    <div class="vids">
+      <figure class="vid reveal">
+        <video src="video/rescue_trunk.mp4" controls muted loop playsinline preload="metadata"></video>
+        <figcaption><span class="tag tag--bad">原噪声继续</span> —— 手臂反复试探,26.0 秒(52 步)跑满 horizon,任务失败。</figcaption>
+      </figure>
+      <figure class="vid reveal">
+        <video src="video/rescue_ok.mp4" controls muted loop playsinline preload="metadata"></video>
+        <figcaption><span class="tag tag--ok">报警步重采样</span> —— 同一状态换一条噪声,3.9 秒(8 步)完成任务。</figcaption>
+      </figure>
+    </div>
+
+    <div class="stats">
+      <div class="stat reveal"><b>3 / 8</b><span>报警步重采样的救回数(init 7,主干必败)</span></div>
+      <div class="stat reveal"><b>q32 → q40</b><span>报警于 62% 处,救回那条 8 步后完成</span></div>
+      <div class="stat reveal"><b>26.0s → 3.9s</b><span>同一状态下失败与救回的用时</span></div>
+      <div class="stat reveal"><b>θ 未动</b><span>检测器常数冻结于两批语料,未对这条 rollout 调参</span></div>
+    </div>
+
+    <p class="note reveal">要点在"知道何时":没有检测器,你要么每一步都扇 8 条(算力爆炸),要么等死。
+      报警把干预成本压缩到一次。<b>实跑演示 n=1</b>,同一状态的 8 路重采样(3/8)是它的分布背景。</p>
+  </div>
+</section>
+
+<!-- ======================= FOUR ======================= -->
+<section class="section" id="marks">
+  <div class="wrap">
+    <p class="kicker reveal"><b>四</b> · 它标记的到底是什么</p>
+    <h2 class="reveal">是"卡住",不是"必败" —— 误报是这句话的证据,不是它的漏洞。</h2>
+    <p class="lede reveal">203 次报警里 19 次落在最终成功的 rollout 上。追进去看,这 19 条是<b>慢成功</b>:
+      长度中位 48 步(成功整体 39 步),它们中途<b>确实真的卡住过</b>,只是后来自己走了出来。
+      检测器读到"这条现在停了" —— 这句话对它们同样成立。</p>
+    <p class="lede reveal">我们试过把误报压下去:更长的持续步数、更深的阈值、单调性约束、
+      张量内跨切片合取(前块、别的去噪轮、state token 同时塌才报)——
+      <b>每压 1 个点误报,要付 2–4 个点检出</b>,没有一种约束在判对率上胜过朴素的"连续 3 步"。
+      原因不是约束设计得不好:整个路由张量在"变化率"读法下只有一个自由度,没有第二个独立信号可以合取;
+      而被压掉的那些"误报"本来就是真实的停顿。</p>
+    <p class="note reveal">从干预的视角这反而是好性质:对一条正在挣扎的成功 rollout 出手,并不会更糟 ——
+      那 19 条误报重采样后同样有救回的。<b>报警语义:该干预了;不是:已经死了。</b></p>
+  </div>
+</section>
+
+<!-- ======================= FIVE ======================= -->
+<section class="section section--alt" id="limits">
+  <div class="wrap">
+    <p class="kicker reveal"><b>五</b> · 它不是什么</p>
+    <h2 class="reveal">三个否定,每一个都有实验钉死。</h2>
+    <p class="lede reveal">这一节不是免责声明,是测量结果。声称的边界和声称本身一样,都是数据。</p>
+
+    <figure class="reveal" style="max-width:640px">
+      <img src="assets/fig_candidates.png" loading="lazy"
+        alt="报警那一步采样的 8 个候选 chunk 的路由变化条形图,全部高于主干卡住时的 0.42;变化最大的候选失败了,被执行救回的是变化最小的一条。">
+      <figcaption><span class="figtag">图 4</span>
+        报警那一步的 8 个候选:<b>换任何一条噪声,路由都比卡住的主干(0.42)动得多</b> ——
+        这印证了检测机制;但变化最大的 c5 失败了,救回的 c1 恰是最小的。
+        <b>幅度选不出赢家。</b></figcaption>
+    </figure>
+
+    <table class="reveal">
+      <tr><th>否定</th><th>实验</th><th>数字</th></tr>
+      <tr><td><b>没有预警</b></td><td>报警时刻分布;逐步判对率</td>
+        <td>最早 q18、中位 q28;q28 之前单步判对 ≈ 基线。另有注脚:前 16 步是预热盲区,q12–q17 一次真实深跌被判据错过</td></tr>
+      <tr><td><b>分不出救得回与救不回</b></td><td>两个初态同一套流程</td>
+        <td>init 7:3/8 救回;init 0:<b>0/8</b>。报警读数无法预知是哪种</td></tr>
+      <tr><td><b>时刻并不特殊</b></td><td>随机更早一步分叉的对照臂</td>
+        <td>报警步 3/8,随机步(q19)同样 3/8 —— 检测器的价值在"知道要干预",不在"挑中了最佳时刻"</td></tr>
+      <tr><td><b>选不出候选</b></td><td>按路由变化最大 / 随机 / 最小三臂执行</td>
+        <td>max(0.704)失败,min(0.606)成功;n=1,方向与直觉相反</td></tr>
+    </table>
+
+    <p class="note reveal">另一条边界:重放同一分叉发现续跑存在不可复现性(疑似模拟器快照未覆盖全部内部状态),
+      所以"同一状态"的比较以首次运行的留档为准 —— 这也如实写在这里。</p>
+  </div>
+</section>
+
+<!-- ======================= LIVE ======================= -->
+<section class="section" id="live">
+  <div class="wrap">
+    <p class="kicker reveal">五幕短片</p>
+    <h2 class="reveal">pattern —— 50 秒,从翻牌到救援。</h2>
+    <p class="lede reveal">自动播放,不用操作:① pattern 是什么;② 手臂在动 vs 手臂卡住 —— pattern 换人 vs 冻住;
+      ③ r(t) 画出、连续三步跌破、报警;④ 蓝橙两群与两个总分;⑤ 分叉 —— 8 步的成功对 52 步的失败。
+      曲线为示意,数字(80.1% · 82.0% · 8 步 · 52 步 · 26.0s → 3.9s)全部实测。</p>
+    <div class="live reveal"><iframe src="live.html" title="pattern 短片" loading="lazy"></iframe></div>
+    <p style="margin-top:14px;font-size:13.5px;color:var(--faint)">
+      嵌入太小?<a href="live.html">全屏观看 ↗</a></p>
+  </div>
+</section>
+
+<!-- ======================= FOOTER ======================= -->
+<hr class="sep">
+<footer class="footer">
+  <div class="wrap">
+    <p><b style="color:var(--dim)">数据与产物</b> ——
+      语料 A:rolling-star 352 分支(22 状态 × 16 噪声);语料 B:HUB SCENE8 512 集(16 初态 × 32 种子);
+      干预实跑:<code>analysis_triggered_fork/</code>(manifest、逐步路由、全部视频)。
+      检测协议与全部数表:<code>analysis_online_2026-08-29/</code>(FINDINGS / CORRECTIONS / 7 张 CSV,可一键重算)。</p>
+    <p>本页全部曲线为实测:扇面来自 352 条分支的逐步路由,救援图三条线取自采集时与服务端 route store 的记录,
+      服务端重算与客户端在线值逐位一致。图内不含任何示意线。</p>
+    <p><a href="en.html">English version</a> · <a href="live.html">pattern 短片</a></p>
+  </div>
+</footer>
+
+<script>
+const io=new IntersectionObserver(es=>{for(const e of es) if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

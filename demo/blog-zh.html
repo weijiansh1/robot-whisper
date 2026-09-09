@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VLA 里的神经元,看见了 token 看不见的物理状态 — HiMoE</title>
+<meta name="description" content="先在语言模型里看见的一件事——神经元的内部状态装着 token 里读不出的信息——搬到一台会做饭的机器人身上,长出了完整的下文:失败看得见,还救得回。">
+<style>
+/* ===================================================================
+   Scientific Broadsheet — 与 cckfdu-site 同一套设计 token。
+   Light = 暖象牙报纸(默认日间) · Dark = 夜光。
+   Display: Fraunces · 正文: Hanken Grotesk · 数据/图注: IBM Plex Mono
+   =================================================================== */
+:root{
+  --bg:#0A0E15; --bg2:#0C1119; --panel:#10151F; --panel2:#121826;
+  --ink:#E9E3D4; --gray:#9A9486; --faint:#8F897A;
+  --line:rgba(222,212,182,.13); --line-strong:rgba(222,212,182,.26);
+  --teal:#2FE0C8; --gold:#FFC95B; --green:#49E39B; --red:#FF6E78;
+  --shadow:0 22px 55px -26px rgba(0,0,0,.72);
+  --grain-blend:soft-light; --grain-op:.05;
+  --maxw:1140px; --rad:5px;
+  --serif:"Fraunces","Noto Serif SC",Georgia,serif;
+  --zhserif:"Noto Serif SC","Fraunces",Georgia,serif;
+  --sans:"Hanken Grotesk",system-ui,-apple-system,"Noto Sans SC","PingFang SC",Segoe UI,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+[data-theme="light"]{
+  --bg:#F1EBDD; --bg2:#EAE2D0; --panel:#FBF7EE; --panel2:#F5F0E3;
+  --ink:#1D1A14; --gray:#5B5448; --faint:#6E6757;
+  --line:rgba(29,26,20,.15); --line-strong:rgba(29,26,20,.32);
+  --teal:#0C6E61; --gold:#8C5E0E; --green:#1B7A44; --red:#AC372B;
+  --shadow:0 22px 48px -30px rgba(60,48,22,.40);
+  --grain-blend:multiply; --grain-op:.055;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-weight:400;line-height:1.6;
+  font-size:clamp(15.5px,.34vw + 14.6px,17px);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:2;pointer-events:none;
+  opacity:var(--grain-op);mix-blend-mode:var(--grain-blend);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+::selection{background:var(--teal);color:var(--bg)}
+
+/* ---- top bar(Base 的极简替身)---- */
+.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:1em;padding-block:12px}
+.brand{font-family:var(--mono);font-weight:600;font-size:.86rem;letter-spacing:.05em}
+.brand i{font-style:normal;color:var(--teal)}
+.top nav{margin-left:auto;display:flex;gap:1.2em;font-family:var(--mono);font-size:.78rem;color:var(--gray)}
+.top nav a:hover{color:var(--ink)}
+.tool{border:1px solid var(--line-strong);background:none;border-radius:99px;width:30px;height:30px;
+  color:var(--ink);cursor:pointer;font-size:.9rem;font-family:var(--mono);display:grid;place-items:center}
+
+/* ---- layout ---- */
+.wrap{max-width:var(--maxw);margin-inline:auto;padding-inline:clamp(22px,5vw,48px)}
+.section{padding-block:clamp(56px,9vh,110px);position:relative}
+
+/* ---- post header(照 Post.astro / main.css)---- */
+.post-header{max-width:70ch;margin:0 auto clamp(28px,5vw,46px)}
+.post-header time{font-family:var(--mono);color:var(--gold);font-size:.84rem;letter-spacing:.04em}
+.post-header h1{font-family:var(--zhserif);font-weight:600;font-size:clamp(2rem,4.5vw,3.1rem);
+  line-height:1.25;letter-spacing:.01em;margin:.5rem 0 0}
+
+/* ---- figures ---- */
+figcaption{font-family:var(--mono);font-size:.8rem;color:var(--gray);margin-top:1rem;
+  line-height:1.65;letter-spacing:.01em}
+.figtag{color:var(--gold);font-weight:600;margin-right:.7em;white-space:nowrap}
+.figwide{margin:clamp(32px,5vw,52px) 0;text-align:center}
+.figwide figcaption{max-width:84ch;margin-inline:auto;text-align:left}
+.figwide img,.figwide video{background:#FBFAF6;padding:15px;border-radius:4px;margin-inline:auto;
+  border:1px solid rgba(40,34,20,.16);box-shadow:var(--shadow);width:100%}
+[data-theme="dark"] .figwide img,[data-theme="dark"] .figwide video{border-color:rgba(255,255,255,.10);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 26px 60px -28px rgba(0,0,0,.85)}
+.post-fig{max-width:70ch;margin-inline:auto}
+.post-fig figcaption{max-width:none}
+.vidpair{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:70ch;margin:clamp(28px,4vw,40px) auto}
+@media(max-width:640px){.vidpair{grid-template-columns:1fr}}
+.vidpair figure{margin:0;text-align:center}
+.vidpair figcaption{text-align:left;margin-top:.7rem}
+
+/* ---- 视频对:一键同播 ---- */
+.vidpair{position:relative}
+.vidpair video{pointer-events:none}
+.pairplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
+  width:64px;height:64px;border-radius:50%;border:1px solid rgba(255,255,255,.35);
+  background:rgba(10,14,21,.55);backdrop-filter:blur(3px);color:#fff;cursor:pointer;
+  font-size:22px;display:grid;place-items:center;transition:opacity .25s,transform .15s}
+.pairplay:hover{transform:translate(-50%,-50%) scale(1.06)}
+.vidpair.playing .pairplay{opacity:0}
+.vidpair.playing:hover .pairplay{opacity:1}
+
+.tag-ok{color:var(--green);font-weight:600}.tag-bad{color:var(--red);font-weight:600}
+
+/* ---- prose(含参考包修过的间距规则)---- */
+.prose{max-width:70ch;margin-inline:auto;font-size:1.06rem}
+.prose>*{margin-block:0}
+.prose>*+*{margin-top:1.2rem}
+.prose p{color:var(--ink);line-height:1.85}
+.prose h2{font-family:var(--zhserif);font-weight:600;font-size:1.7rem;margin:2.2rem 0 .4rem;line-height:1.45}
+.prose a{color:var(--teal);border-bottom:1px solid var(--line)}
+.prose a:hover{color:var(--ink)}
+.prose code{font-family:var(--mono);font-size:.9em;background:var(--panel2);padding:.12em .4em;border-radius:3px}
+.prose blockquote{border-left:3px solid var(--teal);margin-inline:0;padding-left:1.2em;
+  font-family:var(--zhserif);font-style:italic;color:var(--gray);line-height:1.9}
+.prose ul{padding-left:1.3em;color:var(--ink)}
+.prose li{margin:.4rem 0;line-height:1.8}
+.prose b,.prose strong{font-weight:650}
+.foot{max-width:70ch;margin:clamp(40px,6vw,64px) auto 0;padding-top:22px;
+  border-top:1px solid var(--line-strong);font-family:var(--mono);font-size:.8rem;
+  color:var(--gray);line-height:1.8}
+.foot a{color:var(--teal);border-bottom:1px solid var(--line)}
+.foot code{font-family:var(--mono)}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><i>◆</i>&nbsp;HiMoE-VLA</a>
+  <nav>
+    <a href="viz-trap.html">trap 动画</a>
+    <a href="live.html">短片</a>
+    <a href="blog-en.html">EN</a>
+  </nav>
+  <button class="tool" id="theme" aria-label="切换主题">◐</button>
+</div></header>
+
+<article class="section">
+  <div class="wrap">
+    <header class="post-header">
+      <time datetime="2026-08-30">2026-08-30</time>
+      <h1>VLA 里的神经元,看见了 token 看不见的物理状态</h1>
+    </header>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_rescue.png" loading="eager"
+        alt="一条机器人 rollout 的路由变化率曲线。白线为共享历史,红圈标出第 32 个控制步的报警;之后橙线沿原采样噪声一路走低,在 52 步上限处失败;蓝线在报警那一步从同一保存状态重采样,回升越过判据线,第 40 步完成任务。虚线为阈值 0.95。">
+      <figcaption><span class="figtag">图 1 · HiMoE-VLA</span>整个故事在一张图里:
+        一条 rollout 在线跑,第 32 步路由报警,当场分叉。原噪声 —— 52 步,失败;
+        同一状态换一条噪声 —— 8 步完成。三条曲线都是实测。</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>这个故事要从另一类模型讲起。</p>
+
+      <p>过去我们在推理大模型上做过一件事,叫 <b>NAD</b>(Neuron Activation Distribution):
+        模型答题时,把几万个神经元的激活分布存下来 —— 不看它写了什么,只看这些内部状态。
+        结果是:同一道题采样出的一堆回答,<b>光凭神经元的活动就能挑出更可能对的那条</b>。
+        把握与犹豫没有写进 token,但内部状态里有。</p>
+
+      <p>当时留了一个问题:这是语言模型的特产,还是所有大模型的通性?</p>
+
+      <p>同一个思想换到具身智能的场景下:VLA 大模型的内部,会不会也有类似的信号呢?
+        我们找了一台会做饭的机器人。它的「话」不是文字,是每秒二十个关节动作;
+        它也会「想错」—— 不是答错题,而是手臂卡在半空,
+        或在两个壶之间来回打转,直到超时。下面两条 rollout,从<b>逐位相同的模拟器状态</b>出发,
+        模型也一样,唯一的差别是采样用的一条噪声流。左边 19 秒把两个壶都放上了灶台;
+        右边折腾满 26 秒,超时,失败。</p>
+    </div>
+
+    <div class="vidpair figwide">
+      <figure><video src="video/success.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-ok">成功</span> — 38 个控制步,两个壶先后上灶。</figcaption></figure>
+      <figure><video src="video/failure.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-bad">失败</span> — 52 步跑满,反复重来直到超时。</figcaption></figure>
+    </div>
+
+    <div class="prose">
+      <p>分开这两条 rollout 的那件事,从头到尾没有出现在任何 token 里。动作序列照常输出,
+        轨迹照常延伸,每一帧看着都在「干活」。要在它们<b>还在跑的时候</b>分出谁会失败,
+        看输出是看不出来的。</p>
+
+      <h2>一、物理世界里的 trap,长什么样</h2>
+
+      <p>先把失败本身看清楚。从同一个初始状态采 32 条 rollout(还是只差噪声):
+        14 条成功、18 条陷入 trap,上限 52 步。</p>
+
+      <p>我们把这类失败统称 <b>trap</b>:rollout 还在跑,进度却已经死了。它主要有两副面孔 ——
+        一种是手臂悬在半空几乎一动不动,像被按了暂停,相邻观测帧逐帧相同;
+        另一种是手臂在两个壶之间来回穿梭,一次次回到同一个位置,路径走了很多,进度是零。
+        <b>两者是同一件事的两种样子:困在 trap 里。</b></p>
+
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_trap.png" loading="lazy"
+        alt="同一初始状态 32 条 rollout 的到目标距离曲线:14 条蓝线一路下降穿过 5 厘米的目标半径;18 条橙线降到一半就变平,直到 52 步耗尽。">
+      <figcaption><span class="figtag">图 2</span>trap 的物理定义,一眼看完:同一初始状态、
+        只差噪声的 32 条 rollout,每条是「到目标位姿的距离」。14 条蓝线降穿 5 cm 的目标半径;
+        18 条 trap 的橙线<b>降到一半就平了</b> —— 机器人还在动,但再也靠近不了目标。
+        这条判据只用模拟器位姿算出,与 MoE 无关。</figcaption>
+    </figure>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_heat.png" loading="lazy"
+        alt="四块热力图:横轴控制步、纵轴 32 个专家,亮度为该层 10 个 action token 中选中该专家的个数。上排浅层 L4 左右都在闪烁;下排深层 L14,左边成功的持续闪烁,右边 trap 的在 onset 之后出现水平条纹。">
+      <figcaption><span class="figtag">图 3</span>同一时刻,路由器在选谁。每格 = 该层
+        10 个 action token 里选中这位专家的个数(top-4 / 32);上排浅层 L4,下排深层 L14;
+        左列一条成功、右列一条 trap。盯右下角:onset(红虚线)之后出现<b>水平条纹</b> ——
+        同样几位专家被连续选中,一步不换;左下的成功始终在闪烁,浅层两块也一直在换。</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>剩下的是各种「还在动、但把事做岔了」的杂类:壶拿起来又掉、放下去又挪走
+        (32 条轨迹与深层路由的<a href="viz-trap.html">逐帧对照</a>)。</p>
+
+      <p>而站在 token 这一侧,有三条绕不过去的局限:</p>
+
+      <ul>
+        <li><b>动作流不会告诉你。</b>卡住的模型每一步照样输出一整块动作 —— 十个数、格式正确、
+          幅度正常。没有报错,没有沉默,失败以「完全正常的输出」的形式发生。</li>
+        <li><b>长度分不出两种解释。</b>一条跑得久的轨迹,可能是问题难,也可能是已经卡死。
+          两种情况该做的事相反 —— 前者该等,后者该停 —— 但轨迹只显示同一个症状:长。</li>
+        <li><b>判决要等到终点。</b>成功谓词在 episode 结束那一刻才盖章。等你「确认」失败,
+          26 秒已经花完了。</li>
+      </ul>
+
+      <h2>二、神经元早就知道了</h2>
+
+      <p>这台 VLA 是 MoE 结构:在若干层里,各有一小组神经元充当调度员,每个控制步给
+        32 个专家打分,点亮得分最高的 4 个来处理这一步。哪 4 个亮着 —— 这份名单叫
+        <b>pattern</b>。</p>
+
+      <p>手臂在干活时,pattern 一步一换人;手臂一卡住,pattern 冻住了 ——
+        同样那 4 条通路,一亮亮到超时。<b>trap 就这样写在神经元内部的信息里</b>,
+        而动作流上什么都看不出来。</p>
+
+      <p>于是检测器可以笨到只有一句话:数 pattern 每步换了多少,除以这条 rollout
+        <b>自己开头</b>的换人速度,得到无量纲的比值 <code>r(t)</code>;
+        <b>连续三步跌破 θ = 0.95</b>,报警。没有学习,没有标定,四个常数,全部提前冻结。</p>
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_fan.png" loading="lazy"
+        alt="352 条路由比值曲线的扇面,蓝为成功、橙为失败;每条分支报警那一步画点,红点密集于失败一侧。">
+      <figcaption><span class="figtag">图 4</span>352 条分支(22 个状态 × 16 条噪声)的 r(t)。
+        橙 = 失败(235),蓝 = 成功(117);点 = 各自的报警。报警落在第 18–36 步,
+        中位 28 —— 全程刚过一半。</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>在这批语料上,这条规则判对 <b>80.1%</b>(全猜多数类是 66.8%);在另一批独立采集的
+        512 条上判对 <b>82.0%</b>(基线 57.8%)—— <b>用的是同一个阈值</b>。因为比值除的是
+        rollout 自己的开头,θ 是个无量纲数:任取一个 θ,两批语料给出的误报率逐档只差
+        0–2 个点。</p>
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_transfer.png" loading="lazy"
+        alt="误报率对同一个阈值的曲线,两批语料在五个档位上几乎重合。">
+      <figcaption><span class="figtag">图 5</span>一个 θ,两批语料:误报率逐档对齐(差 0–2 个点)。
+        连续型概率距离过不了这一关;计数比值的离散网格把尺度钉死了。</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>误报值得单说一句。203 次报警里 19 次落在最终成功的 rollout 上 —— 而这 19 条恰是
+        <b>慢成功</b>,长度中位 48 步(成功整体 39 步)。它们确实卡住过,只是自己走了出来。
+        所以警报的语义是「<b>这条现在卡住了</b>」,而不是「这条死定了」。这个区别马上就会兑现。</p>
+
+      <h2>三、说老实话:它为什么灵</h2>
+
+      <p>第一次看到深层 pattern 冻结时,它像魔法 —— 直到对照实验把话说得让人清醒:</p>
+
+      <blockquote>机器人卡住 → 观测不变 → 路由器输入不变 → 专家当然不换。路由的粘滞与
+        输入自身的稳定度相关 r = +0.93;把输入回归掉,路由指标就塌回随机。</blockquote>
+
+      <p>神经元不是先知。它是一枚<b>免费的状态传感器</b>:把「物理世界停住了」这件事,
+        忠实写进一份反正都要生成的日志。平凡,恰恰是它可靠的原因 —— 不依赖玄学,
+        就不会玄学地失效。而「免费」是字面意义的:专家选择是 MoE 前向传播的副产品,
+        读它不加一次推理、不加一个探针。</p>
+
+      <p>还有一个反直觉的细节:pattern 里<b>具体是哪几个</b>神经元,几乎不携带成败信息 ——
+        静态名单能以近乎 100% 的准确率认出「这是哪个初始场景」,对结局却几乎无用。
+        <b>身份是场景的指纹,变化才是状态。</b>上面的比值对专家重新编号完全不变,
+        拿的正是后者。</p>
+
+      <h2>One more thinking:能不能在线救回来?</h2>
+
+      <p>警报若只能记账,就是个没人看的仪表盘。所以最后一个实验把它当扳机:
+        一条新的 rollout 在线跑(阈值等常数全部事先冻结),第 32 步报警 ——
+        <b>就在那一步</b>,存下完整模拟器状态,换 8 条新噪声流分别续跑。</p>
+    </div>
+
+    <div class="vidpair figwide">
+      <figure><video src="video/rescue_trunk.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-bad">原噪声继续</span> — 26.0 秒,52 步,跑满失败。</figcaption></figure>
+      <figure><video src="video/rescue_ok.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-ok">报警步重采样</span> — 同一状态,一条新噪声,3.9 秒完成。</figcaption></figure>
+    </div>
+
+    <div class="prose">
+      <p>8 条重采样里 3 条成功。一条原本必败的 rollout,在警报指着的那一步换了条噪声,
+        8 步做完了任务。<b>检测,第一次闭环成了干预。</b></p>
+
+      <p>边界同样是测出来的,一条不藏:</p>
+
+      <ul>
+        <li><b>不是每个状态都救得回。</b>另一个初始状态,同一套流程:0/8。警报读数分不出这两种。</li>
+        <li><b>时刻本身并不特殊。</b>对照组在报警前随机挑一步分叉,同样 3/8。
+          警报的价值是「知道该出手了」,不是「挑中了最佳瞬间」。</li>
+        <li><b>pattern 选不出该执行哪条。</b>8 条候选里挑「路由变化最大」的失败了;
+          救回的恰是变化最小的一条(n = 1,方向与直觉相反)。</li>
+        <li><b>没有预警。</b>警报中位落在全程 54% 处;在那之前,单步读数与掷硬币无异。
+          它读的是「已经卡了」,不预言「要出事」。</li>
+      </ul>
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_candidates.png" loading="lazy"
+        alt="报警那一步 8 个候选的路由变化条形图:全部高于卡住的主干,但变化最大的失败,被执行救回的是最小的。">
+      <figcaption><span class="figtag">图 6</span>报警那一步的 8 个候选:换任何一条噪声,
+        pattern 都比卡住的主干(0.42)动得多 —— 印证机制;但幅度选不出赢家。</figcaption>
+    </figure>
+
+    <div class="prose">
+      <h2>收尾</h2>
+
+      <p>轨迹是模型做过的事,pattern 是它当时的状态。前者要等终点盖章,后者半路就把话说完了 ——
+        写在一份模型每步都在生成、却从没人读的日志里。仪表一直亮着,我们只是第一次看了它一眼。</p>
+    </div>
+
+    <p class="foot">50 秒动画版:<a href="live.html">pattern — 一部关于路由的短片</a> ·
+      trap 逐帧对照:<a href="viz-trap.html">路由冻结动画</a> ·
+      本文全部曲线为实测,数据与脚本见 <code>analysis_online_2026-08-29/</code> 与
+      <code>analysis_triggered_fork/</code> · <a href="blog-en.html">English version</a></p>
+  </div>
+</article>
+
+<script>
+const root=document.documentElement;
+const saved=localStorage.getItem('theme');
+root.dataset.theme=saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+document.getElementById('theme').addEventListener('click',()=>{
+  root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+  localStorage.setItem('theme',root.dataset.theme);
+});
+
+/* 视频对:点一次,两段一起从头播;再点一起暂停。
+   单独的原生控制条藏掉(pointer-events:none),避免两段被分别拖开。 */
+document.querySelectorAll('.vidpair').forEach(pair=>{
+  const vids=[...pair.querySelectorAll('video')];
+  vids.forEach(v=>v.removeAttribute('controls'));
+  const btn=document.createElement('button');
+  btn.className='pairplay'; btn.textContent='▶'; btn.setAttribute('aria-label','一起播放');
+  pair.appendChild(btn);
+  let playing=false;
+  const sync=()=>{
+    if(playing){ vids.forEach(v=>v.pause()); playing=false; btn.textContent='▶'; }
+    else{
+      vids.forEach(v=>{ v.currentTime=0; v.play(); });
+      playing=true; btn.textContent='❚❚';
+    }
+    pair.classList.toggle('playing',playing);
+  };
+  btn.addEventListener('click',sync);
+  pair.addEventListener('click',e=>{ if(e.target!==btn) sync(); });
+  // 两段都放完后归位(短的那段结束后停在末帧,等长的)
+  let ended=0;
+  vids.forEach(v=>v.addEventListener('ended',()=>{
+    ended++;
+    if(ended>=vids.length){ ended=0; playing=false; btn.textContent='↺';
+      pair.classList.remove('playing'); }
+  }));
+});
+</script>
+</body>
+</html>

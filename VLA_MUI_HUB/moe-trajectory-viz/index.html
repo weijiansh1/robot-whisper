@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>HiMoE-VLA MoE 纵向轨迹</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-block">
+        <span class="brand-mark" aria-hidden="true">HM</span>
+        <div>
+          <h1>MoE 纵向轨迹</h1>
+          <p>same-position action tokens · control-step playback</p>
+        </div>
+      </div>
+      <div class="scope-note">
+        <span>Moka pots / stove</span>
+        <strong>1 state · 32 draws · d9</strong>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <section class="control-band" aria-label="轨迹选择与播放控制">
+        <label class="field" for="scene-select">
+          <span>初始状态（32 条）</span>
+          <select id="scene-select" disabled></select>
+        </label>
+        <label class="field" for="failure-select">
+          <span>失败轨迹</span>
+          <select id="failure-select" disabled></select>
+        </label>
+        <label class="field" for="success-select">
+          <span>成功轨迹</span>
+          <select id="success-select" disabled></select>
+        </label>
+        <label class="field field-layer" for="layer-select">
+          <span>HB 层</span>
+          <select id="layer-select" disabled></select>
+        </label>
+
+        <div class="transport-block">
+          <span class="control-label">绝对控制步</span>
+          <div class="transport" role="group" aria-label="轨迹播放">
+            <button id="step-prev" class="icon-button" type="button" title="上一步" aria-label="上一步" disabled>&#9664;</button>
+            <button id="play-toggle" class="icon-button play-button" type="button" title="播放" aria-label="播放" disabled>&#9654;</button>
+            <button id="step-next" class="icon-button" type="button" title="下一步" aria-label="下一步" disabled>&#9654;</button>
+            <button id="loop-toggle" class="icon-button" type="button" title="循环播放" aria-label="循环播放" aria-pressed="true" disabled>&#8635;</button>
+          </div>
+        </div>
+
+        <div class="scrubber-block">
+          <input id="step-range" type="range" min="0" max="51" value="0" step="1" aria-label="绝对控制步" disabled>
+          <div class="scrubber-meta">
+            <output id="step-output" for="step-range">t00 / t51</output>
+            <label for="speed-select" class="speed-label">
+              <span>速度</span>
+              <select id="speed-select" disabled>
+                <option value="1000">0.5x</option>
+                <option value="560" selected>1x</option>
+                <option value="280">2x</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="status-band" aria-label="当前对齐状态">
+        <div>
+          <span class="status-label">对齐</span>
+          <strong id="alignment-status">绝对控制步 t00</strong>
+        </div>
+        <div class="landmark-key" aria-label="轨迹时间标记">
+          <span><i class="marker pose"></i>t08 位姿分离</span>
+          <span><i class="marker route"></i>t13 路由分离</span>
+          <span><i class="marker survivor"></i>t35 长度分离</span>
+        </div>
+        <div id="comparison-status" class="comparison-status">窗口积累中</div>
+      </section>
+
+      <div id="load-state" class="load-state" role="status" aria-live="polite">
+        <span class="load-indicator" aria-hidden="true"></span>
+        正在解码 512 条 MoE 轨迹…
+      </div>
+
+      <section class="pca-panel" aria-labelledby="pca-title">
+        <header class="pca-heading">
+          <div>
+            <p class="eyebrow">Within-state MoE state space</p>
+            <h2 id="pca-title">同任务、同初始状态的 32 条控制轨迹</h2>
+          </div>
+          <div class="pca-actions">
+            <div class="segmented" role="group" aria-label="PCA 路由表示">
+              <button id="pca-mode-soft" class="segment is-active" type="button" data-pca-mode="soft" aria-pressed="true" disabled>Soft 32-way</button>
+              <button id="pca-mode-top4" class="segment" type="button" data-pca-mode="top4" aria-pressed="false" disabled>Actual Top-4</button>
+            </div>
+            <div class="trajectory-key" aria-label="PCA 轨迹图例">
+              <span><i class="line-key failure"></i>失败</span>
+              <span><i class="line-key success"></i>成功</span>
+              <span><i class="point-key"></i>选中对照</span>
+            </div>
+          </div>
+        </header>
+        <div class="pca-metric-band">
+          <div>
+            <span>组内 PC1 + PC2 方差</span>
+            <strong id="pca-explained">—</strong>
+          </div>
+          <div>
+            <span>当前二维距离</span>
+            <strong id="pca-distance">—</strong>
+          </div>
+          <div>
+            <span>投影状态</span>
+            <strong id="pca-progress">t00 · 两条轨迹活跃</strong>
+          </div>
+        </div>
+        <div class="pca-shell">
+          <canvas id="pca-canvas" aria-label="成功和失败控制步在全局 MoE PCA 空间中的轨迹"></canvas>
+          <div id="pca-tooltip" class="pca-tooltip" role="tooltip" hidden></div>
+        </div>
+        <div class="pca-caption">
+          <span id="pca-representation">32-way soft probabilities · 32 条轨迹等权拟合 t0–t34</span>
+          <span>分离前拟合、完整轨迹投影；坐标不可跨状态比较</span>
+        </div>
+      </section>
+
+      <section class="pair-workspace" aria-label="成功与失败轨迹对照">
+        <article class="trajectory-panel failure-panel" data-side="failure" aria-labelledby="failure-title">
+          <header class="panel-heading">
+            <div>
+              <p class="eyebrow">Timeout trajectory</p>
+              <h2 id="failure-title"><span class="outcome-dot failure"></span>失败</h2>
+            </div>
+            <div class="episode-meta">
+              <strong id="failure-episode">episode —</strong>
+              <span id="failure-meta">scene — · noise —</span>
+            </div>
+          </header>
+
+          <div class="metric-strip" aria-label="失败轨迹当前 MoE 指标">
+            <div class="metric-cell">
+              <span>16 步纵向持久度</span>
+              <strong id="failure-persistence">—</strong>
+              <small id="failure-reference">成功参考 —</small>
+            </div>
+            <div class="metric-cell">
+              <span>当前 lag-1</span>
+              <strong id="failure-lag1">—</strong>
+              <small>8 层 × 10 token</small>
+            </div>
+            <div class="metric-cell">
+              <span>period-2 曲率</span>
+              <strong id="failure-curvature">—</strong>
+              <small>正值才是局部峰</small>
+            </div>
+            <div class="metric-cell indicator-cell">
+              <span>MoE 停滞指示</span>
+              <strong id="failure-indicator" class="indicator neutral">积累中</strong>
+              <small id="failure-indicator-note">需要 16 个控制步</small>
+            </div>
+          </div>
+
+          <section class="timeline-block" aria-labelledby="failure-timeline-title">
+            <div class="subheading">
+              <div>
+                <p class="eyebrow">Full trajectory</p>
+                <h3 id="failure-timeline-title">相邻控制步 Top-4 重合</h3>
+              </div>
+              <span>token1–10</span>
+            </div>
+            <div class="timeline-shell">
+              <canvas id="failure-timeline" aria-label="失败轨迹各 token 的相邻控制步 Top-4 重合热图"></canvas>
+            </div>
+          </section>
+
+          <section class="trail-block" aria-labelledby="failure-trail-title">
+            <div class="subheading">
+              <div>
+                <p class="eyebrow">Trailing 16 controls</p>
+                <h3 id="failure-trail-title">固定 token 列的专家集合</h3>
+              </div>
+              <span id="failure-layer-label">L2 · d9</span>
+            </div>
+            <div id="failure-trail" class="token-trail" role="table" aria-label="失败轨迹最近十六个控制步的 action token Top-4"></div>
+          </section>
+
+          <section class="lag-block" aria-labelledby="failure-lag-title">
+            <div class="subheading">
+              <div>
+                <p class="eyebrow">Current-step recurrence</p>
+                <h3 id="failure-lag-title">同位置 token 的 lag 1–5</h3>
+              </div>
+              <span>Top-4 overlap</span>
+            </div>
+            <div id="failure-lag-grid" class="lag-grid" role="table" aria-label="失败轨迹当前步同位置 token 的 lag 重合度"></div>
+          </section>
+        </article>
+
+        <article class="trajectory-panel success-panel" data-side="success" aria-labelledby="success-title">
+          <header class="panel-heading">
+            <div>
+              <p class="eyebrow">Completed trajectory</p>
+              <h2 id="success-title"><span class="outcome-dot success"></span>成功</h2>
+            </div>
+            <div class="episode-meta">
+              <strong id="success-episode">episode —</strong>
+              <span id="success-meta">scene — · noise —</span>
+            </div>
+          </header>
+
+          <div class="metric-strip" aria-label="成功轨迹当前 MoE 指标">
+            <div class="metric-cell">
+              <span>16 步纵向持久度</span>
+              <strong id="success-persistence">—</strong>
+              <small id="success-reference">成功参考 —</small>
+            </div>
+            <div class="metric-cell">
+              <span>当前 lag-1</span>
+              <strong id="success-lag1">—</strong>
+              <small>8 层 × 10 token</small>
+            </div>
+            <div class="metric-cell">
+              <span>period-2 曲率</span>
+              <strong id="success-curvature">—</strong>
+              <small>正值才是局部峰</small>
+            </div>
+            <div class="metric-cell indicator-cell">
+              <span>MoE 停滞指示</span>
+              <strong id="success-indicator" class="indicator neutral">积累中</strong>
+              <small id="success-indicator-note">需要 16 个控制步</small>
+            </div>
+          </div>
+
+          <section class="timeline-block" aria-labelledby="success-timeline-title">
+            <div class="subheading">
+              <div>
+                <p class="eyebrow">Full trajectory</p>
+                <h3 id="success-timeline-title">相邻控制步 Top-4 重合</h3>
+              </div>
+              <span>token1–10</span>
+            </div>
+            <div class="timeline-shell">
+              <canvas id="success-timeline" aria-label="成功轨迹各 token 的相邻控制步 Top-4 重合热图"></canvas>
+            </div>
+          </section>
+
+          <section class="trail-block" aria-labelledby="success-trail-title">
+            <div class="subheading">
+              <div>
+                <p class="eyebrow">Trailing 16 controls</p>
+                <h3 id="success-trail-title">固定 token 列的专家集合</h3>
+              </div>
+              <span id="success-layer-label">L2 · d9</span>
+            </div>
+            <div id="success-trail" class="token-trail" role="table" aria-label="成功轨迹最近十六个控制步的 action token Top-4"></div>
+          </section>
+
+          <section class="lag-block" aria-labelledby="success-lag-title">
+            <div class="subheading">
+              <div>
+                <p class="eyebrow">Current-step recurrence</p>
+                <h3 id="success-lag-title">同位置 token 的 lag 1–5</h3>
+              </div>
+              <span>Top-4 overlap</span>
+            </div>
+            <div id="success-lag-grid" class="lag-grid" role="table" aria-label="成功轨迹当前步同位置 token 的 lag 重合度"></div>
+          </section>
+        </article>
+      </section>
+
+      <section class="evidence-band" aria-labelledby="evidence-title">
+        <div class="evidence-copy">
+          <p class="eyebrow">MoE-only readout</p>
+          <h2 id="evidence-title">高持久表示路由进入低变化区，不等于 MoE 因果陷阱</h2>
+          <p>停滞指示使用过去 16 个绝对控制步、8 个 HB 层、token1–10 的 lag 1–5 Top-4 重合均值，并只与同一任务、同一初始状态、同一绝对步仍存活的成功轨迹比较。t35 以后成功参考存在幸存者选择。</p>
+        </div>
+        <div class="expert-key-wrap">
+          <span class="key-title">Expert ID</span>
+          <div id="expert-key" class="expert-key" aria-label="32 个专家的颜色编码"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span id="source-note">数据源：routes.zarr · hb_expert_ids</span>
+      <span>16 initial states × 32 noise draws · 512 episodes · file-ready</span>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

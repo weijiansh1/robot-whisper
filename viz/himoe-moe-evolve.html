@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13 条曲线，怎么收敛成一个数</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#000;color:#fff}
+  body{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","Source Han Sans SC","PingFang SC",sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .f{max-width:1320px;margin:0 auto;padding:26px 18px 60px}
+  canvas{display:block;width:100%;height:auto;background:#0a0a0a;border-radius:4px}
+  .r{display:flex;align-items:center;gap:14px;margin-top:15px}
+  button{font:inherit;font-size:13px;color:#bbb;background:none;border:1px solid #333;
+         border-radius:6px;padding:6px 16px;cursor:pointer}
+  button:hover{color:#fff;border-color:#666}
+  input[type=range]{flex:1;accent-color:#58C4DD;height:3px}
+  .t{color:#555;font-size:12px;font-variant-numeric:tabular-nums;min-width:78px}
+  .ch{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px}
+  .ch button{font-size:11.5px;padding:4px 9px;color:#777}
+  .ch button.on{color:#000;background:#ddd;border-color:#ddd}
+  .s{margin-top:24px;color:#4a4a4a;font-size:12.5px;line-height:1.8}
+  .s a{color:#666}
+</style>
+</head>
+<body>
+<div class="f">
+  <canvas id="c" width="2560" height="1440" style="aspect-ratio:1280/720"></canvas>
+  <div class="r">
+    <button id="p">▶</button>
+    <input type="range" id="sc" min="0" max="1000" value="0">
+    <span class="t" id="tm"></span>
+  </div>
+  <div class="ch" id="ch"></div>
+  <p class="s">
+    LIBERO-Long <code>KITCHEN_SCENE8</code>，493 条 rollout，13 个初始状态。增量 ＝
+    AUC(本体感受＋动作＋MoE) − AUC(本体感受＋动作)，同一套双留出折与读出器。
+    数值与对照组构造见 <a href="himoe-moe-case-spread.html">case-spread</a> ·
+    <a href="himoe-moe-signal-explainer.html">signal-explainer</a>。
+  </p>
+</div>
+<script>
+const D = {"horizons":[7,12,20,27,34],"pool":[20,27,34],"per_state":[{"state":0,"n_success":14,"n_stasis":18,"pairs":252,"delta":[-0.1468,0.1706,0.0516,0.004,0.0635]},{"state":42,"n_success":14,"n_stasis":15,"pairs":210,"delta":[-0.0619,0.0524,0.1476,-0.1,-0.0333]},{"state":13,"n_success":9,"n_stasis":22,"pairs":198,"delta":[0.202,-0.0051,0.0758,0.0657,0.1364]},{"state":10,"n_success":9,"n_stasis":22,"pairs":198,"delta":[0.1111,0.0707,-0.0606,0.0354,0.0808]},{"state":26,"n_success":9,"n_stasis":21,"pairs":189,"delta":[0.0265,-0.2857,-0.1481,0.0741,0.0794]},{"state":3,"n_success":5,"n_stasis":27,"pairs":135,"delta":[-0.0889,-0.0148,0.2148,-0.0741,0.1259]},{"state":39,"n_success":4,"n_stasis":28,"pairs":112,"delta":[-0.3214,0.1071,-0.0446,0.0804,0.0893]},{"state":23,"n_success":29,"n_stasis":3,"pairs":87,"delta":[-0.0805,0.3103,0.0,0.0345,0.046]},{"state":16,"n_success":28,"n_stasis":3,"pairs":84,"delta":[-0.2024,0.119,-0.119,0.0,0.0]},{"state":7,"n_success":29,"n_stasis":2,"pairs":58,"delta":[0.2931,0.1207,0.3793,0.3966,-0.1552]},{"state":29,"n_success":28,"n_stasis":2,"pairs":56,"delta":[-0.0357,0.0536,0.0893,0.0893,0.0]},{"state":20,"n_success":23,"n_stasis":2,"pairs":46,"delta":[0.1957,-0.587,0.0652,-0.0435,0.2826]},{"state":46,"n_success":31,"n_stasis":1,"pairs":31,"delta":[0.2258,0.0,-0.0968,-0.1935,0.5161]}],"loo":[{"dropped":0,"delta":0.0437},{"dropped":3,"delta":0.039},{"dropped":7,"delta":0.0371},{"dropped":10,"delta":0.0464},{"dropped":13,"delta":0.0364},{"dropped":16,"delta":0.0475},{"dropped":20,"delta":0.0414},{"dropped":23,"delta":0.044},{"dropped":26,"delta":0.0484},{"dropped":29,"delta":0.0425},{"dropped":39,"delta":0.0432},{"dropped":42,"delta":0.0486},{"dropped":46,"delta":0.0425}],"pooled":{"delta":0.0430756843800322,"ci":[0.005611298166853724,0.08581409133006551],"p_one_sided":0.01205},"restricted":{"states":6,"delta":0.03835307388606881,"ci":[-0.006370570862119969,0.08815433129972108],"p_one_sided":0.0469},"n_rollouts":493,"target":{"n_success":296,"n_failure":216,"n_stasis_trap":197,"n_ambiguous_failure_excluded":19}};
+const W=1280,H=720;
+const K={bg:"#0a0a0a",ink:"#ffffff",dim:"#8a8a8a",faint:"#333333",
+         blue:"#58C4DD",red:"#FC6255",hot:"#F0DC5A"};
+const F='system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","PingFang SC",sans-serif';
+const g=document.getElementById("c").getContext("2d");
+g.scale(2,2);
+if(typeof g.roundRect!=="function") g.roundRect=function(x,y,w,h){this.rect(x,y,w,h);return this};
+
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v)), lp=(a,b,t)=>a+(b-a)*t;
+const ei=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const sg=(t,a,b)=>cl((t-a)/(b-a),0,1);
+const fm=(v,d=3)=>(v>=0?"+":"−")+Math.abs(v).toFixed(d);
+
+function tx(s,x,y,{size=24,col=K.ink,al="center",w=400,a=1,ls=0}={}){
+  if(a<=0)return; g.save(); g.globalAlpha=a; g.fillStyle=col; g.textAlign=al;
+  g.font=`${w} ${size}px ${F}`; g.letterSpacing=ls+"px"; g.fillText(s,x,y);
+  g.letterSpacing="0px"; g.restore();
+}
+function writeOn(s,x,y,p,o={}){
+  if(p<=0)return; g.save(); const size=o.size||24;
+  g.font=`${o.w||400} ${size}px ${F}`;
+  const wd=g.measureText(s).width, al=o.al||"center";
+  const x0=al==="center"?x-wd/2:al==="right"?x-wd:x;
+  g.beginPath(); g.rect(x0-4,y-size*1.15,wd*ei(cl(p,0,1))+8,size*1.7); g.clip();
+  tx(s,x0,y,{...o,al:"left"}); g.restore();
+}
+function line(pts,col,lw,a=1,glow=0){
+  if(a<=0||pts.length<2)return; g.save(); g.globalAlpha=a; g.strokeStyle=col;
+  g.lineWidth=lw; g.lineJoin="round"; g.lineCap="round";
+  if(glow){g.shadowColor=col; g.shadowBlur=glow;}
+  g.beginPath(); pts.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));
+  g.stroke(); g.restore();
+}
+function dot(x,y,r,col,a=1,ring=K.bg){
+  if(a<=0||r<=0)return; g.save(); g.globalAlpha=a;
+  g.beginPath(); g.arc(x,y,r+2,0,7); g.fillStyle=ring; g.fill();
+  g.beginPath(); g.arc(x,y,r,0,7); g.fillStyle=col; g.fill(); g.restore();
+}
+
+/* ---- geometry shared by every stage: the plot never moves ---- */
+const M={l:150,r:170,t:150,b:130};
+const PW=W-M.l-M.r, PH=H-M.t-M.b;
+const HZ=D.horizons, NH=HZ.length;
+const PS=D.per_state, maxP=Math.max(...PS.map(r=>r.pairs));
+const Y0=-.62,Y1=.56;
+const Xh=i=>M.l+i/(NH-1)*PW;
+const Yv=v=>M.t+(1-(cl(v,Y0,Y1)-Y0)/(Y1-Y0))*PH;
+const Xp=p=>M.l+p/maxP*PW;                       // funnel x, by sample size
+const i34=HZ.indexOf(34);
+const POOL=D.pooled, LOO=D.loo;
+const CY=Yv(POOL.delta);
+
+function axes(a,{xmode="h",zero=true}={}){
+  if(a<=0)return;
+  for(let v=-.6;v<=.56;v+=.2){
+    line([[M.l,Yv(v)],[M.l+PW,Yv(v)]],K.faint,1,.55*a);
+    tx(fm(v,1),M.l-14,Yv(v)+5,{size:13,col:K.dim,al:"right",a:.8*a});
+  }
+  if(zero) line([[M.l,Yv(0)],[M.l+PW,Yv(0)]],"#4a4a4a",1.5,a);
+  if(xmode==="h") HZ.forEach((h,i)=>tx("t"+h,Xh(i),M.t+PH+34,{size:14,col:K.dim,a:.85*a}));
+  else for(let p=0;p<=maxP;p+=50) tx(p,Xp(p),M.t+PH+34,{size:13,col:K.dim,a:.85*a});
+  tx(xmode==="h"?"控制步":"该初始状态的正负样本对数",M.l+PW/2,M.t+PH+66,
+     {size:15,col:K.dim,a:.9*a});
+}
+
+/* weight of a state's line: equal at first, then by sample size */
+function wOf(r,byPairs){
+  const f=r.pairs/maxP;
+  return {lw:lp(2.2,.9+2.9*f,byPairs), op:lp(.62,.13+.62*f,byPairs)};
+}
+/* a state's polyline under three simultaneous morphs */
+function statePts(r,collapse,fly){
+  const ex=Xh(i34), fx=Xp(r.pairs), ey=Yv(r.delta[i34]);
+  const px=lp(ex,fx,fly);
+  return HZ.map((_,i)=>{
+    const x=lp(Xh(i),px,Math.max(collapse,fly));
+    const y=lp(Yv(r.delta[i]),ey,collapse);
+    return [x,y];
+  });
+}
+
+const SC=[{n:"一条"},{n:"十三条"},{n:"重新加权"},{n:"压成终点"},
+          {n:"漏斗"},{n:"合并"},{n:"留一"},{n:"边界"}];
+const DUR=[7,8,9,8,9,8,11,9];
+const TOT=DUR.reduce((a,b)=>a+b,0);
+const AT=DUR.reduce((a,x)=>(a.push(a[a.length-1]+x),a),[0]);
+
+/* ---------- the eight stages ---------- */
+function st0(p){                                     // one state
+  axes(sg(p,.05,.25));
+  const r=PS[0], n=Math.round(ei(sg(p,.22,.62))*(NH-1))+1;
+  const pts=statePts(r,0,0).slice(0,Math.max(n,1));
+  line(pts,K.blue,2.6,1,6);
+  pts.forEach(q=>dot(q[0],q[1],4,K.blue));
+  writeOn("一个初始状态",CX(),74,sg(p,.04,.22),{size:32,w:600,ls:1});
+  writeOn(`state ${r.state}　${r.n_success} 成功 / ${r.n_stasis} 陷入`,
+          CX(),108,sg(p,.16,.36),{size:17,col:K.dim});
+  writeOn("MoE 在非特权信号之上的增量",CX(),H-42,sg(p,.55,.78),{size:20,col:K.dim});
+}
+function CX(){return M.l+PW/2;}
+
+function st1(p){                                     // all thirteen fan in
+  axes(1);
+  PS.forEach((r,k)=>{
+    const a=sg(p,.06+k*.052,.06+k*.052+.2);
+    if(a<=0)return;
+    const w=wOf(r,0);
+    line(statePts(r,0,0),K.blue,w.lw,w.op*a);
+  });
+  writeOn("13 个初始状态",CX(),74,sg(p,.02,.2),{size:32,w:600,ls:1});
+  writeOn("看起来一团乱",CX(),H-42,sg(p,.72,.92),{size:22,col:K.dim});
+}
+function st2(p){                                     // re-weight by sample size
+  axes(1);
+  const b=ei(sg(p,.12,.62));
+  PS.forEach(r=>{const w=wOf(r,b); line(statePts(r,0,0),K.blue,w.lw,w.op);});
+  writeOn("但它们不该被同等对待",CX(),74,sg(p,.02,.2),{size:32,w:600,ls:1});
+  const tiny=PS.filter(r=>r.n_stasis<=2);
+  if(b>.5) tiny.forEach((r,k)=>{
+    const a=sg(p,.5+k*.05,.5+k*.05+.18);
+    const y=Yv(r.delta[i34]);
+    tx(`state ${r.state}：只有 ${r.n_stasis} 条失败`,Xh(i34)+18,y+5,
+       {size:14,col:K.red,al:"left",a});
+  });
+  writeOn("线的粗细＝该状态的正负样本对数",CX(),H-42,sg(p,.66,.88),{size:20,col:K.dim});
+}
+function st3(p){                                     // collapse to the t34 endpoint
+  axes(1);
+  const c=ei(sg(p,.14,.72));
+  PS.forEach(r=>{const w=wOf(r,1);
+    line(statePts(r,c,0),K.blue,w.lw,w.op*(1-.45*c));
+    if(c>.25) dot(Xh(i34),Yv(r.delta[i34]),lp(0,5.5,sg(c,.25,1)),
+                  r.delta[i34]>=0?K.blue:K.red,1);});
+  writeOn("把每条线压成它在 t34 的终点",CX(),74,sg(p,.02,.2),{size:32,w:600,ls:1});
+}
+function st4(p){                                     // fly out into the funnel
+  const f=ei(sg(p,.1,.68));
+  axes(1,{xmode:f>.5?"p":"h"});
+  PS.forEach(r=>{
+    const ex=Xh(i34), fx=Xp(r.pairs);
+    const x=lp(ex,fx,f), y=Yv(r.delta[i34]);
+    dot(x,y,6,r.delta[i34]>=0?K.blue:K.red,1);
+  });
+  if(f>.55){
+    const a=sg(p,.6,.8);
+    line([[Xp(100),M.t],[Xp(100),M.t+PH]],"#4a4a4a",1.4,a);
+    tx("对数 100",Xp(100)+9,M.t+22,{size:14,col:K.dim,al:"left",a});
+  }
+  writeOn("按样本量把它们排开",CX(),74,sg(p,.02,.2),{size:32,w:600,ls:1});
+  writeOn("样本越少，散得越开",CX(),H-42,sg(p,.7,.9),{size:22,col:K.dim});
+}
+function st5(p){                                     // converge to the pooled number
+  const m=ei(sg(p,.12,.66));
+  axes(1-.7*m,{xmode:"p"});
+  PS.forEach(r=>{
+    const x=lp(Xp(r.pairs),CX(),m), y=lp(Yv(r.delta[i34]),CY,m);
+    dot(x,y,lp(6,3,m),r.delta[i34]>=0?K.blue:K.red,lp(1,.30,m));
+  });
+  if(m>.35){
+    const a=sg(m,.35,1);
+    dot(CX(),CY,lp(4,9,a),K.hot,a);
+    tx(fm(POOL.delta),CX(),CY-34,{size:46,col:K.hot,w:600,a});
+  }
+  writeOn("按样本量加权合并",CX(),74,sg(p,.02,.2),{size:32,w:600,ls:1});
+  writeOn("t20–t34 三个控制步取平均",CX(),H-42,sg(p,.62,.84),{size:20,col:K.dim});
+}
+function st6(p){                                     // leave-one-out jitter
+  axes(.22,{xmode:"p",zero:true});
+  const k=Math.min(LOO.length-1,Math.floor(sg(p,.1,.86)*LOO.length));
+  const shown=LOO.slice(0,Math.max(0,k+1));
+  shown.forEach((r,i)=>dot(CX(),Yv(r.delta),4.5,K.blue,i===k?1:.4));
+  const cur=LOO[k];
+  dot(CX(),Yv(cur.delta),9,K.hot,1);
+  tx(fm(cur.delta),CX(),Yv(cur.delta)-30,{size:40,col:K.hot,w:600});
+  tx(`剔掉 state ${cur.dropped}`,CX(),Yv(cur.delta)+40,{size:18,col:K.dim});
+  writeOn("剔掉任意一个初始状态，重算一次",CX(),74,sg(p,.02,.18),{size:32,w:600,ls:1});
+  if(p>.88){
+    const lo=Math.min(...LOO.map(r=>r.delta)), hi=Math.max(...LOO.map(r=>r.delta));
+    const a=sg(p,.88,1);
+    line([[CX()-190,Yv(lo)],[CX()+190,Yv(lo)]],K.dim,1,.6*a);
+    line([[CX()-190,Yv(hi)],[CX()+190,Yv(hi)]],K.dim,1,.6*a);
+    tx(`13 次全部落在 ${fm(lo)} ~ ${fm(hi)}`,CX(),H-42,{size:22,col:K.ink,a,w:600});
+  }
+}
+function st7(p){                                     // the interval, and the boundary
+  axes(.18,{xmode:"p"});
+  const a=sg(p,.04,.3);
+  const yl=Yv(POOL.ci[0]), yh=Yv(POOL.ci[1]);
+  g.save(); g.globalAlpha=.16*a; g.fillStyle=K.blue;
+  g.beginPath(); g.roundRect(CX()-210,yh,420,yl-yh,7); g.fill(); g.restore();
+  line([[CX()-210,yl],[CX()+210,yl]],K.blue,2,a);
+  line([[CX()-210,yh],[CX()+210,yh]],K.blue,2,a);
+  dot(CX(),CY,9,K.hot,a);
+  tx(fm(POOL.delta),CX(),CY-36,{size:52,col:K.hot,w:600,a});
+  tx(`95% CI [${fm(POOL.ci[0])}, ${fm(POOL.ci[1])}]　p=${POOL.p_one_sided.toFixed(3)}`,
+     CX(),CY+46,{size:20,col:K.dim,a:sg(p,.2,.4)});
+  writeOn("MoE 对「已经卡住」的检测有真实增量",CX(),74,sg(p,.02,.2),{size:30,w:600,ls:1});
+  writeOn("但只在 t20 之后 —— 陷入之前它是 0",CX(),H-76,sg(p,.5,.72),
+          {size:23,col:K.red,w:600});
+  writeOn("是状态读出，不是提前预警",CX(),H-40,sg(p,.68,.88),{size:19,col:K.dim});
+}
+const FN=[st0,st1,st2,st3,st4,st5,st6,st7];
+
+/* ---------- driver ---------- */
+let clock=1.4,playing=false,last=0;
+function frame(){
+  g.fillStyle=K.bg; g.fillRect(0,0,W,H);
+  let i=0; for(let k=0;k<AT.length-1;k++) if(clock>=AT[k]) i=k;
+  i=Math.min(i,FN.length-1);
+  const p=cl((clock-AT[i])/DUR[i],0,1);
+  const io=Math.min(sg(p,0,.05),1-sg(p,.95,1));
+  g.save(); g.globalAlpha=cl(io*10+.15,0,1); FN[i](p); g.restore();
+  document.getElementById("sc").value=Math.round(clock/TOT*1000);
+  document.getElementById("tm").textContent=clock.toFixed(1)+" / "+TOT+"s";
+  document.querySelectorAll("#ch button").forEach((b,k)=>b.classList.toggle("on",k===i));
+}
+function loop(ts){
+  if(playing){ if(last) clock=Math.min(TOT,clock+(ts-last)/1000); last=ts;
+    if(clock>=TOT){playing=false;document.getElementById("p").textContent="▶";}
+    frame(); } else last=0;
+  requestAnimationFrame(loop);
+}
+document.getElementById("p").addEventListener("click",e=>{
+  playing=!playing; if(clock>=TOT)clock=0; last=0; e.target.textContent=playing?"❚❚":"▶";});
+document.getElementById("sc").addEventListener("input",e=>{
+  playing=false; document.getElementById("p").textContent="▶";
+  clock=e.target.value/1000*TOT; frame();});
+document.getElementById("ch").innerHTML=SC.map((s,i)=>
+  `<button data-i="${i}">${i+1} ${s.n}</button>`).join("");
+document.querySelectorAll("#ch button").forEach(b=>b.addEventListener("click",()=>{
+  playing=false; document.getElementById("p").textContent="▶";
+  clock=AT[+b.dataset.i]+.02; frame();}));
+frame(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

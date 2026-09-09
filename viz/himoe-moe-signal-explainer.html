@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HB-MoE 状态编码了物理状态读不出的陷入信息</title>
+<style>
+:root{
+  color-scheme: light;
+  --plane:#f9f9f7; --surface:#fcfcfb;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --pos:#2a78d6; --neg:#e34948; --mid:#f0efec;
+  --seq:#2a78d6; --seq-soft:#cde2fb;
+  --good:#006300;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface:#1a1a19;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --pos:#3987e5; --neg:#e66767; --mid:#383835;
+    --seq:#3987e5; --seq-soft:#184f95;
+    --good:#0ca30c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0d0d0d; --surface:#1a1a19;
+  --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --pos:#3987e5; --neg:#e66767; --mid:#383835;
+  --seq:#3987e5; --seq-soft:#184f95;
+  --good:#0ca30c;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--plane); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:48px 24px 96px}
+header{margin-bottom:8px}
+h1{font-size:30px;line-height:1.35;margin:0 0 12px;letter-spacing:-.01em}
+h2{font-size:20px;margin:56px 0 8px;letter-spacing:-.005em}
+h3{font-size:15px;margin:0 0 4px;font-weight:600}
+p{margin:12px 0;color:var(--ink-2)}
+.lede{font-size:17px;color:var(--ink);max-width:74ch}
+.sub{font-size:13.5px;color:var(--muted);margin-top:2px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;
+  background:var(--surface);border:1px solid var(--ring);border-radius:4px;padding:1px 5px}
+a{color:inherit}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;
+  padding:22px 24px 18px;margin:18px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin:24px 0 8px}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:16px 18px}
+.tile .lab{font-size:12.5px;color:var(--muted);letter-spacing:.01em}
+.tile .val{font-size:32px;font-weight:600;line-height:1.15;margin-top:6px;color:var(--ink)}
+.tile .note{font-size:12.5px;color:var(--ink-2);margin-top:4px}
+.hero .val{font-size:46px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin:2px 0 14px;font-size:13px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.key{width:16px;height:3px;border-radius:2px;display:inline-block}
+.key.dot{width:10px;height:10px;border-radius:50%}
+.chartbox{position:relative}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.gl{stroke:var(--grid);stroke-width:1}
+.ax{stroke:var(--axis);stroke-width:1}
+.tk{fill:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.al{fill:var(--ink-2);font-size:12px}
+.dl{fill:var(--ink);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.ann{fill:var(--muted);font-size:11.5px}
+.hit{fill:transparent;cursor:crosshair}
+.tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
+  background:var(--surface);border:1px solid var(--ring);border-radius:8px;
+  padding:9px 11px;font-size:12.5px;color:var(--ink);
+  box-shadow:0 6px 22px rgba(0,0,0,.13);white-space:nowrap;z-index:20;
+  font-variant-numeric:tabular-nums}
+.tip b{font-weight:600}
+.tip .r{display:flex;align-items:center;gap:7px;margin-top:3px;color:var(--ink-2)}
+.toolbar{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+button{font:inherit;font-size:12.5px;color:var(--ink-2);background:var(--surface);
+  border:1px solid var(--ring);border-radius:7px;padding:4px 11px;cursor:pointer}
+button:hover{color:var(--ink)}
+button[aria-pressed="true"]{color:var(--ink);border-color:var(--axis)}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:12px;
+  font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:7px 10px;border-bottom:1px solid var(--grid)}
+th:first-child,td:first-child{text-align:left;font-variant-numeric:normal}
+th{color:var(--muted);font-weight:500;font-size:12px}
+[hidden]{display:none!important}
+.callout{border-left:3px solid var(--axis);padding:2px 0 2px 16px;margin:20px 0}
+.callout.good{border-left-color:var(--good)}
+.callout.bad{border-left-color:var(--neg)}
+.retract{border:1px solid var(--neg);border-left:4px solid var(--neg);border-radius:10px;
+  padding:16px 20px;margin:22px 0;background:var(--surface)}
+.retract h3{color:var(--neg);font-size:15px;margin:0 0 6px}
+.retract p{margin:8px 0;font-size:14.5px}
+.struck{text-decoration:line-through;color:var(--muted)}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:16px 0}
+ol.steps li{counter-increment:s;position:relative;padding-left:38px;margin:14px 0;color:var(--ink-2)}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;
+  width:24px;height:24px;border-radius:50%;background:var(--surface);
+  border:1px solid var(--ring);color:var(--ink);font-size:12px;font-weight:600;
+  display:grid;place-items:center}
+ol.steps b{color:var(--ink)}
+.themetoggle{position:fixed;top:16px;right:16px;z-index:30}
+footer{margin-top:64px;padding-top:20px;border-top:1px solid var(--grid);
+  font-size:12.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<button class="themetoggle" id="tt" aria-label="切换明暗主题">◐ 主题</button>
+<div class="wrap">
+
+<header>
+  <h1>HB-MoE 内部状态可用于<br>运行时的「已经卡住」检测</h1>
+  <p class="lede">
+    三个 LIBERO 子集、各 512 条闭环 rollout。在<b>同一时刻、同一批 rollout、同一套交叉验证折</b>下，
+    把 MoE 状态加到<b>非特权信号</b>（本体感受＋自身发出的指令）之上，判别力还能再涨。
+    检测的是<b>主导失败模式</b>——机器人停止推进，占观察到的全部失败的 <b>90%</b>（275/307）。
+    这是本页唯一经受住全部对照的结论。
+  </p>
+  <p class="sub">
+    全部为 LIBERO 仿真，<b>没有任何真实机器人实验</b>。「非特权」指对照组不含模拟器物体位姿，
+    而不是指硬件。
+  </p>
+</header>
+
+<div class="retract">
+  <h3>2026-08-27 更正：本页原标题的主张已被推翻</h3>
+  <p class="struck">原：HB-MoE 内部状态编码了物理状态读不出的陷入信息（t27 +0.114）</p>
+  <p>
+    下面「结果二」测的是 MoE 相对<b>原始</b>模拟器状态的增量。但该对照组的读出器是 PCA ＋ 线性 ridge，
+    它<b>算不出</b>「夹爪到壶的距离」这类非线性几何量——坐标全在输入里，可线性模型只能加权求和。
+    补上 17 个相对几何量后，增量从 <b>+0.114 掉到 +0.005</b>，而手工几何量自己贡献 +0.045，
+    比全部 MoE 特征还管用。所以那是<b>读出缺口，不是信息缺口</b>。
+  </p>
+  <p>
+    策略在运行时本来就拿不到物体位姿。换成非特权对照后结论仍然成立，且扛住了针对性攻击——
+    见下方「结果二（更正版）」。原图与原数保留在页面上，未作删改。
+  </p>
+</div>
+
+<div class="tiles">
+  <div class="tile hero">
+    <div class="lab">MoE 在<b>非特权信号</b>之上的增量 · t20–t34 合并</div>
+    <div class="val" style="color:var(--good)">+0.043</div>
+    <div class="note">95% CI [+0.006, +0.086]，p=0.012；留一 13 次全为正</div>
+  </div>
+  <div class="tile">
+    <div class="lab">t34 · 非特权基线 → 加 MoE</div>
+    <div class="val">0.853<span style="font-size:20px;color:var(--muted)"> → </span>0.918</div>
+    <div class="note">针对性「原地打转」特征工程只值 +0.002</div>
+  </div>
+  <div class="tile">
+    <div class="lab">t12 · 显著的检验数</div>
+    <div class="val">0<span style="font-size:20px;color:var(--muted)"> / 108</span></div>
+    <div class="note">陷入前没有任何信号</div>
+  </div>
+  <div class="tile">
+    <div class="lab">最早的陷入起点</div>
+    <div class="val">t15</div>
+    <div class="note">t7 / t12 早于全部 197 条</div>
+  </div>
+</div>
+
+<h2>为什么这不是平凡结论</h2>
+<p>
+  "内部状态能预测失败"本身几乎必然成立——网络当然知道自己在干什么。这个实验有价值，
+  全在于它排掉了四个平凡解释：
+</p>
+
+<ol class="steps">
+  <li><b>标签不是从 MoE 来的。</b> 停滞陷入由<b>未来的模拟器物体位姿</b>定义：取成功轨迹终点集合的留出最近邻距离，
+      若历史最佳距离仍 &gt; 5cm 且未来再也改善不了 1cm，就记为陷入，起点是第一个满足的控制步。
+      216 条失败里 197 条属于这一类，19 条非同类失败被排除。参照集还剔除了同 initial state 和同 seed 的成功轨迹，
+      避免用自己预测自己。</li>
+  <li><b>特征严格因果。</b> 评估第 <i>t</i> 步时，所有预测量只用 ≤ <i>t</i> 的数据，历史窗 7。没有任何一个特征读到未来。</li>
+  <li><b>比较发生在同一个初始状态内部。</b> 512 条 = 16 个 initial state × 32 个 flow-noise seed。
+      同一个 state 里 32 条的物理初始条件<b>完全相同</b>，只有去噪噪声不同。AUC 只在同一 state 内部配对正负样本再加权合并，
+      所以"某些场景本来就难"这个混淆被结构性地消掉了。</li>
+  <li><b>泛化同时留出场景和种子。</b> 4×4 双重留出：训练折与测试折既不共享 initial state，也不共享 noise seed（16 折，每条样本恰好被测一次）。
+      每个特征块只用训练折做标准化 + 白化 PCA-12，读出器是固定的 ridge。</li>
+</ol>
+
+<div class="callout">
+  <p style="margin:4px 0">
+    在这个骨架上，"MoE 组"和"物理组"是<b>唯一的变量</b>：同样的标签、同样的折、同样的降维容量、同样的读出器，
+    只换喂进去的特征块。所以两条曲线之间的差就是"表征里有什么"的差。
+  </p>
+</div>
+
+<h2>结果一：MoE 曲线高于物理基线</h2>
+<p class="sub">within-initial-state 配对加权 AUC；0.5 为随机。灰带是 197 条陷入的实际发生区间。</p>
+
+<div class="card">
+  <div class="legend" id="lg1"></div>
+  <div class="chartbox"><div id="c1"></div><div class="tip" id="t1"></div></div>
+  <div class="toolbar"><button id="b1" aria-pressed="false">表格</button></div>
+  <div id="tb1" hidden></div>
+</div>
+
+<p>
+  t7 和 t12 都落在灰带<b>左侧</b>——早于全部 197 条陷入起点（最早 t15）。那里三条线都贴着 0.5，
+  MoE 甚至略低于物理状态。真正分开是从 t20 之后：到 t27，MoE 0.838 对模拟器 0.705；
+  t34 两者 0.923 对 0.879。
+</p>
+
+<h2>结果二（已撤回）：把 MoE 加到模拟器真值之上</h2>
+<p class="sub">
+  同一批 rollout、同一套折的配对 bootstrap；两个模型只差 MoE 那几个特征块。
+  区间是重采样 initial state 后的版本（原脚本只在 state 内部重采样，区间偏窄约 1.6 倍）。
+  <b>此结果已被几何对照推翻，图与数保留作记录，结论见下方红框。</b>
+</p>
+
+<div class="card">
+  <div class="legend" id="lg2"></div>
+  <div class="chartbox"><div id="c2"></div><div class="tip" id="t2"></div></div>
+  <div class="toolbar"><button id="b2" aria-pressed="false">表格</button></div>
+  <div id="tb2" hidden></div>
+</div>
+
+<div class="retract">
+  <h3>这一段原本是本页的核心论证，现已撤回</h3>
+  <p class="struck">
+    原：模拟器状态是物理真值，如果 MoE 只是把它换了种写法，这条曲线应该恒等于 0。
+    它在 t27 是 +0.114、t34 是 +0.038，两个区间都排除 0，所以 MoE 里有一份物理状态没有的陷入信息。
+  </p>
+  <p>
+    这个推理有一个洞：曲线恒等于 0 的前提是<b>读出器能把物理状态里的信息全都取出来</b>。
+    而这里的读出器是线性的，取不出「夹爪到壶多远」——那是坐标的平方和开根号。
+    把这类量直接喂给对照组之后：
+  </p>
+  <table style="margin-top:10px">
+  <thead><tr><th>对比</th><th>t27</th><th>t34</th></tr></thead>
+  <tbody>
+  <tr><td>MoE 相对<b>原始</b>模拟器状态（下图所示）</td><td>+0.114</td><td>+0.039</td></tr>
+  <tr><td>MoE 相对<b>补了几何量</b>的模拟器状态</td><td>+0.025 <span class="struck">跨 0</span></td><td><b>+0.005</b> <span class="struck">跨 0</span></td></tr>
+  <tr><td>光是补几何量、不含 MoE</td><td>+0.083</td><td>+0.045</td></tr>
+  </tbody></table>
+  <p>下图与其数值保留原样，作为记录。</p>
+</div>
+<div class="callout bad">
+  <p style="margin:4px 0">
+    同一张图也是反例：t7 是 <b>−0.056</b>、t12 是 <b>−0.022</b>。陷入之前，加 MoE 不但没帮忙，点估计还是负的。
+    这就是不能写"预示 / precursor / 早期预警"的原因。
+  </p>
+</div>
+
+<h2>结果三：分解到具体特征族</h2>
+<p class="sub">t34，同一套折。<b>下方原本据此得出的「路由是载体」结论已撤回，见图后红框。</b></p>
+
+<div class="card">
+  <div class="chartbox"><div id="c3"></div><div class="tip" id="t3"></div></div>
+  <div class="toolbar"><button id="b3" aria-pressed="false">表格</button></div>
+  <div id="tb3" hidden></div>
+</div>
+
+<div class="retract">
+  <h3>「信号坐落在路由行为上」——这个推论是错的</h3>
+  <p class="struck">
+    原：route_history 0.924 与 moe_history 0.923 持平，都高于 hidden_history 0.897，
+    所以信号坐落在路由行为上，不只是隐状态。
+  </p>
+  <p>
+    0.924 / 0.923 / 0.897 是三个<b>点估计</b>，直接比大小不构成证据。做配对 bootstrap 之后：
+  </p>
+  <table style="margin-top:10px">
+  <thead><tr><th>对比</th><th>t27</th><th>t34</th></tr></thead><tbody>
+  <tr><td>route+hidden　−　仅 hidden</td><td>+0.025 [−0.047,+0.089]</td><td>+0.027 [−0.010,+0.061]</td></tr>
+  <tr><td>route+hidden　−　仅 route</td><td>+0.030 [−0.035,+0.099]</td><td>−0.001 [−0.026,+0.018]</td></tr>
+  </tbody></table>
+  <p>
+    <b>双向都跨 0</b>——路由和隐状态互为替代，谁也不比谁多知道什么。这与另一实验一致：
+    路由的「粘滞占用率」与「路由器输入自身的稳定度」相关系数 <b>r=0.934</b>，
+    把输入回归掉后 AUC 从 0.836 掉到 <b>0.419</b>。所以只能说「HB block 的状态」，
+    不能说「路由」或「被选中的专家」。
+  </p>
+</div>
+
+<h2>边界一：陷入之前什么都没有</h2>
+<p class="sub">
+  同一批 32 条 state-42 rollout 上累计跑过 359 个确认检验，各报告实际施加的最大 Bonferroni 是 36。
+  按 359 校正后只有 11 个存活，<b>全部在 t34</b>。
+</p>
+
+<div class="card">
+  <div class="chartbox"><div id="c4"></div><div class="tip" id="t4"></div></div>
+  <div class="toolbar"><button id="b4" aria-pressed="false">表格</button></div>
+  <div id="tb4" hidden></div>
+</div>
+
+<p>
+  t12 是 108 个检验里 <b>0 个</b> raw p&lt;0.05；t7 的 3 个还低于纯随机期望（约 5.4 个）。
+  换句话说早期不是"信号弱"，是<b>确实没有</b>。
+</p>
+
+<h2>边界二：t27 / t34 在陷入之后，是"读出"不是"预测"</h2>
+<p class="sub">197 条停滞陷入的行为学起点分布；竖线是五个评估时刻。</p>
+
+<div class="card">
+  <div class="chartbox"><div id="c5"></div><div class="tip" id="t5"></div></div>
+  <div class="toolbar"><button id="b5" aria-pressed="false">表格</button></div>
+  <div id="tb5" hidden></div>
+</div>
+
+<p>
+  中位起点 t19，p90 是 t30。所以 t27 已经越过一半以上的陷入点，t34 越过九成。
+  能站住的说法是"MoE 状态可用于<b>检测</b>已经形成的陷入"，<b>不是</b>"MoE 提前预警"。
+  按各自 onset 重新对齐后，Δ=−6…0 的 AUC 只有 0.52–0.57——用了比固定 t7/t12 强得多的设计，
+  前兆仍然是零。
+</p>
+
+<h2>跨任务复现</h2>
+<p class="sub">
+  控制步不是固定标尺：效应出现在 scene8 的 t20，而上限是 52，即<b>行程的 38%</b>。
+  按各任务自己的时间尺度换算后，等价时刻都落在该任务的共同队列内（全员存活），可以直接测。
+</p>
+<div class="card">
+<table>
+<thead><tr><th>任务</th><th>失败</th><th>停滞型</th><th style="text-align:left">测量窗口</th><th>增量</th><th style="text-align:left">95% CI</th><th>p</th><th>可用簇</th></tr></thead>
+<tbody>
+<tr><td>libero_long / scene8</td><td>216</td><td>91%</td><td style="text-align:left">t20–t34（38–65%）</td><td>+0.043</td><td style="text-align:left">[+0.006, +0.086]</td><td>0.012</td><td>13</td></tr>
+<tr><td>libero_goal / 开抽屉放碗</td><td>42</td><td>100%</td><td style="text-align:left">t12–t16（40–53%）</td><td>+0.112</td><td style="text-align:left">[−0.016, +0.274]</td><td>0.049</td><td>7</td></tr>
+<tr><td>libero_spatial / 炉上的碗</td><td>37</td><td>95%</td><td style="text-align:left">t8–t10（36–45%）</td><td>+0.043</td><td style="text-align:left">[+0.008, +0.102]</td><td>0.001</td><td>11</td></tr>
+<tr><td>libero_spatial / ramekin 上的碗</td><td>12</td><td>8%</td><td style="text-align:left" colspan="4">仅 1 个可用初始状态，测不了；且其失败 83% 是「放错位置」</td></tr>
+</tbody></table>
+<p class="sub" style="margin-top:12px">
+  三个点估计全为正，Fisher 合并 <b>p = 7.6e-5</b>。时间形状也一致：早期为负或零，后期转正并增长
+  （goal 任务 t10 是 −0.062，t16 是 +0.121）。
+</p>
+</div>
+<div class="callout bad">
+  <p style="margin:4px 0">
+    <b>两点必须一起说。</b> 一，spatial/炉上的碗有<b>天花板效应</b>——它 78% 的失败是「根本没抓起来」，
+    非特权基线本身就有 0.84–0.99，MoE 把 0.92 推到 0.999，增量真实但问题本身容易。
+    二，goal 任务的 CI 含 0（仅 7 个簇），只有单侧 p=0.049，属边缘。
+  </p>
+</div>
+
+<h2>可以写 / 不可以写</h2>
+<div class="card">
+<table>
+<thead><tr><th>说法</th><th style="text-align:left">依据</th><th style="text-align:left">判定</th></tr></thead>
+<tbody>
+<tr><td>MoE 状态对<b>主导失败模式</b>（停止推进）的检测，在非特权信号之上有增量</td><td style="text-align:left">该模式占全部失败的 90%（275/307）。三任务复现，Fisher p=7.6e-5；留一 13 次全为正；对抗特征工程只值 +0.002</td><td style="text-align:left;color:var(--good)">✓ 可写</td></tr>
+<tr><td class="struck">对失败的检测（不限模式）</td><td style="text-align:left">同一检测器对另外 10% 的失败（放错位置、抓到又丢）AUC 仅 <b>0.557</b> [0.444, 0.750]，含 0.5；而停滞型是 0.794 [0.712, 0.863]</td><td style="text-align:left;color:var(--neg)">✗ 需限定模式</td></tr>
+<tr><td class="struck">HB-MoE 状态携带物理状态之外的陷入信息</td><td style="text-align:left"><span class="struck">t27 +0.114；t34 +0.038</span><br>补几何量后 → +0.025 / +0.005，均跨 0</td><td style="text-align:left;color:var(--neg)">✗ 已撤回</td></tr>
+<tr><td class="struck">路由行为本身是载体，不只是隐状态</td><td style="text-align:left"><span class="struck">route 0.924 ≈ moe 0.923 &gt; hidden 0.897</span><br>这是拿三个点估计比大小。配对检验：route+hidden − hidden = +0.027 [−0.010,+0.061]，反向 −0.001 [−0.026,+0.018]，<b>双向都跨 0</b></td><td style="text-align:left;color:var(--neg)">✗ 已撤回</td></tr>
+<tr><td>陷入前 7/12 步无可解码信号</td><td style="text-align:left">0/108 与 3/108；按各自 onset 对齐后 Δ=−6…0 的 AUC 仅 0.52–0.57</td><td style="text-align:left;color:var(--good)">✓ 可写（负结果）</td></tr>
+<tr><td>MoE 预示 / 预警陷入</td><td style="text-align:left">t7/t12 增量为负，t27/t34 在起点之后</td><td style="text-align:left;color:var(--neg)">✗ 不可写</td></tr>
+<tr><td>是被选中专家（routed expert）特异的</td><td style="text-align:left">另一实验 base_routed − base = −0.009</td><td style="text-align:left;color:var(--neg)">✗ 不可写</td></tr>
+<tr><td>MoE 状态导致了陷入</td><td style="text-align:left">无干预，全部为离线解码</td><td style="text-align:left;color:var(--neg)">✗ 不可写</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout">
+  <p style="margin:4px 0">
+    <b>剩下的弱点，如实说。</b> 修正后 t27 下界 +0.009、t34 下界 +0.003，都很薄；
+    单任务、单确认场景、n=32。要把它做实，需要的是新数据而不是新分析：
+    在 t15–t20 做 snapshot 分叉重采样，或者换一个从未读取过的 initial state 做真确认。
+  </p>
+</div>
+
+<footer>
+  数据：<code>rerun-2026-08-27/token-dynamics/</code> ·
+  曲线与区间出自 <code>state_ci_comparison.json</code>、
+  增量出自 <code>paired_increment_ci.json</code>、
+  陷入起点出自 <code>early_structure_scores.npz</code>。
+  全部经 11/11 逐字节复现验证。所有区间为 2,000–20,000 次 cluster bootstrap（重采样 initial state）。
+</footer>
+
+</div>
+
+<script>
+const DATA = {"horizons":[7,12,20,27,34],"curves":{"moe_history":[{"t":7,"auc":0.46195652173913043,"lo":0.3668276677264205,"hi":0.5548337115204678,"pub_lo":0.38302065556719694,"pub_hi":0.5401237243541647},{"t":12,"auc":0.5640096618357487,"lo":0.4538538311482103,"hi":0.6715592897306303,"pub_lo":0.48772266204849085,"pub_hi":0.637893165016755},{"t":20,"auc":0.6400966183574879,"lo":0.5225875850066072,"hi":0.7533345235994767,"pub_lo":0.5666388865309187,"pub_hi":0.7164729339588596},{"t":27,"auc":0.8375603864734299,"lo":0.7407037237321288,"hi":0.9166666666666666,"pub_lo":0.7731949827972291,"pub_hi":0.895382741489608},{"t":34,"auc":0.9233091787439613,"lo":0.8209613311024354,"hi":0.9890380608516954,"pub_lo":0.8745299445092537,"pub_hi":0.9653284981664988}],"route_history":[{"t":7,"auc":0.4776570048309179,"lo":0.3491605640242778,"hi":0.5877723924215356,"pub_lo":0.3962735943831136,"pub_hi":0.564489244347248},{"t":12,"auc":0.5718599033816425,"lo":0.46173747596305764,"hi":0.6784542076355815,"pub_lo":0.48941974307680397,"pub_hi":0.650549213640969},{"t":20,"auc":0.6376811594202898,"lo":0.5105012578881534,"hi":0.7695690986591478,"pub_lo":0.5617948110749758,"pub_hi":0.7103193240496126},{"t":27,"auc":0.8073671497584541,"lo":0.6923967842518501,"hi":0.8954322144766734,"pub_lo":0.7416934345661899,"pub_hi":0.8656019397006114},{"t":34,"auc":0.9239130434782609,"lo":0.8277716378061363,"hi":0.9871288916138701,"pub_lo":0.8761264882182919,"pub_hi":0.9663866987124068}],"hidden_history":[{"t":7,"auc":0.4251207729468599,"lo":0.30983205543614256,"hi":0.5355551023676892,"pub_lo":0.34364254244573395,"pub_hi":0.5095201106375887},{"t":12,"auc":0.6207729468599034,"lo":0.5119242393913961,"hi":0.7306924898166043,"pub_lo":0.5407828526837609,"pub_hi":0.6993542162222511},{"t":20,"auc":0.5567632850241546,"lo":0.4232635717724344,"hi":0.6891769066330374,"pub_lo":0.479698407504363,"pub_hi":0.6297451899505953},{"t":27,"auc":0.8121980676328503,"lo":0.7064088200589057,"hi":0.9051706059347361,"pub_lo":0.749344735703701,"pub_hi":0.8695659191062958},{"t":34,"auc":0.8967391304347826,"lo":0.7950374360847333,"hi":0.9710843125870937,"pub_lo":0.8421562702872797,"pub_hi":0.9439258289183879}],"sim_history":[{"t":7,"auc":0.5283816425120773,"lo":0.39857261651419273,"hi":0.6415894328492832,"pub_lo":0.44551876903832566,"pub_hi":0.6112043175794267},{"t":12,"auc":0.5609903381642513,"lo":0.4467103223174214,"hi":0.6852702942065458,"pub_lo":0.47960215274662465,"pub_hi":0.6383354791797305},{"t":20,"auc":0.5646135265700483,"lo":0.4234781446638464,"hi":0.7038481421276642,"pub_lo":0.4800224784427069,"pub_hi":0.6461085621989829},{"t":27,"auc":0.7053140096618358,"lo":0.5660403573382438,"hi":0.8178829305368679,"pub_lo":0.6252238977342315,"pub_hi":0.7815586422069497},{"t":34,"auc":0.8786231884057971,"lo":0.7718143115162983,"hi":0.9620974382881013,"pub_lo":0.821119961051896,"pub_hi":0.9319226281773967}],"proprio_history":[{"t":7,"auc":0.5621980676328503,"lo":0.4529776468275207,"hi":0.6668963379312841,"pub_lo":0.4816716299820881,"pub_hi":0.6441261628647891},{"t":12,"auc":0.517512077294686,"lo":0.3778684836874492,"hi":0.6625666016894086,"pub_lo":0.43418409620617704,"pub_hi":0.5950636721790815},{"t":20,"auc":0.6135265700483091,"lo":0.4905418867924528,"hi":0.7504965798799739,"pub_lo":0.5350837616175091,"pub_hi":0.6886731651554807},{"t":27,"auc":0.8061594202898551,"lo":0.6713577386131107,"hi":0.9057147971671093,"pub_lo":0.7358537107070581,"pub_hi":0.8725265853941854},{"t":34,"auc":0.8182367149758454,"lo":0.6883362108343721,"hi":0.9224499932290461,"pub_lo":0.7482347698128545,"pub_hi":0.8807597752852747}]},"increment":[{"t":7,"d":-0.05615942028985507,"lo":-0.18643100247152694,"hi":0.08382329698119148},{"t":12,"d":-0.021739130434782608,"lo":-0.14555084745762714,"hi":0.09647994488671148},{"t":20,"d":0.024154589371980676,"lo":-0.10594251480668661,"hi":0.14900807131694946},{"t":27,"d":0.11413043478260869,"lo":0.009205068380747378,"hi":0.22509055936895997},{"t":34,"d":0.03804347826086957,"lo":0.0033942814931224863,"hi":0.08663095558871867}],"onset":[{"t":15,"n":6},{"t":16,"n":47},{"t":17,"n":9},{"t":18,"n":23},{"t":19,"n":47},{"t":20,"n":15},{"t":21,"n":6},{"t":22,"n":3},{"t":23,"n":1},{"t":26,"n":1},{"t":28,"n":6},{"t":29,"n":12},{"t":30,"n":6},{"t":31,"n":1},{"t":32,"n":2},{"t":34,"n":2},{"t":36,"n":1},{"t":39,"n":1},{"t":51,"n":8}],"onset_stats":{"n":197,"median":19.0,"q10":16.0,"q90":30.0},"multiplicity":[{"t":7,"tests":108,"raw":3,"survive":0},{"t":12,"tests":108,"raw":0,"survive":0},{"t":34,"tests":137,"raw":102,"survive":11}],"cohort":{"rollouts":512,"included":493,"stasis":197,"failures":216,"states":16,"seeds":32}};
+
+/* ---------- helpers ---------- */
+const NS="http://www.w3.org/2000/svg";
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v,d=3) => (v>=0?"":"−")+Math.abs(v).toFixed(d);
+const sgn = (v,d=3) => (v>=0?"+":"−")+Math.abs(v).toFixed(d);
+const esc = s => String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function svg(w,h){
+  const s=document.createElementNS(NS,"svg");
+  s.setAttribute("viewBox",`0 0 ${w} ${h}`);
+  s.setAttribute("role","img");
+  return s;
+}
+function el(p,n,a={}){
+  const e=document.createElementNS(NS,n);
+  for(const k in a) e.setAttribute(k,a[k]);
+  p.appendChild(e); return e;
+}
+function txt(p,x,y,s,cls,anchor="start"){
+  const t=el(p,"text",{x,y,class:cls,"text-anchor":anchor});
+  t.textContent=s; return t;
+}
+function table(host,cols,rows){
+  const t=document.createElement("table");
+  t.innerHTML="<thead><tr>"+cols.map((c,i)=>
+    `<th${i===0?' style="text-align:left"':''}>${esc(c)}</th>`).join("")+"</tr></thead><tbody>"+
+    rows.map(r=>"<tr>"+r.map((c,i)=>
+      `<td${i===0?' style="text-align:left"':''}>${esc(c)}</td>`).join("")+"</tr>").join("")+"</tbody>";
+  host.innerHTML=""; host.appendChild(t);
+}
+function toggle(btnId,tblId){
+  const b=document.getElementById(btnId), t=document.getElementById(tblId);
+  b.addEventListener("click",()=>{
+    const on=t.hasAttribute("hidden");
+    if(on){t.removeAttribute("hidden");} else {t.setAttribute("hidden","");}
+    b.setAttribute("aria-pressed",String(on));
+  });
+}
+function tipOn(tip,host,px,py,html){
+  tip.innerHTML=html; tip.style.opacity="1";
+  const hb=host.getBoundingClientRect(), tb=tip.getBoundingClientRect();
+  let x=px-tb.width/2, y=py-tb.height-14;
+  x=Math.max(4,Math.min(hb.width-tb.width-4,x));
+  if(y<0) y=py+16;
+  tip.style.left=x+"px"; tip.style.top=y+"px";
+}
+
+/* ---------- chart 1: AUC over control step ---------- */
+const FAM1=[
+  {k:"moe_history",  n:"MoE（路由+隐状态）", c:"--s1"},
+  {k:"sim_history",  n:"模拟器状态",         c:"--s2"},
+  {k:"proprio_history", n:"本体感受",        c:"--s3"}
+];
+function chart1(){
+  const host=document.getElementById("c1"), tip=document.getElementById("t1");
+  const W=920,H=400,M={t:16,r:96,b:44,l:52};
+  const pw=W-M.l-M.r, ph=H-M.t-M.b;
+  const x0=5,x1=36,y0=0.38,y1=0.98;
+  const X=v=>M.l+(v-x0)/(x1-x0)*pw, Y=v=>M.t+(1-(v-y0)/(y1-y0))*ph;
+  host.innerHTML=""; const s=svg(W,H); host.appendChild(s);
+  s.setAttribute("aria-label","MoE 与物理基线的 within-state AUC 随控制步变化");
+
+  // onset band (earliest onset -> p90)
+  el(s,"rect",{x:X(15),y:M.t,width:X(30)-X(15),height:ph,fill:cssv("--grid"),opacity:.55});
+  txt(s,(X(15)+X(30))/2,M.t+14,"陷入发生区间","ann","middle");
+  txt(s,(X(15)+X(30))/2,M.t+29,"t15 – t30","ann","middle");
+
+  // grid + y ticks
+  for(let v=0.4;v<=0.98;v+=0.1){
+    el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(v),y2:Y(v),class:"gl"});
+    txt(s,M.l-10,Y(v)+4,v.toFixed(1),"tk","end");
+  }
+  // chance line
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(.5),y2:Y(.5),class:"ax"});
+  txt(s,M.l+6,Y(.5)-7,"随机 0.5","ann");
+  // x axis
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:M.t+ph,y2:M.t+ph,class:"ax"});
+  DATA.horizons.forEach(t=>txt(s,X(t),M.t+ph+20,"t"+t,"tk","middle"));
+  txt(s,M.l+pw/2,M.t+ph+40,"控制步","al","middle");
+  txt(s,M.l-38,M.t-4,"AUC","al");
+
+  FAM1.forEach(f=>{
+    const col=cssv(f.c), pts=DATA.curves[f.k];
+    const d=pts.map((p,i)=>(i?"L":"M")+X(p.t)+" "+Y(p.auc)).join(" ");
+    el(s,"path",{d,fill:"none",stroke:col,"stroke-width":2,
+      "stroke-linejoin":"round","stroke-linecap":"round"});
+    pts.forEach(p=>{
+      el(s,"circle",{cx:X(p.t),cy:Y(p.auc),r:4.5,fill:col,
+        stroke:cssv("--surface"),"stroke-width":2});
+    });
+    const last=pts[pts.length-1];
+    el(s,"circle",{cx:X(last.t)+16,cy:Y(last.auc),r:4,fill:col});
+    txt(s,X(last.t)+26,Y(last.auc)+4,last.auc.toFixed(3),"dl");
+  });
+
+  // hover
+  const hit=el(s,"rect",{x:M.l,y:M.t,width:pw,height:ph,class:"hit"});
+  const cross=el(s,"line",{x1:0,x2:0,y1:M.t,y2:M.t+ph,class:"ax",opacity:0});
+  hit.addEventListener("pointermove",ev=>{
+    const r=s.getBoundingClientRect();
+    const vx=x0+((ev.clientX-r.left)/r.width*W-M.l)/pw*(x1-x0);
+    let best=DATA.horizons[0];
+    DATA.horizons.forEach(t=>{if(Math.abs(t-vx)<Math.abs(best-vx))best=t;});
+    cross.setAttribute("opacity",1);
+    cross.setAttribute("x1",X(best)); cross.setAttribute("x2",X(best));
+    let html=`<b>t${best}</b>`;
+    FAM1.forEach(f=>{
+      const p=DATA.curves[f.k].find(q=>q.t===best);
+      html+=`<div class="r"><span class="key dot" style="background:${cssv(f.c)}"></span>`+
+            `${f.n} <b style="color:var(--ink)">${p.auc.toFixed(3)}</b> `+
+            `<span style="color:var(--muted)">[${p.lo.toFixed(2)}, ${p.hi.toFixed(2)}]</span></div>`;
+    });
+    const hb=host.getBoundingClientRect();
+    tipOn(tip,host,(X(best)/W)*hb.width,ev.clientY-hb.top,html);
+  });
+  hit.addEventListener("pointerleave",()=>{tip.style.opacity="0";cross.setAttribute("opacity",0);});
+
+  document.getElementById("lg1").innerHTML=FAM1.map(f=>
+    `<span><i class="key" style="background:${cssv(f.c)}"></i>${f.n}</span>`).join("")+
+    `<span><i class="key" style="background:${cssv("--grid")};height:10px;border-radius:2px"></i>陷入发生区间</span>`;
+
+  table(document.getElementById("tb1"),
+    ["特征组",...DATA.horizons.map(t=>"t"+t)],
+    Object.keys(DATA.curves).map(k=>[k,
+      ...DATA.curves[k].map(p=>`${p.auc.toFixed(3)} [${p.lo.toFixed(3)}, ${p.hi.toFixed(3)}]`)]));
+}
+
+/* ---------- chart 2: increment forest ---------- */
+function chart2(){
+  const host=document.getElementById("c2"), tip=document.getElementById("t2");
+  const rows=DATA.increment;
+  const W=920,rowH=56,M={t:34,r:150,b:44,l:56};
+  const H=M.t+rows.length*rowH+M.b, pw=W-M.l-M.r;
+  const x0=-0.26,x1=0.26;
+  const X=v=>M.l+(v-x0)/(x1-x0)*pw;
+  host.innerHTML=""; const s=svg(W,H); host.appendChild(s);
+  s.setAttribute("aria-label","sim+MoE 相对 sim 的 AUC 增量与置信区间");
+
+  for(let v=-0.2;v<=0.2001;v+=0.1){
+    if(Math.abs(v)<1e-9) continue;
+    el(s,"line",{x1:X(v),x2:X(v),y1:M.t-10,y2:M.t+rows.length*rowH,class:"gl"});
+    txt(s,X(v),M.t+rows.length*rowH+20,sgn(v,1),"tk","middle");
+  }
+  el(s,"line",{x1:X(0),x2:X(0),y1:M.t-16,y2:M.t+rows.length*rowH,class:"ax"});
+  txt(s,X(0),M.t-24,"0 = MoE 没有增量","ann","middle");
+  txt(s,X(0),M.t+rows.length*rowH+20,"0","tk","middle");
+  txt(s,M.l+pw/2,M.t+rows.length*rowH+40,"AUC(模拟器+MoE) − AUC(模拟器)","al","middle");
+
+  rows.forEach((r,i)=>{
+    const y=M.t+i*rowH+rowH/2;
+    const holds=r.lo>0;
+    const col=cssv(r.d>=0?"--pos":"--neg");
+    txt(s,M.l-14,y+4,"t"+r.t,"al","end");
+    el(s,"line",{x1:X(r.lo),x2:X(r.hi),y1:y,y2:y,stroke:col,"stroke-width":2,
+      "stroke-linecap":"round",opacity:holds?1:.42});
+    [r.lo,r.hi].forEach(v=>el(s,"line",{x1:X(v),x2:X(v),y1:y-6,y2:y+6,
+      stroke:col,"stroke-width":2,"stroke-linecap":"round",opacity:holds?1:.42}));
+    el(s,"circle",{cx:X(r.d),cy:y,r:5.5,
+      fill:holds?col:cssv("--surface"),stroke:holds?cssv("--surface"):col,"stroke-width":2});
+    txt(s,M.l+pw+14,y+4,sgn(r.d),"dl");
+    txt(s,M.l+pw+70,y+4,holds?"区间排除 0":"跨过 0",holds?"al":"ann");
+
+    const hit=el(s,"rect",{x:M.l,y:y-rowH/2,width:pw,height:rowH,class:"hit"});
+    hit.addEventListener("pointerenter",ev=>{
+      const hb=host.getBoundingClientRect();
+      tipOn(tip,host,(X(r.d)/W)*hb.width,ev.clientY-hb.top,
+        `<b>t${r.t}</b><div class="r">增量 <b style="color:var(--ink)">${sgn(r.d)}</b></div>`+
+        `<div class="r">95% CI [${sgn(r.lo)}, ${sgn(r.hi)}]</div>`+
+        `<div class="r">${holds?"排除 0":"包含 0，不显著"}</div>`);
+    });
+    hit.addEventListener("pointerleave",()=>tip.style.opacity="0");
+  });
+
+  document.getElementById("lg2").innerHTML=
+    `<span><i class="key dot" style="background:${cssv("--pos")}"></i>正增量（MoE 有贡献）</span>`+
+    `<span><i class="key dot" style="background:${cssv("--neg")}"></i>负增量</span>`+
+    `<span><i class="key dot" style="background:transparent;border:2px solid ${cssv("--muted")}"></i>空心 = 区间跨 0</span>`;
+
+  table(document.getElementById("tb2"),["控制步","增量","95% CI 下界","95% CI 上界","是否排除 0"],
+    rows.map(r=>["t"+r.t,sgn(r.d),sgn(r.lo),sgn(r.hi),r.lo>0?"是":"否"]));
+}
+
+/* ---------- chart 3: t34 by family ---------- */
+function chart3(){
+  const host=document.getElementById("c3"), tip=document.getElementById("t3");
+  const names={route_history:"路由概率历史",moe_history:"路由 + 隐状态",
+    hidden_history:"隐状态历史",sim_history:"模拟器状态",proprio_history:"本体感受"};
+  const rows=Object.keys(DATA.curves).map(k=>({k,n:names[k],
+    v:DATA.curves[k].find(p=>p.t===34).auc})).sort((a,b)=>b.v-a.v);
+  const W=920,rowH=46,M={t:14,r:80,b:44,l:132};
+  const H=M.t+rows.length*rowH+M.b, pw=W-M.l-M.r;
+  const x0=0.5,x1=0.95;
+  const X=v=>M.l+(v-x0)/(x1-x0)*pw;
+  host.innerHTML=""; const s=svg(W,H); host.appendChild(s);
+  s.setAttribute("aria-label","t34 各特征族的 within-state AUC");
+
+  for(let v=0.5;v<=0.95001;v+=0.1){
+    el(s,"line",{x1:X(v),x2:X(v),y1:M.t,y2:M.t+rows.length*rowH,class:"gl"});
+    txt(s,X(v),M.t+rows.length*rowH+20,v.toFixed(1),"tk","middle");
+  }
+  el(s,"line",{x1:X(0.5),x2:X(0.5),y1:M.t,y2:M.t+rows.length*rowH,class:"ax"});
+  txt(s,M.l+pw/2,M.t+rows.length*rowH+40,"within-initial-state 配对 AUC（t34）","al","middle");
+
+  const col=cssv("--seq");
+  rows.forEach((r,i)=>{
+    const y=M.t+i*rowH+rowH/2, bh=20;
+    txt(s,M.l-14,y+4,r.n,"al","end");
+    el(s,"path",{d:`M${X(0.5)} ${y-bh/2} H${X(r.v)-4} a4,4 0 0 1 4,4 V${y+bh/2-4} a4,4 0 0 1 -4,4 H${X(0.5)} Z`,
+      fill:col});
+    txt(s,X(r.v)+12,y+4,r.v.toFixed(3),"dl");
+    const hit=el(s,"rect",{x:M.l,y:y-rowH/2,width:pw,height:rowH,class:"hit"});
+    hit.addEventListener("pointerenter",ev=>{
+      const hb=host.getBoundingClientRect();
+      tipOn(tip,host,(X(r.v)/W)*hb.width,ev.clientY-hb.top,
+        `<b>${r.n}</b><div class="r">t34 AUC <b style="color:var(--ink)">${r.v.toFixed(3)}</b></div>`+
+        `<div class="r" style="color:var(--muted)">${r.k}</div>`);
+    });
+    hit.addEventListener("pointerleave",()=>tip.style.opacity="0");
+  });
+  table(document.getElementById("tb3"),["特征族","t34 AUC"],rows.map(r=>[r.n+" ("+r.k+")",r.v.toFixed(3)]));
+}
+
+/* ---------- chart 4: multiplicity ---------- */
+function chart4(){
+  const host=document.getElementById("c4"), tip=document.getElementById("t4");
+  const rows=DATA.multiplicity.map(m=>({...m,pct:m.raw/m.tests*100}));
+  const W=920,H=326,M={t:34,r:24,b:74,l:56};
+  const pw=W-M.l-M.r, ph=H-M.t-M.b;
+  const X=i=>M.l+pw*(i+0.5)/rows.length, Y=v=>M.t+(1-v/80)*ph;
+  host.innerHTML=""; const s=svg(W,H); host.appendChild(s);
+  s.setAttribute("aria-label","各控制步 raw p 小于 0.05 的检验占比");
+
+  for(let v=0;v<=80;v+=20){
+    el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(v),y2:Y(v),class:"gl"});
+    txt(s,M.l-10,Y(v)+4,v+"%","tk","end");
+  }
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(0),y2:Y(0),class:"ax"});
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(5),y2:Y(5),class:"ax"});
+  txt(s,M.l+pw-6,Y(5)-8,"随机期望 5%","ann","end");
+  txt(s,M.l+pw/2,M.t+ph+60,"控制步（359 个确认检验按时刻拆分）","al","middle");
+  txt(s,M.l-44,M.t-16,"占比","al");
+
+  const col=cssv("--seq"), bw=Math.min(96,pw/rows.length*0.5);
+  rows.forEach((r,i)=>{
+    const x=X(i)-bw/2, y=Y(r.pct);
+    el(s,"path",{d:`M${x} ${Y(0)} V${y+4} a4,4 0 0 1 4,-4 H${x+bw-4} a4,4 0 0 1 4,4 V${Y(0)} Z`,fill:col});
+    txt(s,X(i),y-11,r.pct.toFixed(1)+"%","dl","middle");
+    txt(s,X(i),M.t+ph+22,"t"+r.t,"tk","middle");
+    txt(s,X(i),M.t+ph+38,`${r.raw}/${r.tests} 显著 · ${r.survive} 存活`,"ann","middle");
+    const hit=el(s,"rect",{x:X(i)-pw/rows.length/2,y:M.t,width:pw/rows.length,height:ph,class:"hit"});
+    hit.addEventListener("pointerenter",ev=>{
+      const hb=host.getBoundingClientRect();
+      tipOn(tip,host,(X(i)/W)*hb.width,ev.clientY-hb.top,
+        `<b>t${r.t}</b><div class="r">检验数 <b style="color:var(--ink)">${r.tests}</b></div>`+
+        `<div class="r">raw p&lt;0.05 <b style="color:var(--ink)">${r.raw}</b>（${r.pct.toFixed(1)}%）</div>`+
+        `<div class="r">过 Bonferroni-359 <b style="color:var(--ink)">${r.survive}</b></div>`);
+    });
+    hit.addEventListener("pointerleave",()=>tip.style.opacity="0");
+  });
+  table(document.getElementById("tb4"),["控制步","检验数","raw p<0.05","占比","过 Bonferroni-359"],
+    rows.map(r=>["t"+r.t,r.tests,r.raw,r.pct.toFixed(1)+"%",r.survive]));
+}
+
+/* ---------- chart 5: onset histogram ---------- */
+function chart5(){
+  const host=document.getElementById("c5"), tip=document.getElementById("t5");
+  const bins=DATA.onset, st=DATA.onset_stats;
+  const W=920,H=300,M={t:32,r:24,b:56,l:48};
+  const pw=W-M.l-M.r, ph=H-M.t-M.b;
+  const x0=5,x1=53, maxN=Math.max(...bins.map(b=>b.n));
+  const X=v=>M.l+(v-x0)/(x1-x0)*pw, Y=v=>M.t+(1-v/maxN)*ph;
+  host.innerHTML=""; const s=svg(W,H); host.appendChild(s);
+  s.setAttribute("aria-label","停滞陷入起点的分布与五个评估时刻");
+
+  for(let v=0;v<=maxN;v+=10){
+    el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(v),y2:Y(v),class:"gl"});
+    txt(s,M.l-10,Y(v)+4,v,"tk","end");
+  }
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(0),y2:Y(0),class:"ax"});
+
+  const bw=Math.max(5,pw/(x1-x0)-2), col=cssv("--seq");
+  bins.forEach(b=>{
+    const x=X(b.t)-bw/2, y=Y(b.n);
+    el(s,"path",{d:`M${x} ${Y(0)} V${y+3} a3,3 0 0 1 3,-3 H${x+bw-3} a3,3 0 0 1 3,3 V${Y(0)} Z`,fill:col});
+  });
+
+  DATA.horizons.forEach(t=>{
+    const before=t<15;
+    el(s,"line",{x1:X(t),x2:X(t),y1:M.t-14,y2:Y(0),
+      stroke:cssv(before?"--neg":"--good"),"stroke-width":2,opacity:before?1:.85});
+    txt(s,X(t),M.t-20,"t"+t,"dl","middle");
+  });
+  el(s,"line",{x1:X(st.median),x2:X(st.median),y1:M.t-2,y2:Y(0),class:"ax"});
+  txt(s,X(st.median)+7,M.t+10,"中位 t"+st.median,"ann");
+  txt(s,M.l+pw/2,M.t+ph+42,"陷入起点（控制步）· 197 条停滞失败","al","middle");
+  txt(s,M.l-34,M.t-6,"条数","al");
+
+  const hit=el(s,"rect",{x:M.l,y:M.t,width:pw,height:ph,class:"hit"});
+  hit.addEventListener("pointermove",ev=>{
+    const r=s.getBoundingClientRect();
+    const vx=Math.round(x0+((ev.clientX-r.left)/r.width*W-M.l)/pw*(x1-x0));
+    const b=bins.find(q=>q.t===vx);
+    const hb=host.getBoundingClientRect();
+    const cum=bins.filter(q=>q.t<=vx).reduce((a,q)=>a+q.n,0);
+    tipOn(tip,host,(X(vx)/W)*hb.width,ev.clientY-hb.top,
+      `<b>t${vx}</b><div class="r">该步陷入 <b style="color:var(--ink)">${b?b.n:0}</b> 条</div>`+
+      `<div class="r">累计已陷入 <b style="color:var(--ink)">${cum}</b> / ${st.n}（${(cum/st.n*100).toFixed(0)}%）</div>`);
+  });
+  hit.addEventListener("pointerleave",()=>tip.style.opacity="0");
+
+  table(document.getElementById("tb5"),["陷入起点","条数"],bins.map(b=>["t"+b.t,b.n]));
+}
+
+/* ---------- boot ---------- */
+function drawAll(){chart1();chart2();chart3();chart4();chart5();}
+drawAll();
+[["b1","tb1"],["b2","tb2"],["b3","tb3"],["b4","tb4"],["b5","tb5"]].forEach(a=>toggle(a[0],a[1]));
+document.getElementById("tt").addEventListener("click",()=>{
+  const r=document.documentElement;
+  r.setAttribute("data-theme", r.getAttribute("data-theme")==="dark"?"light":"dark");
+  drawAll();
+});
+let rt; addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(drawAll,140);});
+</script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>HiMoE-VLA 激活工作台</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-block">
+        <span class="brand-mark" aria-hidden="true">HM</span>
+        <div>
+          <h1>HiMoE-VLA 激活工作台</h1>
+          <p>HB router input · first control step</p>
+        </div>
+      </div>
+      <div class="scope-note" aria-label="分析范围">
+        <span id="state-token-control">state token Δmax = —</span>
+        <strong>K = 32</strong>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <section class="control-band" aria-label="数据与播放控制">
+        <label class="field field-task" for="task-select">
+          <span>任务</span>
+          <select id="task-select" disabled></select>
+        </label>
+        <label class="field field-state" for="state-select">
+          <span>初始状态</span>
+          <select id="state-select" disabled></select>
+        </label>
+
+        <fieldset class="block-control">
+          <legend>HB 层组</legend>
+          <div class="segmented" role="group" aria-label="选择 HB 层组">
+            <button type="button" class="segment is-active" data-block="early" aria-pressed="true"><span>Early</span><span class="segment-layers"> · L2–5</span></button>
+            <button type="button" class="segment" data-block="late" aria-pressed="false"><span>Late</span><span class="segment-layers"> · L12–15</span></button>
+          </div>
+        </fieldset>
+
+        <div class="flow-control">
+          <span class="control-label">Flow 步</span>
+          <div class="transport" role="group" aria-label="Flow 播放控制">
+            <button id="step-prev" class="icon-button" type="button" title="上一步" aria-label="上一步" disabled>&#9664;</button>
+            <button id="play-toggle" class="icon-button play-button" type="button" title="播放" aria-label="播放" disabled><span aria-hidden="true">&#9654;</span></button>
+            <button id="step-next" class="icon-button" type="button" title="下一步" aria-label="下一步" disabled>&#9654;</button>
+          </div>
+          <input id="step-range" type="range" min="0" max="9" value="0" step="1" aria-label="Denoise step" disabled>
+          <output id="step-output" for="step-range">d0 / d9</output>
+        </div>
+      </section>
+
+      <section class="finding-band" aria-label="总体数据结论">
+        <strong>总体结论</strong>
+        <span>同一状态的 32 个候选会随去噪靠拢；全 <b id="finding-pools">—</b> 池中位：Early 最终剩 <b id="finding-early">—</b>，Late 剩 <b id="finding-late">—</b>。12 个预设汇总指标未检出稳定红绿差异。</span>
+      </section>
+
+      <div id="load-state" class="load-state" role="status" aria-live="polite">
+        <span class="load-indicator" aria-hidden="true"></span>
+        正在读取激活数据…
+      </div>
+
+      <section class="metric-band" aria-label="当前池摘要">
+        <div class="metric-cell">
+          <span>池内结果</span>
+          <strong id="metric-outcome">—</strong>
+          <small id="metric-outcome-note">K32 candidates</small>
+        </div>
+        <div class="metric-cell">
+          <span>原 1024D 云离散度</span>
+          <strong id="metric-dispersion">—</strong>
+          <small id="metric-dispersion-note">RMS to centroid</small>
+        </div>
+        <div class="metric-cell">
+          <span id="metric-retention-label">当前 d0 / d0 retention</span>
+          <strong id="metric-retention">—</strong>
+          <small id="metric-retention-note">最终 d9 = —</small>
+        </div>
+        <div class="metric-cell">
+          <span>matched-site norm CV</span>
+          <strong id="metric-norm-cv">—</strong>
+          <small id="metric-norm-cv-note">跨 K32 候选</small>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="激活几何视图">
+        <section class="view-panel scatter-panel" aria-labelledby="scatter-title">
+          <header class="panel-heading">
+            <div>
+              <p class="eyebrow">候选云</p>
+              <h2 id="scatter-title">候选差异还剩 <strong id="scatter-retention">—</strong></h2>
+            </div>
+            <div class="scatter-actions">
+              <button id="trajectory-toggle" class="trajectory-toggle" type="button" aria-pressed="false" title="显示完整 d0–d9 轨迹">
+                <span class="trajectory-icon" aria-hidden="true">↝</span><span>轨迹</span>
+              </button>
+              <div class="legend" aria-label="事后结果标签图例">
+                <span><i class="legend-dot success"></i>成功</span>
+                <span><i class="legend-dot failure"></i>失败</span>
+                <span><i class="legend-ring"></i>已选</span>
+              </div>
+            </div>
+          </header>
+          <div class="reading-guide" aria-label="读图说明">
+            <span><i class="guide-point"></i>每个点 = 一个候选动作</span>
+            <span><i class="guide-center">+</i>二维投影中，距中心越近 = 候选越一致</span>
+            <span class="outcome-warning">红绿是事后标签；12 个预设汇总指标未检出稳定差异</span>
+          </div>
+          <div id="scatter-shell" class="chart-shell scatter-shell">
+            <canvas id="pca-canvas" role="img" aria-label="32 个候选在十个 denoise 步中的 PCA 轨迹"></canvas>
+            <div id="plot-tooltip" class="plot-tooltip" role="tooltip" hidden></div>
+            <div class="axis-label axis-x">投影方向 1</div>
+            <div class="axis-label axis-y">投影方向 2</div>
+          </div>
+          <p class="panel-caption">标题百分比来自原 1024D RMS。灰色轮廓是 d0，彩色轮廓是当前 d；空心点和短线表示上一步。</p>
+          <details class="method-details">
+            <summary>投影与尺度说明</summary>
+            <p>每个 denoise 步先减去 K32 中心，再用共享、无标签的 PCA 轴投到二维；当前二维保留 <span id="pca-explained">—</span> 方差。PCA 轴只在当前 pool + Early/Late 视图的 d0–d9 间共享，不同状态或 Early/Late 坐标不能直接比较。标题和收缩曲线读取原 1024 维 full tensor RMS，不用二维投影距离代替。</p>
+          </details>
+        </section>
+
+        <div class="analysis-rail">
+          <section class="view-panel curve-panel" aria-labelledby="curve-title">
+            <header class="panel-heading compact">
+              <div>
+                <p class="eyebrow">Flow geometry</p>
+                <h2 id="curve-title">候选云收缩</h2>
+              </div>
+              <span id="curve-delta" class="inline-value">—</span>
+            </header>
+            <div class="chart-shell curve-shell">
+              <canvas id="curve-canvas" role="img" aria-label="Early 与 Late 候选云随 denoise 步变化的中心离散度"></canvas>
+            </div>
+            <div class="line-key" aria-hidden="true">
+              <span><i class="line-swatch early"></i>Early</span>
+              <span><i class="line-swatch late"></i>Late</span>
+            </div>
+          </section>
+
+          <section class="view-panel layer-panel" aria-labelledby="layer-title">
+            <header class="panel-heading compact">
+              <div>
+                <p class="eyebrow">Per-layer</p>
+                <h2 id="layer-title">8 层 d0→d9 retention</h2>
+              </div>
+              <span class="retention-scale">0% · 100%</span>
+            </header>
+            <div id="layer-table" class="layer-table" role="table" aria-label="八个 HB 层的候选云 retention"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="candidate-panel" aria-labelledby="candidate-title">
+        <header class="panel-heading candidate-heading">
+          <div>
+            <p class="eyebrow">Candidate index</p>
+            <h2 id="candidate-title">32 条候选</h2>
+          </div>
+          <div id="selected-summary" class="selected-summary">选择候选查看位置</div>
+        </header>
+        <div class="candidate-scroll" tabindex="0" aria-label="横向滚动查看 32 条候选">
+          <div id="candidate-strip" class="candidate-strip" role="listbox" aria-label="候选列表"></div>
+        </div>
+      </section>
+
+      <section class="evidence-band" aria-labelledby="evidence-title">
+        <div class="evidence-copy">
+          <p class="eyebrow">Same-state success screen</p>
+          <h2 id="evidence-title">12 个预设首步 hidden 汇总指标未检出稳定成败信号</h2>
+          <p>每个比较都在同一 task + init_state 的 K32 池内完成；32 个 flow-seed 位置的置换映射在所有池间共享。AUC 只比较池内 success–failure 对，不把任务难度混进信号。</p>
+          <p class="caveat"><strong>运行限制：</strong><span id="drift-note">libero_long 成功率较参考低 34.6 pp，右表同时列出排除该 run 的敏感性分析。</span></p>
+        </div>
+        <div class="evidence-table-wrap">
+          <table class="evidence-table">
+            <thead>
+              <tr>
+                <th scope="col">分析集</th>
+                <th scope="col">最强预设标量</th>
+                <th scope="col">AUC</th>
+                <th scope="col">raw p</th>
+                <th scope="col">maxT p</th>
+              </tr>
+            </thead>
+            <tbody id="evidence-body"></tbody>
+          </table>
+        </div>
+        <div class="p-note">
+          <div><strong>raw p</strong><span>只问当前这一项在零假设下是否极端。</span></div>
+          <div><strong>maxT corrected p</strong><span>只在当前 subset 内校正 12 个预设指标；不覆盖 4 个重叠 subset，也不覆盖事后浏览 PCA 图案。</span></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span id="source-note">数据源：hidden.zarr · hb_hidden · first control row</span>
+      <span>Router input representation ≠ expert output</span>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

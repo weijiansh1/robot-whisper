@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pattern — 一部关于路由的短片</title>
+<style>
+:root{--bg:#0b0f14;--ink:#ececf1;--dim:#8b9aa7;--faint:#55677a;
+  --blue:#58c4dd;--orange:#fc8a55;--gold:#f4d345;--line:#1d2833}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font:15px/1.6 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;overflow:hidden}
+.stage{position:fixed;inset:0;display:grid;place-items:center}
+.frame{position:relative;width:min(100vw,calc(100vh*16/9));aspect-ratio:16/9}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.cap{position:absolute;left:5%;right:5%;bottom:6.5%;text-align:center;pointer-events:none}
+.cap span{display:inline-block;max-width:46em;font-size:clamp(14px,2.2vmin,20px);
+  color:var(--dim);line-height:1.75;opacity:0;transition:opacity .5s ease}
+.cap span.on{opacity:1}
+.cap b{color:var(--ink);font-weight:600}
+.cap i{font-family:Georgia,"Songti SC",serif}
+.bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.06)}
+.bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--faint)}
+.play{position:absolute;left:14px;bottom:12px;width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--line);background:rgba(14,20,27,.8);color:var(--dim);cursor:pointer;
+  font-size:12px;display:grid;place-items:center;transition:color .2s,border-color .2s;z-index:3}
+.play:hover{color:var(--ink);border-color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="stage"><div class="frame">
+  <canvas id="cv"></canvas>
+  <div class="cap"><span id="cap"></span></div>
+  <div class="bar"><i id="prog"></i></div>
+  <button class="play" id="play" aria-label="播放/暂停">❚❚</button>
+</div></div>
+
+<script>
+'use strict';
+/* ================================================================
+   pattern — a short film, schematic on purpose.
+
+   The curves are idealised so the idea lands in one viewing.
+   The NUMBERS are the real ones: 80.1% / 82.0%, q32, 3/8,
+   8 steps vs 52, 26.0 s vs 3.9 s.  The last caption says so.
+   ================================================================ */
+const EN = new URLSearchParams(location.search).get('lang') === 'en';
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const capEl=document.getElementById('cap'), progEl=document.getElementById('prog');
+const playBtn=document.getElementById('play');
+
+const C={ink:[236,236,241],dim:[139,154,167],faint:[85,103,122],
+         blue:[88,196,221],orange:[252,138,85],gold:[244,211,69]};
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${Math.max(0,Math.min(1,a))})`;
+const ease=t=>{t=t<0?0:t>1?1:t;return t*t*t*(t*(6*t-15)+10);};
+const seg=(t,a,b)=>b<=a?(t>=b?1:0):Math.max(0,Math.min(1,(t-a)/(b-a)));
+const lerp=(a,b,u)=>a+(b-a)*u;
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+let W=0,H=0;
+function resize(){
+  const r=cv.parentNode.getBoundingClientRect();
+  const dpr=Math.min(devicePixelRatio||1,2);
+  W=r.width;H=r.height;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize',resize);
+
+function glowStroke(col,w,a){
+  ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.strokeStyle=rgba(col,.16*a);ctx.lineWidth=w*3.2;ctx.stroke();
+  ctx.strokeStyle=rgba(col,a);ctx.lineWidth=w;ctx.stroke();
+}
+const serif=px=>`italic ${px}px Georgia,"Songti SC",serif`;
+const sans=(px,w)=>`${w||400} ${px}px -apple-system,"Segoe UI","PingFang SC",sans-serif`;
+const vm=()=>Math.min(W,H);
+
+/* ---------------- captions ---------------- */
+const CAPS_ZH=[
+ [0.0,'每个控制步,路由器从 32 个专家里点亮 <b>4 个</b>。<br>这份名单,叫 <b>pattern</b>。'],
+ [8.5,'手臂在<b>干活</b>时,pattern 一步一换人;<br>手臂一<b>卡住</b>,pattern 冻住不动了。失败不是一种动作 —— 是一种状态。'],
+ [19.0,'数 pattern 每步换了多少,除以这条 rollout 自己的开头,得到 <b>r(t)</b>。<br>连续三步跌破 θ —— <b style="color:#f4d345">报警</b>。'],
+ [29.0,'放到全体:蓝 = 成功,橙 = 失败。<br>两批真实语料、同一个阈值:判对 <b>80.1% · 82.0%</b>。'],
+ [37.0,'报警那一步:<b>存下状态,换一条噪声,继续。</b><br>原噪声跑满 52 步失败;换过之后 <b>8 步完成</b>。'],
+ [48.0,'<b>报警 → 重采样 → 救回。</b>&nbsp;26.0 s 的失败,变成 3.9 s 的成功。<br><span style="font-size:.8em;opacity:.75">曲线为示意;所有数字为实测。</span>'],
+];
+const CAPS_EN=[
+ [0.0,'Each control step, the router lights <b>4</b> of 32 experts.<br>That roster is the <b>pattern</b>.'],
+ [8.5,'While the arm is <b>working</b>, the pattern reshuffles every step;<br>the moment it <b>stalls</b>, the pattern freezes. Failure isn\'t an action — it\'s a state.'],
+ [19.0,'Count how much the pattern changes, divide by this rollout\'s <b>own opening</b>: that\'s <b>r(t)</b>.<br>Three consecutive steps below θ — <b style="color:#f4d345">alarm</b>.'],
+ [29.0,'Zoom out: blue = success, orange = failure.<br>Two real corpora, one shared threshold: <b>80.1% · 82.0%</b> correct.'],
+ [37.0,'At the alarm step: <b>save the state, swap the noise, continue.</b><br>The original noise runs 52 steps and fails; the resample <b>finishes in 8</b>.'],
+ [48.0,'<b>Alarm → resample → rescue.</b>&nbsp;A 26.0 s failure becomes a 3.9 s success.<br><span style="font-size:.8em;opacity:.75">Curves are schematic; every number is measured.</span>'],
+];
+const CAPS=EN?CAPS_EN:CAPS_ZH;
+let capIdx=-1;
+function caption(t){
+  let i=0;for(let k=0;k<CAPS.length;k++)if(t>=CAPS[k][0])i=k;
+  if(i!==capIdx){capIdx=i;capEl.classList.remove('on');
+    setTimeout(()=>{capEl.innerHTML=CAPS[i][1];capEl.classList.add('on');},240);}
+}
+
+/* ---------------- shared bits ---------------- */
+function ringPts(cx,cy,rad){
+  const P=[];for(let i=0;i<32;i++){const a=-Math.PI/2+i/32*2*Math.PI;
+    P.push([cx+rad*Math.cos(a),cy+rad*Math.sin(a)]);}return P;
+}
+/* a lit-4 sequence: every beat, swap `swaps` experts (deterministic) */
+function makeSeq(seed,beats,swaps){
+  const r=mulberry(seed);let cur=[3,11,19,27];const S=[cur.slice()];
+  for(let b=0;b<beats;b++){const n=cur.slice();
+    for(let s=0;s<swaps;s++){const out=Math.floor(r()*4);
+      let c;do{c=Math.floor(r()*32);}while(n.includes(c));n[out]=c;}
+    cur=n;S.push(cur.slice());}
+  return S;
+}
+function drawRing(cx,cy,rad,seq,bt,a,col,frozenPulse){
+  const P=ringPts(cx,cy,rad);
+  for(let i=0;i<32;i++){ctx.fillStyle=rgba(C.faint,.5*a);
+    ctx.beginPath();ctx.arc(P[i][0],P[i][1],rad*.028,0,7);ctx.fill();}
+  const beats=seq.length-1,bi=Math.min(beats-1,Math.floor(bt)),bu=ease(bt-bi);
+  const cur=seq[bi],nxt=seq[Math.min(beats,bi+1)];
+  for(let s=0;s<4;s++){
+    const i0=cur[s],i1=nxt[s];let x,y,g=1;
+    if(i0===i1){x=P[i0][0];y=P[i0][1];
+      if(frozenPulse)g=1+.25*Math.sin(bt*2.2+s);}
+    else{x=lerp(P[i0][0],P[i1][0],bu);y=lerp(P[i0][1],P[i1][1],bu);
+      g=1+Math.sin(bu*Math.PI)*.8;}
+    ctx.fillStyle=rgba(col,.13*a*g);
+    ctx.beginPath();ctx.arc(x,y,rad*.12*g,0,7);ctx.fill();
+    ctx.fillStyle=rgba(col,.95*a);
+    ctx.beginPath();ctx.arc(x,y,rad*.05,0,7);ctx.fill();
+  }
+}
+/* schematic curves */
+function smoothPath(pts){
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length-1;i++){
+    const xc=(pts[i][0]+pts[i+1][0])/2,yc=(pts[i][1]+pts[i+1][1])/2;
+    ctx.quadraticCurveTo(pts[i][0],pts[i][1],xc,yc);}
+  const l=pts[pts.length-1];ctx.lineTo(l[0],l[1]);
+}
+function wobble(x,seed){const r1=Math.sin(x*7+seed*3),r2=Math.sin(x*17+seed*7);
+  return .035*r1+.02*r2;}
+
+/* ================= scenes ================= */
+const S1D=8.5,S2D=10.5,S3D=10.0,S4D=8.0,S5D=13.0;
+let SEQ_FAST=null,SEQ_A=null;
+
+function s1(p,a){ /* one ring + the word */
+  if(!SEQ_FAST)SEQ_FAST=makeSeq(7,64,2);
+  const cx=W*.5,cy=H*.47,rad=vm()*.27;
+  const born=ease(seg(p,0,.2));
+  drawRing(cx,cy,rad,SEQ_FAST,seg(p,.15,1)*14,born*a,C.blue,false);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font=serif(vm()*.10);ctx.fillStyle=rgba(C.ink,ease(seg(p,.05,.25))*a);
+  ctx.fillText('pattern',cx,cy-rad-vm()*.09);
+  ctx.font=sans(vm()*.022);ctx.fillStyle=rgba(C.faint,ease(seg(p,.12,.3))*a);
+  ctx.fillText(EN?'4 lit out of 32 experts':'32 个专家,亮着 4 个',cx,cy-rad-vm()*.035);
+}
+
+function s2(p,a){ /* the contrast: working vs stuck */
+  if(!SEQ_FAST)SEQ_FAST=makeSeq(7,64,2);
+  if(!SEQ_A)SEQ_A=makeSeq(21,64,2);
+  const rad=vm()*.20,cy=H*.46,cx1=W*.29,cx2=W*.71;
+  const born=ease(seg(p,0,.15));
+  /* left: working — keeps reshuffling */
+  drawRing(cx1,cy,rad,SEQ_A,p*22,born*a,C.blue,false);
+  /* right: stuck — reshuffles briefly, then freezes */
+  const freezeAt=.35,fb=Math.min(p,freezeAt)*22;
+  const frozen=p>freezeAt;
+  drawRing(cx2,cy,rad,SEQ_FAST,fb,born*a,frozen?C.orange:C.blue,frozen);
+  /* labels */
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font=sans(vm()*.030,600);
+  ctx.fillStyle=rgba(C.blue,born*a);
+  ctx.fillText(EN?'arm working':'手臂在动',cx1,cy-rad-vm()*.055);
+  ctx.fillStyle=rgba(frozen?C.orange:C.faint,born*a);
+  ctx.fillText(EN?'arm stuck':'手臂卡住',cx2,cy-rad-vm()*.055);
+  /* under-labels appear with the freeze */
+  const sub=ease(seg(p,freezeAt+.08,freezeAt+.28));
+  ctx.font=sans(vm()*.021);
+  ctx.fillStyle=rgba(C.dim,born*a);
+  ctx.fillText(EN?'pattern keeps changing':'pattern 一直在换',cx1,cy+rad+vm()*.055);
+  ctx.fillStyle=rgba(C.orange,sub*a);
+  ctx.fillText(EN?'pattern frozen':'pattern 冻住了',cx2,cy+rad+vm()*.055);
+  /* a frost ring closes around the stuck one */
+  if(frozen){const fr=ease(seg(p,freezeAt,freezeAt+.25));
+    ctx.strokeStyle=rgba(C.orange,.5*fr*a);ctx.lineWidth=1.5;
+    ctx.setLineDash([4,6]);ctx.beginPath();
+    ctx.arc(cx2,cy,rad*1.22,0,7);ctx.stroke();ctx.setLineDash([]);}
+}
+
+function s3(p,a){ /* schematic r(t): flat, then a clean dive, 1-2-3, alarm */
+  const x0=W*.13,x1=W*.90,y0=H*.16,y1=H*.74;
+  const X=u=>x0+(x1-x0)*u, Y=v=>y0+(y1-y0)*(1.25-v)/1.0;
+  const ax=ease(seg(p,0,.14));
+  /* axes */
+  ctx.strokeStyle=rgba(C.faint,.55*ax*a);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x0,y1);ctx.lineTo(x1,y1);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x0,y1);ctx.stroke();
+  ctx.save();ctx.translate(x0-26,(y0+y1)/2);ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center';ctx.font=sans(vm()*.023);
+  ctx.fillStyle=rgba(C.dim,ax*a);
+  ctx.fillText(EN?'neuron-pattern change  r(t)':'神经元 pattern 变化率  r(t)',0,0);ctx.restore();
+  /* theta */
+  const TH=.62, th=ease(seg(p,.10,.22));
+  ctx.setLineDash([6,6]);ctx.beginPath();
+  ctx.moveTo(x0,Y(TH));ctx.lineTo(x0+(x1-x0)*th,Y(TH));
+  ctx.strokeStyle=rgba(C.faint,.9*a);ctx.stroke();ctx.setLineDash([]);
+  ctx.font=sans(vm()*.022);ctx.fillStyle=rgba(C.dim,th*a);
+  ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText('θ',x0+8,Y(TH)-4);
+  /* schematic curve: wobble around 1.0 then dive */
+  const u=ease(seg(p,.16,.66));
+  const pts=[];const N=140;
+  for(let i=0;i<=N*u;i++){const x=i/N;
+    let v=1.0+wobble(x,1);
+    if(x>.55)v-= (x-.55)/.45*.62*ease((x-.55)/.45+0.15);
+    pts.push([X(x),Y(Math.max(.28,v))]);}
+  if(pts.length>2){smoothPath(pts);glowStroke(C.ink,2.2,.95*a);}
+  if(u>0&&u<1){const hp=pts[pts.length-1];
+    ctx.fillStyle=rgba(C.ink,a);ctx.beginPath();ctx.arc(hp[0],hp[1],3.4,0,7);ctx.fill();}
+  /* 1·2·3 below theta */
+  for(let k=0;k<3;k++){
+    const xx=.80+k*.05, pu=ease(seg(p,.66+k*.06,.72+k*.06));
+    if(pu<=0)continue;
+    let v=1.0+wobble(xx,1); v-=(xx-.55)/.45*.62*ease((xx-.55)/.45+0.15);
+    ctx.fillStyle=rgba(C.gold,.95*pu*a);
+    ctx.beginPath();ctx.arc(X(xx),Y(v),3.5+2*pu,0,7);ctx.fill();
+    ctx.font=sans(vm()*.020,600);ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillStyle=rgba(C.gold,pu*a);
+    ctx.fillText(k+1,X(xx),Y(v)-10);
+  }
+  /* alarm */
+  const al=seg(p,.86,1);
+  if(al>0){const xx=.90;let v=1.0+wobble(xx,1);v-=(xx-.55)/.45*.62*ease((xx-.55)/.45+.15);
+    const rr=ease(al);
+    ctx.strokeStyle=rgba(C.gold,(1-rr)*a);ctx.lineWidth=2*(1-rr)+.5;
+    ctx.beginPath();ctx.arc(X(xx),Y(v),8+50*rr,0,7);ctx.stroke();
+    ctx.strokeStyle=rgba(C.gold,a);ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(X(xx),Y(v),8,0,7);ctx.stroke();
+    ctx.font=serif(vm()*.055);ctx.fillStyle=rgba(C.gold,rr*a);
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.fillText(EN?'alarm':'报警',X(xx)-24,Y(v)-H*.10);}
+}
+
+function s4(p,a){ /* schematic split + the two real numbers */
+  const x0=W*.13,x1=W*.90,y0=H*.16,y1=H*.74;
+  const X=u=>x0+(x1-x0)*u, Y=v=>y0+(y1-y0)*(1.25-v)/1.0;
+  ctx.strokeStyle=rgba(C.faint,.5*a);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x0,y1);ctx.lineTo(x1,y1);ctx.stroke();
+  const u=ease(seg(p,.02,.5));
+  /* 9 blue hold high, 9 orange dive — schematic crowd */
+  for(let i=0;i<18;i++){
+    const blue=i%2===0,seed=i*1.7+2;
+    const pts=[];const N=110;
+    for(let k=0;k<=N*u;k++){const x=k/N;
+      let v=1.0+wobble(x,seed)+(blue?.04:-.02)*Math.sin(seed);
+      if(!blue&&x>.35+((i%5)*.05))v-=(x-.35-((i%5)*.05))*.9;
+      pts.push([X(x),Y(Math.max(.28,Math.min(1.22,v)))]);}
+    if(pts.length>2){smoothPath(pts);
+      ctx.strokeStyle=rgba(blue?C.blue:C.orange,.30*a);
+      ctx.lineWidth=1.4;ctx.stroke();}
+  }
+  /* the numbers */
+  const nm=ease(seg(p,.55,.8));
+  if(nm>0){
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font=serif(vm()*.105);ctx.fillStyle=rgba(C.ink,nm*a);
+    ctx.fillText('80.1%',W*.35,H*.34);
+    ctx.fillText('82.0%',W*.65,H*.34);
+    ctx.font=sans(vm()*.021);ctx.fillStyle=rgba(C.dim,nm*a);
+    ctx.fillText(EN?'corpus A · 352 rollouts':'语料 A · 352 条',W*.35,H*.435);
+    ctx.fillText(EN?'corpus B · 512 rollouts':'语料 B · 512 条',W*.65,H*.435);
+  }
+}
+
+function s5(p,a){ /* the fork, schematic; then the end card */
+  const x0=W*.13,x1=W*.90,y0=H*.16,y1=H*.74;
+  const X=u=>x0+(x1-x0)*u, Y=v=>y0+(y1-y0)*(1.25-v)/1.0;
+  const card=seg(p,.74,.88), ax=1-ease(card);
+  const FK=.42;                     /* fork x */
+  ctx.strokeStyle=rgba(C.faint,.5*ax*a);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x0,y1);ctx.lineTo(x1,y1);ctx.stroke();
+  /* shared history: wobble then decline into the alarm */
+  const pre=[];const N=70;
+  for(let k=0;k<=N;k++){const x=k/N*FK;
+    let v=1.0+wobble(x,1); if(x>.25)v-=(x-.25)/.17*.38*.8;
+    pre.push([X(x),Y(v)]);}
+  smoothPath(pre);glowStroke(C.ink,2.0,.8*ax*a);
+  const fy=pre[pre.length-1][1];
+  /* alarm ring at the fork */
+  ctx.strokeStyle=rgba(C.gold,.9*ax*a);ctx.lineWidth=1.8;
+  ctx.beginPath();ctx.arc(X(FK),fy,7,0,7);ctx.stroke();
+  /* orange: keeps sinking to the end */
+  const uo=ease(seg(p,.06,.55));
+  const po=[];for(let k=0;k<=90*uo;k++){const x=FK+k/90*(1-FK);
+    let v=(1.25-(fy-y0)/(y1-y0))-((x-FK)/(1-FK))*.22+wobble(x,3)*.5;
+    po.push([X(x),Y(Math.max(.30,v))]);}
+  if(po.length>2){smoothPath(po);glowStroke(C.orange,2.2,.9*ax*a);}
+  /* blue: springs back up and ENDS EARLY */
+  const ub=ease(seg(p,.12,.48));
+  const endX=FK+.17;
+  const pb=[];for(let k=0;k<=70*ub;k++){const x=FK+k/70*(endX-FK);
+    const rise=ease((x-FK)/(endX-FK));
+    let v=(1.25-(fy-y0)/(y1-y0))+rise*.42+wobble(x,5)*.4;
+    pb.push([X(x),Y(Math.min(1.2,v))]);}
+  if(pb.length>2){smoothPath(pb);glowStroke(C.blue,2.6,a*ax);}
+  if(ub>=1){
+    const e=pb[pb.length-1];
+    ctx.fillStyle=rgba(C.blue,ax*a);ctx.beginPath();ctx.arc(e[0],e[1],5,0,7);ctx.fill();
+    /* a little check */
+    ctx.strokeStyle=rgba(C.blue,ax*a);ctx.lineWidth=2.4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(e[0]+14,e[1]-2);ctx.lineTo(e[0]+20,e[1]+5);ctx.lineTo(e[0]+32,e[1]-10);ctx.stroke();
+    ctx.font=sans(vm()*.024,600);ctx.fillStyle=rgba(C.blue,ax*a);
+    ctx.textAlign='left';ctx.textBaseline='bottom';
+    ctx.fillText(EN?'8 steps · done':'8 步 · 完成',e[0]+42,e[1]+8);
+  }
+  if(uo>=1){
+    const e=po[po.length-1];
+    ctx.strokeStyle=rgba(C.orange,ax*a);ctx.lineWidth=2.4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(e[0]+12,e[1]-8);ctx.lineTo(e[0]+26,e[1]+6);
+    ctx.moveTo(e[0]+26,e[1]-8);ctx.lineTo(e[0]+12,e[1]+6);ctx.stroke();
+    ctx.font=sans(vm()*.024,600);ctx.fillStyle=rgba(C.orange,ax*a);
+    ctx.textAlign='right';ctx.textBaseline='top';
+    ctx.fillText(EN?'52 steps · failed':'52 步 · 失败',e[0],e[1]+14);
+  }
+  /* fork annotation */
+  const an=ease(seg(p,.02,.16));
+  ctx.font=sans(vm()*.021);ctx.fillStyle=rgba(C.gold,an*ax*a);
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText(EN?'save state · swap the noise':'存状态 · 换噪声',X(FK),fy-18);
+  /* end card */
+  if(card>0){const cu=ease(card);
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font=serif(vm()*.070);ctx.fillStyle=rgba(C.ink,cu*a);
+    ctx.fillText(EN?'alarm → resample → rescue':'报警 → 重采样 → 救回',W*.5,H*.40);
+    ctx.font=serif(vm()*.038);ctx.fillStyle=rgba(C.dim,cu*a);
+    ctx.fillText('26.0 s  →  3.9 s',W*.5,H*.53);}
+}
+
+/* ---------------- assembly ---------------- */
+const FADE=.9;
+const STORY=[[s1,S1D],[s2,S2D],[s3,S3D],[s4,S4D],[s5,S5D]];
+const TOTAL=STORY.reduce((s,x)=>s+x[1],0);
+let t=0,playing=true,last=null;
+
+function frame(ts){
+  requestAnimationFrame(frame);
+  if(last==null)last=ts;
+  const dt=Math.min(.05,(ts-last)/1000);last=ts;
+  if(playing)t+=dt;
+  if(t>=TOTAL+1.2)t=0;
+  ctx.clearRect(0,0,W,H);
+  caption(t);
+  let acc=0;
+  for(const [fn,dur] of STORY){
+    const lo=acc,hi=acc+dur;acc=hi;
+    if(t<lo-FADE||t>hi+FADE)continue;
+    const p=Math.max(0,Math.min(1,(t-lo)/dur));
+    const alpha=Math.min(seg(t,lo-FADE*.2,lo+FADE),1-seg(t,hi-FADE*.3,hi+FADE*.7));
+    if(alpha<=0)continue;
+    fn(p,alpha);
+  }
+  progEl.style.width=(t/TOTAL*100)+'%';
+}
+function setPlaying(v){playing=v;playBtn.textContent=v?'❚❚':'▶';}
+playBtn.addEventListener('click',()=>setPlaying(!playing));
+cv.addEventListener('click',()=>setPlaying(!playing));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)last=null;});
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){t=TOTAL-.1;setPlaying(false);}
+resize();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

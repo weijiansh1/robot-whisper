@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MoE 路由:报警 → 干预 → 救回</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#0e141b; --line:#1d2833; --tick:#38495a;
+  --ink:#e8eef3; --dim:#7d8d9b;
+  --ok:#5aa9e6; --bad:#e08c4a; --alarm:#f0644a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font:14px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.app{height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) 380px}
+
+.main{display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:22px 24px 18px;
+  min-width:0}
+.head{display:flex;align-items:flex-start;gap:24px}
+h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.2px}
+.sub{margin:5px 0 0;color:var(--dim);font-size:13px}
+.sub b{color:var(--ink);font-weight:600}
+.stat{margin-left:auto;flex:none;text-align:right;padding-top:2px}
+.stat span{display:block;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat em{display:block;font-style:normal;font-size:11px;color:var(--dim);margin-top:1px}
+.plot{position:relative;min-height:0;margin:16px 0 0}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+
+.transport{display:flex;align-items:center;gap:14px;margin-top:16px}
+button{width:38px;height:38px;border:1px solid var(--line);background:var(--panel);
+  border-radius:50%;color:var(--ink);cursor:pointer;font-size:13px;flex:none;
+  display:grid;place-items:center;transition:border-color .15s}
+button:hover{border-color:var(--tick)}
+input[type=range]{flex:1;appearance:none;height:3px;border-radius:2px;
+  background:var(--line);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:13px;height:13px;
+  border-radius:50%;background:var(--ink);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;
+  background:var(--ink);cursor:pointer}
+.step{font-variant-numeric:tabular-nums;color:var(--dim);font-size:13px;
+  min-width:112px;text-align:right}
+.step b{color:var(--ink);font-size:15px}
+
+.side{border-left:1px solid var(--line);display:grid;grid-template-rows:1fr 1fr;min-width:0}
+.cell{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr);
+  padding:14px 16px;min-height:0}
+.cell+.cell{border-top:1px solid var(--line)}
+.cap{display:flex;align-items:center;gap:9px;font-size:13px;margin-bottom:9px}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--dim);
+  transition:background .3s}
+.cap .who{font-weight:600}
+.cap .meta{color:var(--dim);font-size:12px;margin-left:auto;
+  font-variant-numeric:tabular-nums}
+video{width:100%;height:100%;object-fit:contain;background:#000;border-radius:3px;
+  min-height:0;transition:opacity .3s}
+.cell.done video{opacity:.4}
+.badge{position:absolute;right:16px;bottom:14px;padding:3px 9px;border-radius:3px;
+  font-size:11.5px;font-weight:600;letter-spacing:.3px;opacity:0;transition:opacity .3s}
+.badge.on{opacity:1}
+.badge.ok{background:var(--ok);color:#04141f}
+.badge.bad{background:var(--bad);color:#1a0d02}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="main">
+    <div class="head">
+      <div>
+        <h1>路由报警之后,把噪声换掉,原本必败的 rollout 被救回</h1>
+        <p class="sub">背景是同一任务的 <b id="nfan">352</b> 条分支(蓝成功 / 橙失败),
+          检测器报警 <b id="nal">203</b> 次 —— 橙点是抓到的失败 <b id="nhit">184</b>/235,
+          蓝点是误报 <b id="nfa">19</b>/117。前景是今天实跑的一条:<b id="alarmq">第 32 步</b>
+          报警,就在那一刻分叉 —— 原轨迹跑满 <b id="trunkq">52</b> 步失败,
+          重采样后 <b id="rescq">8</b> 步完成。</p>
+      </div>
+      <div class="stat"><span id="ratio">26.0s → 3.9s</span><em>同一状态,同一时刻</em></div>
+    </div>
+    <div class="plot"><canvas id="cv"></canvas></div>
+    <div class="transport">
+      <button id="play" title="播放 / 暂停">▶</button>
+      <input type="range" id="scrub" min="0" max="52" value="0" step="1">
+      <div class="step">控制步 <b id="q">0</b> / <span id="qmax">52</span></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="cell" id="cell-ok">
+      <div class="cap"><span class="dot" id="dot-ok"></span>
+        <span class="who" id="who-ok">推理中</span><span class="meta" id="m-ok"></span></div>
+      <video id="v-ok" muted playsinline preload="auto"></video>
+      <div class="badge ok" id="b-ok">任务完成</div>
+    </div>
+    <div class="cell" id="cell-bad">
+      <div class="cap"><span class="dot" id="dot-bad"></span>
+        <span class="who" id="who-bad">推理中</span><span class="meta" id="m-bad"></span></div>
+      <video id="v-bad" muted playsinline preload="auto"></video>
+      <div class="badge bad" id="b-bad">跑满 horizon,失败</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let D=null, q=0, playing=false, raf=null, last=0, ringAt=-1, ringT=0;
+
+const Y0=0.30, Y1=1.30;
+const PAD={l:56,r:16,t:14,b:36};
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+let FAN=null;
+fetch('demo.json').then(r=>r.json()).then(d=>{FAN=d;draw();}).catch(()=>{});
+fetch('rescue.json').then(r=>r.json()).then(d=>{
+  D=d;
+  $('#scrub').max=D.trunk.queries; $('#qmax').textContent=D.trunk.queries;
+  $('#alarmq').textContent='第 '+D.alarm+' 步';
+  $('#trunkq').textContent=D.trunk.queries;
+  $('#rescq').textContent=D.rescued.queries;
+  $('#ratio').textContent=D.trunk.duration.toFixed(1)+'s → '+D.rescued.duration.toFixed(1)+'s';
+  if(FAN){
+    const B=FAN.branches, al=B.filter(b=>b.alarm!=null);
+    $('#nfan').textContent=B.length;
+    $('#nal').textContent=al.length;
+    $('#nhit').textContent=al.filter(b=>!b.success).length;
+    $('#nfa').textContent=al.filter(b=>b.success).length;
+  }
+  if(D.videos.trunk){ $('#v-ok').src=D.videos.trunk; $('#v-bad').src=D.videos.trunk; }
+  resize();
+});
+
+/* 坐标框:刻度在框上,框内不画网格 */
+function frame(w,h){
+  const x0=PAD.l,x1=w-PAD.r,y0=PAD.t,y1=h-PAD.b;
+  ctx.strokeStyle='#2a3846'; ctx.lineWidth=1;
+  ctx.strokeRect(x0+.5,y0+.5,x1-x0,y1-y0);
+  const QMAX=+$('#scrub').max;
+  ctx.font='11px ui-monospace,SFMono-Regular,monospace';
+  ctx.strokeStyle=css('--tick'); ctx.fillStyle=css('--dim');
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let t=0;t<=QMAX;t+=10){
+    const x=Math.round(x0+(x1-x0)*t/QMAX)+.5;
+    ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y1-6); ctx.stroke();
+    ctx.fillText(t,x,y1+8);
+  }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(const v of [0.4,0.6,0.8,1.0,1.2]){
+    const y=Math.round(y0+(y1-y0)*(Y1-v)/(Y1-Y0))+.5;
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x0+6,y); ctx.stroke();
+    ctx.fillText(v.toFixed(1),x0-9,y);
+  }
+  ctx.fillStyle='#5d6d7b'; ctx.font='11.5px -apple-system,"PingFang SC",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('控制步',(x0+x1)/2,y1+21);
+  ctx.save(); ctx.translate(15,(y0+y1)/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('路由变化率 / 自身开头',0,0); ctx.restore();
+  return {x0,x1,y0,y1,QMAX};
+}
+
+function draw(){
+  if(!D) return;
+  const k=devicePixelRatio||1,w=cv.width/k,h=cv.height/k;
+  ctx.clearRect(0,0,w,h);
+  const F=frame(w,h);
+  const X=t=>F.x0+(F.x1-F.x0)*t/F.QMAX;
+  const Y=v=>F.y0+(F.y1-F.y0)*(Y1-Math.max(Y0,Math.min(Y1,v)))/(Y1-Y0);
+  const A=D.alarm;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(F.x0,F.y0,F.x1-F.x0,F.y1-F.y0); ctx.clip();
+
+  // 背景:352 条分支,压得很淡 —— 检测在整体上成立的证据。
+  // 另外挑两条塌得最深的失败和两条最稳的成功画得清楚些,免得整体分化只靠一片糊影传达。
+  if(FAN){
+    if(!FAN._pick){
+      const lo=b=>{const v=b.mean.filter(x=>x!=null);return v.length?Math.min(...v):9;};
+      const f=FAN.branches.filter(b=>!b.success).sort((a,b)=>lo(a)-lo(b)).slice(0,2);
+      const s=FAN.branches.filter(b=>b.success).sort((a,b)=>lo(b)-lo(a)).slice(0,2);
+      FAN._pick=new Set([...f,...s].map(b=>b.worker+'/'+b.snapshot+'/'+b.candidate));
+    }
+    for(const b of FAN.branches){
+      const key=b.worker+'/'+b.snapshot+'/'+b.candidate, rep=FAN._pick.has(key);
+      ctx.strokeStyle=css(b.success?'--ok':'--bad');
+      ctx.globalAlpha=rep?0.5:0.055;
+      ctx.lineWidth=rep?1.7:1; ctx.lineJoin='round';
+      ctx.beginPath(); let st=false;
+      for(let t=0;t<=Math.min(q,b.mean.length-1);t++){
+        const v=b.mean[t]; if(v==null) continue;
+        st?ctx.lineTo(X(t),Y(v)):(ctx.moveTo(X(t),Y(v)),st=true);
+      }
+      if(st) ctx.stroke();
+    }
+    // 判据真正做的决定:每条分支在它报警的那一步点一个点。
+    // 一条静态横线看不出成败(成功的分支也有 9% 的步落在 θ 之下);
+    // 连续 K 步这个规则的结果只有画成点才看得见。
+    for(const b of FAN.branches){
+      if(b.alarm==null||q<b.alarm) continue;
+      const v=b.mean[b.alarm]; if(v==null) continue;
+      ctx.globalAlpha=b.success?0.75:0.3;
+      ctx.fillStyle=css(b.success?'--ok':'--alarm');
+      ctx.beginPath(); ctx.arc(X(b.alarm),Y(v),b.success?2.6:2,0,7); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // 判据线
+  ctx.strokeStyle='#4d6070'; ctx.setLineDash([5,4]); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(F.x0,Y(D.config.theta)); ctx.lineTo(F.x1,Y(D.config.theta));
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#6b7f90'; ctx.font='11px ui-monospace,monospace';
+  ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('θ = '+D.config.theta+'  ·  需连续 '+D.config.K+' 步低于才报警',
+               F.x0+7,Y(D.config.theta)-4);
+
+  // 报警之后的区域:分叉发生在这里
+  if(q>=A){
+    ctx.fillStyle='rgba(240,100,74,.045)';
+    ctx.fillRect(X(A),F.y0,F.x1-X(A),F.y1-F.y0);
+  }
+
+  const R=D.trunk.ratios;
+  // 共享历史(报警前):一条线
+  ctx.strokeStyle='#eef3f6'; ctx.lineWidth=2.8; ctx.lineJoin='round';
+  ctx.beginPath(); let started=false;
+  for(let t=0;t<=Math.min(q,A,R.length-1);t++){
+    const v=R[t]; if(v==null) continue;
+    started?ctx.lineTo(X(t),Y(v)):(ctx.moveTo(X(t),Y(v)),started=true);
+  }
+  if(started) ctx.stroke();
+
+  // 报警之后:原轨迹继续(橙),一路低到跑满 horizon
+  if(q>A){
+    ctx.strokeStyle='#ffb072'; ctx.lineWidth=2.8;
+    ctx.beginPath(); started=false;
+    for(let t=A;t<=Math.min(q,R.length-1);t++){
+      const v=R[t]; if(v==null) continue;
+      started?ctx.lineTo(X(t),Y(v)):(ctx.moveTo(X(t),Y(v)),started=true);
+    }
+    if(started) ctx.stroke();
+
+    // 救回来的那条:从服务端 routes.zarr 取回的真实 r(t)(模型自己的 top-4),
+    // 与主干在报警步重合,之后各走各的
+    const RR=D.rescued.ratios||[], from=D.rescued.ratios_from??A;
+    const end=D.rescued.ends_at;
+    ctx.strokeStyle=css('--ok'); ctx.lineWidth=2.8; ctx.lineJoin='round';
+    ctx.beginPath(); let s2=false;
+    for(let i=0;i<RR.length;i++){
+      const t=from+i; if(t>q) break;
+      s2?ctx.lineTo(X(t),Y(RR[i])):(ctx.moveTo(X(t),Y(RR[i])),s2=true);
+    }
+    if(s2) ctx.stroke();
+    if(q>=end && RR.length){
+      const last=RR[RR.length-1], lx=X(from+RR.length-1), ly=Y(last);
+      ctx.fillStyle=css('--ok');
+      ctx.beginPath(); ctx.arc(lx,ly,5,0,7); ctx.fill();
+      ctx.font='11.5px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign='left'; ctx.textBaseline='bottom';
+      ctx.fillText('重采样后 '+D.rescued.queries+' 步完成',lx+9,ly-4);
+    }
+  }
+
+  // 报警标记:一个圈,而不是整屏闪红
+  if(q>=A){
+    const v=R[A];
+    if(v!=null){
+      const cx=X(A), cy=Y(v);
+      // 刚落到报警步时,一圈向外扩散;之后留一个静止的环
+      if(ringAt===A && ringT<1){
+        ctx.strokeStyle=css('--alarm'); ctx.lineWidth=2*(1-ringT);
+        ctx.globalAlpha=1-ringT;
+        ctx.beginPath(); ctx.arc(cx,cy,7+34*ringT,0,7); ctx.stroke();
+        ctx.globalAlpha=1;
+      }
+      ctx.strokeStyle=css('--alarm'); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx,cy,9,0,7); ctx.stroke();
+      ctx.fillStyle=css('--alarm');
+      ctx.beginPath(); ctx.arc(cx,cy,3.2,0,7); ctx.fill();
+      ctx.font='11.5px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText('路由报警 · 在此重采样',cx+15,cy);
+    }
+  }
+
+  // 当前点
+  const t=Math.min(q,R.length-1);
+  if(R[t]!=null){
+    ctx.fillStyle=q>A?css('--bad'):'#dfe7ec';
+    ctx.beginPath(); ctx.arc(X(t),Y(R[t]),3.6,0,7); ctx.fill();
+  }
+  ctx.strokeStyle='#5b6c7a'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(X(q)+.5,F.y0); ctx.lineTo(X(q)+.5,F.y1); ctx.stroke();
+  ctx.restore();
+}
+
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect(),k=devicePixelRatio||1;
+  cv.width=Math.max(1,Math.round(r.width*k)); cv.height=Math.max(1,Math.round(r.height*k));
+  ctx.setTransform(k,0,0,k,0,0); draw();
+}
+addEventListener('resize',resize);
+
+/* 视频:报警前两格是同一段历史,报警后上格切成救回来的 */
+function media(){
+  if(!D) return;
+  const A=D.alarm, sec=D.config.frames_per_step/D.config.fps;
+  const vok=$('#v-ok'), vbad=$('#v-bad');
+
+  // 下格:原轨迹,全程
+  if(vbad.getAttribute('src')&&isFinite(vbad.duration)&&vbad.duration)
+    vbad.currentTime=Math.min(q*sec,vbad.duration-0.04);
+
+  // 上格:q<A 跟着原轨迹(共享历史);q>=A 换成重采样那条
+  const want = q<A ? D.videos.trunk : D.videos.rescued;
+  if(want && !vok.getAttribute('src').endsWith(want)) vok.src=want;
+  if(vok.getAttribute('src')&&isFinite(vok.duration)&&vok.duration){
+    const s = q<A ? q*sec : (q-A)*sec;
+    vok.currentTime=Math.min(Math.max(0,s),vok.duration-0.04);
+  }
+
+  const rescuedEnd=D.rescued.ends_at;
+  $('#who-ok').textContent = q<A ? '推理中' : '重采样后';
+  $('#who-bad').textContent = q<A ? '推理中' : '原噪声继续';
+  $('#dot-ok').style.background = q<A ? 'var(--dim)' : 'var(--ok)';
+  $('#dot-bad').style.background = q<A ? 'var(--dim)' : 'var(--bad)';
+  $('#m-ok').textContent = q<A ? '与下格同一条轨迹' :
+    (q>=rescuedEnd ? '第 '+rescuedEnd+' 步完成' : '第 '+(q-A+1)+' 步');
+  $('#m-bad').textContent = q<A ? '' : '第 '+(q-A+1)+' 步 / 剩 '+(D.trunk.queries-q);
+  $('#cell-ok').classList.toggle('done', q>=rescuedEnd);
+  $('#b-ok').classList.toggle('on', q>=rescuedEnd);
+  $('#b-bad').classList.toggle('on', q>=D.trunk.queries);
+
+}
+
+function setQ(v){
+  const prev=q;
+  q=Math.max(0,Math.min(+$('#scrub').max,v));
+  $('#scrub').value=q; $('#q').textContent=q;
+  if(D && q===D.alarm && prev!==D.alarm){ ringAt=D.alarm; ringT=0; pulse(); }
+  if(D && q<D.alarm) ringAt=-1;
+  draw(); media();
+}
+function pulse(){
+  // 报警圈向外扩散一次,约 550ms
+  const t0=performance.now();
+  const step=now=>{
+    ringT=Math.min(1,(now-t0)/550);
+    draw();
+    if(ringT<1 && ringAt===(D?D.alarm:-1)) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+$('#scrub').addEventListener('input',e=>{stop();setQ(+e.target.value)});
+for(const id of ['#v-ok','#v-bad']) $(id).addEventListener('loadedmetadata',media);
+
+function tick(ts){
+  if(!playing) return;
+  // 报警那一步停顿一下,让分叉看得见
+  const gap = (q===(D?D.alarm:-1)) ? 700 : 165;
+  if(ts-last>gap){ last=ts; setQ(q>=+$('#scrub').max?0:q+1); }
+  raf=requestAnimationFrame(tick);
+}
+function stop(){playing=false;$('#play').textContent='▶';cancelAnimationFrame(raf)}
+$('#play').addEventListener('click',()=>{
+  if(playing){stop();return}
+  if(q>=+$('#scrub').max) setQ(0);
+  playing=true;$('#play').textContent='❚❚';last=0;raf=requestAnimationFrame(tick);
+});
+addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();$('#play').click()}
+  if(e.key==='ArrowRight'){stop();setQ(q+1)}
+  if(e.key==='ArrowLeft'){stop();setQ(q-1)}
+});
+</script>
+</body>
+</html>

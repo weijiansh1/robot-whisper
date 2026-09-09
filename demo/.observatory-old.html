@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#071018">
+<title>Latent Trajectory Observatory</title>
+<style>
+:root{
+  --void:#071018;
+  --deep:#09131c;
+  --line:#1b2a35;
+  --line-strong:#2a3a46;
+  --ink:#e9eff2;
+  --muted:#84929c;
+  --faint:#4c5b65;
+  --prefix:#bec7cd;
+  --success:#6d9fbe;
+  --failure:#ba8652;
+  --current:#f3f7f8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--void);color:var(--ink)}
+body{
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px;
+  letter-spacing:0;
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;letter-spacing:0}
+button{color:inherit}
+.app{min-height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:var(--void)}
+.masthead{border-bottom:1px solid var(--line);padding:20px 26px 0;background:#08111a}
+.headrow{display:flex;align-items:flex-start;gap:24px;min-width:0}
+.titles{min-width:0}
+h1{margin:0;font-size:25px;line-height:1.15;font-weight:580;letter-spacing:0;color:#edf2f4}
+.subtitle{margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.45}
+.runmeta{margin-left:auto;display:flex;align-items:center;gap:15px;color:var(--faint);font:10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.live-mark{display:flex;align-items:center;gap:7px;color:#a7b2b9}
+.live-mark::before{content:"";width:5px;height:5px;background:var(--current);border-radius:50%;box-shadow:0 0 6px rgba(243,247,248,.35)}
+.stages{margin-top:18px;display:grid;grid-template-columns:repeat(5,minmax(108px,1fr));position:relative;overflow:hidden}
+.stages::before{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--line-strong)}
+.stage{appearance:none;border:0;border-right:1px solid rgba(42,58,70,.55);border-radius:0;background:transparent;padding:0 12px 11px;text-align:left;color:var(--faint);cursor:pointer;min-height:35px;position:relative;font:10px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace}
+.stage:first-child{padding-left:0}
+.stage:last-child{border-right:0}
+.stage:hover{color:#b7c1c7}
+.stage .num{display:block;margin-bottom:4px;font-size:8px;color:#394955}
+.stage::after{content:"";position:absolute;left:0;right:100%;bottom:0;height:2px;background:var(--prefix);transition:right .28s ease}
+.stage.past{color:#8f9ca4}
+.stage.past::after,.stage.active::after{right:0}
+.stage.active{color:var(--ink)}
+.stage.active::after{background:var(--current);box-shadow:0 0 7px rgba(238,244,246,.25)}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 306px;min-height:0}
+.observatory{position:relative;min-width:0;min-height:500px;overflow:hidden;background:var(--void)}
+#scene,#scene3d{position:absolute;inset:0;width:100%;height:100%;display:block}
+#scene[hidden],#scene3d[hidden]{display:none}
+#scene3d{touch-action:none}
+.plot-readout{position:absolute;top:18px;left:24px;pointer-events:none;display:flex;align-items:flex-start;gap:12px}
+.phase-index{font:9px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--faint);padding-top:3px}
+.phase-name{font:500 13px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;color:#dce3e7}
+.phase-note{margin-top:4px;font:9px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;color:#53636e}
+.legend{position:absolute;right:24px;top:20px;display:flex;gap:17px;pointer-events:none;color:#778690;font:9px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{display:block;width:17px;height:1px;background:currentColor;box-shadow:0 0 4px currentColor}
+.legend .shared{color:var(--prefix)}
+.legend .success{color:var(--success)}
+.legend .failure{color:var(--failure)}
+.axis-note{position:absolute;left:24px;bottom:17px;color:#3f505b;font:9px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;pointer-events:none}
+.rail{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#08121a}
+.rail-head{padding:16px 15px 13px;border-bottom:1px solid var(--line)}
+.eyebrow{color:#5f6f79;font:9px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}
+.pair-title{margin-top:6px;color:#c8d1d6;font-size:12px;font-weight:540}
+.pair-sub{margin-top:4px;color:#53636e;font:9px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.video-pair{display:grid;grid-template-rows:1fr 1fr;min-height:0;flex:1}
+.video-observation{margin:0;min-height:0;display:flex;flex-direction:column;border-bottom:1px solid var(--line);background:#071018}
+.video-observation:last-child{border-bottom:0}
+.video-label{height:31px;flex:none;padding:0 11px;display:flex;align-items:center;gap:8px;color:#aeb9bf;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.video-label .route-id{font-weight:700;color:var(--ink)}
+.video-label .route-id::before{content:"";display:inline-block;width:15px;height:1px;margin-right:7px;vertical-align:middle;background:currentColor}
+.video-label.success .route-id{color:var(--success)}
+.video-label.failure .route-id{color:var(--failure)}
+.video-label .q{margin-left:auto;color:#586873;font-variant-numeric:tabular-nums}
+.video-frame{position:relative;flex:1;min-height:0;background:#03070a;overflow:hidden}
+.video-frame video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;filter:saturate(.78) contrast(1.04) brightness(.86)}
+.video-frame::after{content:"";position:absolute;inset:0;border:1px solid rgba(132,146,156,.08);pointer-events:none}
+.video-status{position:absolute;left:8px;bottom:7px;color:#82909a;background:rgba(5,12,17,.82);padding:3px 5px;border-radius:2px;font:8px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;pointer-events:none}
+.rail-foot{padding:11px 14px 13px;border-top:1px solid var(--line);color:#566771;font:8px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}
+.rail-foot strong{color:#82909a;font-weight:500}
+.controls{border-top:1px solid var(--line);min-height:62px;padding:11px 26px 10px;display:grid;grid-template-columns:auto auto auto minmax(160px,1fr) auto auto;gap:12px;align-items:center;background:#08111a}
+.icon-button{width:34px;height:34px;border:1px solid var(--line-strong);border-radius:3px;background:#09151e;display:grid;place-items:center;cursor:pointer;color:#dce4e8;padding:0}
+.icon-button:hover{border-color:#4a5b66;background:#0b1822}
+.icon-button:focus-visible,.view-option:focus-visible,.stage:focus-visible,input:focus-visible{outline:1px solid var(--current);outline-offset:2px}
+#playIcon{font-size:12px;line-height:1;transform:translateX(1px)}
+.view-switch{height:34px;display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line-strong);border-radius:3px;overflow:hidden;background:#09151e}
+.view-option{min-width:68px;border:0;border-right:1px solid var(--line-strong);border-radius:0;background:transparent;padding:0 9px;color:#60717c;cursor:pointer;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.view-option:last-child{border-right:0}
+.view-option:hover{color:#b9c4ca;background:#0b1822}
+.view-option.active{color:#e5ecef;background:#10202b}
+.timeline{display:flex;align-items:center;gap:12px;min-width:0}
+input[type=range]{appearance:none;-webkit-appearance:none;width:100%;min-width:0;height:20px;margin:0;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:#263641;border-radius:0}
+input[type=range]::-moz-range-track{height:2px;background:#263641;border-radius:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--current);border:0;margin-top:-4px;box-shadow:0 0 7px rgba(243,247,248,.28)}
+input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:var(--current);border:0;box-shadow:0 0 7px rgba(243,247,248,.28)}
+.query{min-width:94px;text-align:right;color:#bbc5ca;font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.method{color:#52636e;text-align:right;font:8px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+
+@media (max-width:980px){
+  .app{display:flex;flex-direction:column;min-height:100dvh}
+  .masthead{padding:18px 18px 0}
+  .headrow{display:block}
+  .runmeta{margin-top:12px;justify-content:space-between;white-space:normal}
+  .stages{grid-template-columns:repeat(5,minmax(105px,1fr));overflow-x:auto}
+  .workspace{display:contents}
+  .masthead{order:1}
+  .observatory{order:2;height:58dvh;min-height:430px;border-bottom:1px solid var(--line)}
+  .controls{order:3}
+  .rail{order:4;border-left:0;min-height:520px}
+  .video-pair{grid-template-columns:1fr 1fr;grid-template-rows:260px}
+  .video-observation{border-right:1px solid var(--line)}
+  .video-observation:last-child{border-right:0}
+  .controls{grid-template-columns:auto auto auto minmax(100px,1fr) auto;padding:10px 18px;position:static}
+  .method{display:none}
+}
+@media (max-width:620px){
+  h1{font-size:21px}
+  .subtitle{max-width:330px}
+  .runmeta span:first-child{display:none}
+  .stages{margin-top:15px;grid-template-columns:repeat(5,minmax(0,1fr));overflow:hidden}
+  .stage{padding-left:5px;padding-right:5px;font-size:7.5px;min-width:0;min-height:51px;overflow-wrap:anywhere}
+  .observatory{height:55dvh;min-height:390px}
+  .legend{top:60px;left:18px;right:auto;gap:12px}
+  .plot-readout{left:18px;top:16px}
+  .axis-note{left:18px}
+  .video-pair{display:block}
+  .video-observation{height:235px;border-right:0}
+  .controls{grid-template-columns:auto auto auto minmax(80px,1fr);gap:8px;padding:9px 12px}
+  .view-option{min-width:50px;padding:0 6px;font-size:8px}
+  .query{grid-column:1/-1;grid-row:2;min-width:0;text-align:left;padding-left:1px}
+}
+@media (prefers-reduced-motion:reduce){.stage::after{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="masthead">
+    <div class="headrow">
+      <div class="titles">
+        <h1>Latent Trajectory Observatory</h1>
+        <p class="subtitle">Tracking how agent rollouts diverge and collapse into recurrent basins</p>
+      </div>
+      <div class="runmeta">
+        <span id="snapshotMeta">ROLLING-STAR / W00_S000</span>
+        <span class="live-mark">OBSERVATION ONLY</span>
+      </div>
+    </div>
+    <nav class="stages" id="stages" aria-label="Narrative phases"></nav>
+  </header>
+
+  <main class="workspace">
+    <section class="observatory" aria-label="Latent route trajectory views">
+      <canvas id="scene"></canvas>
+      <canvas id="scene3d" aria-label="PC1, PC2, and within-rollout control-step trajectories" hidden></canvas>
+      <div class="plot-readout">
+        <div class="phase-index" id="phaseIndex">01</div>
+        <div>
+          <div class="phase-name" id="phaseName">Shared prefix</div>
+          <div class="phase-note" id="phaseNote">same snapshot / shared simulator state</div>
+        </div>
+      </div>
+      <div class="legend" aria-label="Trajectory legend">
+        <span class="shared"><i></i>shared prefix</span>
+        <span class="success"><i></i>success &times;3</span>
+        <span class="failure"><i></i>failure &times;5</span>
+      </div>
+      <div class="axis-note" id="axisNote">x = query step / y = PC1 route score</div>
+    </section>
+
+    <aside class="rail" aria-label="Focused rollout observations">
+      <div class="rail-head">
+        <div class="eyebrow">Focused comparison</div>
+        <div class="pair-title">One initial state, two outcomes</div>
+        <div class="pair-sub" id="pairMeta">w00_s000 / candidates 03 and 02</div>
+      </div>
+      <div class="video-pair">
+        <figure class="video-observation">
+          <figcaption class="video-label success">
+            <span class="route-id">S1</span><span>success</span><span class="q" id="okQ">q00</span>
+          </figcaption>
+          <div class="video-frame">
+            <video id="okVideo" muted playsinline preload="auto"></video>
+            <span class="video-status" id="okStatus">loading observation</span>
+          </div>
+        </figure>
+        <figure class="video-observation">
+          <figcaption class="video-label failure">
+            <span class="route-id">F1</span><span>failed rollout</span><span class="q" id="failQ">q00</span>
+          </figcaption>
+          <div class="video-frame">
+            <video id="failVideo" muted playsinline preload="auto"></video>
+            <span class="video-status" id="failStatus">loading observation</span>
+          </div>
+        </figure>
+      </div>
+      <div class="rail-foot" id="projectionNote">
+        <strong>Metric projection.</strong> Loading projection metadata.
+      </div>
+    </aside>
+  </main>
+
+  <footer class="controls">
+    <button class="icon-button" id="play" title="Play or pause" aria-label="Play or pause"><span id="playIcon">&#9654;</span></button>
+    <button class="icon-button" id="reset" title="Restart observation" aria-label="Restart observation">&#8634;</button>
+    <div class="view-switch" role="group" aria-label="Trajectory view">
+      <button class="view-option active" data-view="timeline" title="Time-series view">Timeline</button>
+      <button class="view-option" data-view="spatial3d" title="Latent-time view">3D + q</button>
+    </div>
+    <div class="timeline"><input id="timeline" type="range" min="0" max="1000" step="1" value="0" aria-label="Observation time"></div>
+    <div class="query" id="query">PREFIX / q00</div>
+    <div class="method" id="method">HB12-15 / ACTION TOKENS / D9<br>32-EXPERT SOFT ROUTES</div>
+  </footer>
+</div>
+
+<script>
+const OBS=/*OBS*/{"title":"Latent Trajectory Observatory","subtitle":"Tracking how agent rollouts diverge and collapse into recurrent basins","run":"rolling-star-a100-long-t08-k16-20260828","task":"put both moka pots on the stove","snapshot":"w00_s000","counts":{"success":3,"failure":5},"maxQuery":51,"secondsPerQuery":0.5,"projection":{"space":"32-expert soft route","layers":"HB 12-15","tokens":"action tokens 1-10","denoise":"d9","method":"Hellinger PCA","metricAxes":true,"views":{"timeline":{"x":"query index","y":"PC1 score"},"spatial3d":{"x":"PC1","y":"PC2","z":"within-rollout control step","timeAxisScale":"normalized for display only"}},"explainedVariance":[0.10067,0.06255,0.05161,0.04466,0.04238,0.03448,0.03333,0.0288,0.02759,0.02547],"diagnostics":{"pairwiseDistanceCorrelation":[0.3664,0.45315,0.50598,0.57445,0.59359,0.66338,0.70519,0.70655,0.73378,0.7493],"adjacentStepLengthCorrelation":[0.63891,0.69013,0.76119,0.81282,0.81819,0.84279,0.83879,0.83659,0.85579,0.86348]}},"stages":["Shared prefix","Latent divergence","Progress slowdown","Observable repetition","Trap consolidation"],"trajectories":[{"id":"S1","outcome":"success","focus":true,"featured":true,"worker":0,"snapshot":0,"candidate":3,"episodeId":100000003,"T":40,"failureType":null,"video":"video/w0_s000_c03_success_web.mp4","points":[[-0.0318348,-0.08219,-0.1453401],[-0.0728537,-0.1002858,-0.0899849],[-0.086188,-0.1533249,-0.1115536],[-0.0444014,-0.1668281,-0.128222],[-0.0775724,-0.1535173,-0.1310225],[-0.0504675,-0.1042869,-0.1243021],[0.0035752,-0.1023849,-0.0621954],[0.0622399,-0.0700554,-0.0499335],[0.1093763,-0.0799535,-0.0417702],[0.1697386,-0.0215883,-0.0466929],[0.1185676,-0.0039044,-0.0952519],[0.0044372,0.0372747,-0.1166079],[-0.10835,0.1411835,-0.063006],[-0.1367959,0.1507291,-0.008922],[-0.1290908,0.1096212,-0.0054261],[-0.1568908,0.0815206,0.0182979],[-0.0998928,0.0470443,-0.0080814],[-0.0395828,0.0041109,-0.0786176],[0.000761,0.0059596,-0.0503398],[-0.0844938,-0.0093001,0.0517916],[-0.0532011,-0.0886766,0.1456742],[-0.0384102,-0.1068764,0.1282752],[-0.0470804,-0.1011454,0.0872896],[-0.0228419,-0.0994022,0.0466239],[0.0306269,-0.0895552,0.0257256],[0.0583294,-0.0170673,0.016702],[0.044882,0.0037304,-0.0088725],[0.0753496,0.0027798,0.0027552],[0.0732267,0.0439802,-0.020843],[0.0317063,0.0696136,-0.0060511],[-0.1042636,0.0889397,-0.0347212],[-0.1542643,0.1020179,-0.0251902],[-0.1283922,0.1034737,-0.0302367],[-0.13717,0.1390786,-0.0260184],[-0.1509078,0.1618372,0.0134271],[-0.1452914,0.114167,0.0307735],[-0.1502712,0.1042704,0.0331775],[-0.1518626,0.0985616,0.0605556],[-0.1702968,0.0318394,0.0823725],[-0.085111,-0.0160642,-0.0063329]]},{"id":"S2","outcome":"success","focus":false,"featured":false,"worker":0,"snapshot":0,"candidate":7,"episodeId":100000007,"T":40,"failureType":null,"video":"video/w0_s000_c07_success.mp4","points":[[-0.0282246,-0.0791281,-0.1366584],[-0.0846975,-0.1075496,-0.0871118],[-0.081392,-0.1428476,-0.1151968],[-0.0468826,-0.1557318,-0.1327753],[-0.0735363,-0.1555037,-0.1458027],[-0.0529856,-0.1255518,-0.1352576],[0.0012955,-0.0939707,-0.072378],[0.0827486,-0.0664067,-0.0615506],[0.1005647,-0.053094,-0.0121512],[0.1349635,-0.0324466,-0.0350386],[0.1582222,-0.0091945,-0.0755861],[0.1145602,-0.0069499,-0.0927835],[-0.0030749,0.0617193,-0.1108028],[-0.1117491,0.1311664,-0.061318],[-0.1176732,0.1419643,0.0004325],[-0.1297814,0.1008621,0.0056057],[-0.1402168,0.0789154,0.0172208],[-0.1162079,0.0709613,-0.0111791],[-0.0311882,0.0169883,-0.081582],[0.0100128,-0.0039253,-0.0666768],[-0.0871232,-0.0416071,0.0587749],[-0.0310397,-0.1216224,0.1271639],[-0.0278236,-0.1078156,0.1115227],[-0.0406093,-0.118357,0.0753908],[0.0112812,-0.100024,0.0350029],[0.0383427,-0.0588201,0.0444475],[0.0465566,0.0087696,0.0312432],[0.0586023,0.0061422,-0.0102981],[0.0896853,0.018894,0.0180876],[0.0747234,0.0525385,-0.0181273],[0.0010383,0.081898,-0.0160744],[-0.1083103,0.0729868,-0.0705591],[-0.1498725,0.0685062,-0.0608583],[-0.120122,0.0671318,-0.0612006],[-0.1228606,0.0887623,-0.0290447],[-0.1433619,0.1342426,-0.0068624],[-0.1148516,0.0824607,0.0392486],[-0.1283065,0.0696333,0.0571946],[-0.1351397,0.0373744,0.0593615],[-0.0011725,0.0118725,0.0201225]]},{"id":"S3","outcome":"success","focus":false,"featured":true,"worker":0,"snapshot":0,"candidate":10,"episodeId":100000010,"T":46,"failureType":null,"video":null,"points":[[-0.0369869,-0.090349,-0.1410703],[-0.1054498,-0.122018,-0.1045868],[-0.0934915,-0.1459804,-0.1029],[-0.0547621,-0.1513926,-0.1079345],[-0.0639727,-0.1650222,-0.1197932],[-0.0519451,-0.1178388,-0.126913],[0.0118273,-0.0880043,-0.0768303],[0.0963668,-0.0784094,-0.0460931],[0.1262432,-0.0680809,-0.0381534],[0.1622018,-0.0224296,-0.0659263],[0.1665928,-0.0262264,-0.066866],[0.1359045,-0.0153233,-0.0613305],[0.0322275,0.0142013,-0.1204064],[-0.1154017,0.1237567,-0.0925604],[-0.1229369,0.1357122,-0.0415792],[-0.1241792,0.1230519,-0.0401324],[-0.1355594,0.1201544,0.0307552],[-0.1480202,0.0744874,0.0228344],[-0.1399478,0.0099883,-0.0036465],[-0.0297193,-0.0202106,-0.0764398],[-0.0083763,-0.0239862,0.0455157],[-0.06027,-0.0507092,0.1363665],[-0.0725482,-0.1078508,0.2217817],[-0.0893887,-0.1340466,0.1994248],[-0.0485584,-0.1341126,0.1482155],[-0.036259,-0.1177459,0.1192618],[0.0042498,-0.0899291,0.0881659],[0.0494492,-0.0588461,0.0787334],[0.0497386,0.012907,0.0557659],[0.0491982,0.0309416,0.0361728],[0.0743776,0.0448871,0.0602673],[0.0623203,0.0663325,0.0025499],[0.0242809,0.0661303,0.0107962],[-0.0742272,0.0791683,-0.029381],[-0.154718,0.1051074,-0.0108887],[-0.1196924,0.0805508,-0.0066242],[-0.1037398,0.119177,-0.0174151],[-0.1120085,0.1411058,-0.0183698],[-0.1363044,0.0905938,0.0309806],[-0.1592762,0.0494302,0.0531542],[-0.1392823,0.0333075,0.0578381],[-0.1212792,0.0138038,0.06147],[-0.1374718,-0.0087318,0.0231732],[-0.1369352,-0.0110726,0.0225008],[-0.1241549,-0.0177654,0.0187963],[-0.1556853,-0.0045546,-0.0076951]]},{"id":"F1","outcome":"failure","focus":true,"featured":true,"worker":0,"snapshot":0,"candidate":2,"episodeId":100000002,"T":52,"failureType":"drop_or_regrasp","video":"video/w0_s000_c02_failure_web.mp4","points":[[-0.0325085,-0.0870743,-0.1410613],[-0.109585,-0.1322729,-0.1165493],[-0.0901347,-0.1312259,-0.0902486],[-0.0500654,-0.1654078,-0.1136692],[-0.0806736,-0.1699936,-0.1265642],[-0.0597102,-0.1182601,-0.1251898],[0.0121561,-0.0934139,-0.0829324],[0.0661433,-0.0816263,-0.0650953],[0.0945168,-0.0692437,-0.0258301],[0.1729174,-0.0313557,-0.0556534],[0.1460822,-0.0281873,-0.0873728],[0.0697889,-0.0012135,-0.1376594],[-0.041502,0.0842791,-0.1349991],[-0.1203953,0.1537024,-0.0503806],[-0.1217279,0.1453685,-0.021065],[-0.1547062,0.1214478,-0.0015983],[-0.1536019,0.1006992,0.0219511],[-0.154822,0.0353411,-0.0161807],[-0.0693183,-0.0076534,-0.0480031],[0.0311286,0.0063172,0.0775031],[-0.0572458,-0.0290866,0.169571],[-0.0947811,-0.1355967,0.2260341],[-0.0911061,-0.1429753,0.2199695],[-0.011372,-0.1160413,0.1650133],[0.0207489,-0.1077378,0.1179285],[0.0746757,-0.0835836,0.0630068],[0.1219159,-0.0468112,0.0541258],[0.104009,-0.0098533,0.0450358],[0.1345399,0.0166426,-0.0015341],[0.0152728,0.0536823,-0.0402848],[-0.1520797,0.1582146,-0.0644421],[-0.1450546,0.1094219,0.0024744],[-0.1696343,0.1279676,0.0040394],[-0.1549437,0.0330874,-0.024283],[-0.1053641,0.010368,-0.0359391],[-0.0085768,0.0040861,-0.0423664],[-0.0574699,-0.0213568,0.088747],[-0.0615907,-0.0676639,0.1912015],[-0.0539434,-0.1321857,0.1845089],[0.0004238,-0.1156805,0.1977579],[0.0510766,-0.0921567,0.1328804],[0.1071006,-0.0571331,0.0780496],[0.1442627,-0.0144283,0.037178],[0.0696404,0.0393181,0.0572698],[0.0809241,0.010089,0.0484722],[0.0678468,0.0210979,-0.0079164],[0.0765604,0.0247097,0.0325857],[0.1258611,0.0208805,0.0416542],[0.126376,0.0267019,0.0452973],[0.1354681,0.021462,0.0372157],[0.1020294,0.0114333,0.0714472],[0.1147481,0.0109938,0.0390929]]},{"id":"F2","outcome":"failure","focus":false,"featured":true,"worker":0,"snapshot":0,"candidate":0,"episodeId":100000000,"T":52,"failureType":"loop_or_cycling","video":null,"points":[[-0.0266059,-0.0844305,-0.1471689],[-0.1152896,-0.1424029,-0.102203],[-0.0983283,-0.1530569,-0.1032316],[-0.0487213,-0.1443309,-0.112634],[-0.0691995,-0.1630436,-0.1215369],[-0.0562519,-0.1270739,-0.1323956],[0.0060203,-0.1014538,-0.0827697],[0.070885,-0.0794295,-0.0687905],[0.1041887,-0.0812318,-0.0190097],[0.1660823,-0.0339521,-0.0543587],[0.1588032,-0.0220905,-0.0751271],[0.1105071,0.0068026,-0.0935905],[-0.011527,0.0623692,-0.1268729],[-0.1058076,0.1201076,-0.1083761],[-0.141366,0.1190897,-0.0279989],[-0.1673641,0.1563341,0.0250671],[-0.2000981,0.1262139,0.0209532],[-0.1691095,0.0807697,0.024492],[-0.1689212,0.0086497,-0.0125646],[-0.0181807,0.0005811,-0.0346548],[0.0140042,0.0099898,0.0663398],[-0.0617978,-0.0379696,0.154964],[-0.0957812,-0.1396753,0.2245855],[-0.0982871,-0.1621197,0.2324749],[-0.0505642,-0.1238158,0.1930692],[-0.0067165,-0.120333,0.1318429],[0.0451882,-0.0692355,0.0430072],[0.0885425,-0.047109,0.039592],[0.1338142,-0.0110398,0.0087264],[0.1723031,0.0269522,0.0187125],[0.1731171,0.0463669,0.0096325],[0.1766385,0.0486865,-0.0017109],[0.1755867,0.0387459,-0.0060004],[0.1793665,0.0272741,-0.0101151],[0.1643895,0.0290358,-0.0070523],[0.1639438,0.0327262,0.007054],[0.1686472,0.0317568,0.0066253],[0.1808434,0.0337406,-0.0016318],[0.1801286,0.050384,0.0010359],[0.1787624,0.0430711,0.0062807],[0.1971016,0.0412343,-0.0038716],[0.1985871,0.0441915,0.0014786],[0.2009374,0.0575719,0.0139652],[0.205458,0.0484672,0.0091345],[0.200117,0.0452909,0.0074306],[0.1913472,0.0406832,0.0245107],[0.1976842,0.0516569,0.047889],[0.1874584,0.0606686,0.0479609],[0.1830231,0.0625713,0.0403616],[0.1781289,0.061448,0.0506458],[0.1805386,0.0632555,0.0420943],[0.1755008,0.0706608,0.0512012]]},{"id":"F3","outcome":"failure","focus":false,"featured":false,"worker":0,"snapshot":0,"candidate":1,"episodeId":100000001,"T":52,"failureType":"loop_or_cycling","video":null,"points":[[-0.0297122,-0.083803,-0.136631],[-0.1005649,-0.1320222,-0.1017077],[-0.08463,-0.1494465,-0.1123806],[-0.0489581,-0.1440252,-0.116339],[-0.0682009,-0.1587659,-0.1212012],[-0.0624435,-0.1291574,-0.1272811],[-0.0027249,-0.1022412,-0.0853062],[0.0714661,-0.0827493,-0.0721602],[0.0871892,-0.0663642,-0.0387517],[0.1682406,-0.046215,-0.0463015],[0.1451178,-0.0206001,-0.0716023],[0.1376518,-0.0131112,-0.0899307],[0.0501431,0.0224541,-0.1088649],[-0.1076079,0.1554735,-0.0924776],[-0.1614667,0.1382666,0.0087712],[-0.1738123,0.1501894,0.0382755],[-0.2041022,0.1259058,0.0306063],[-0.168081,0.0954085,0.0282707],[-0.1517544,0.0120928,-0.0215598],[-0.0509906,0.0052124,-0.0250149],[0.0210937,0.0077424,0.0445974],[-0.0408134,-0.0282289,0.1477781],[-0.0970497,-0.1164384,0.2177477],[-0.0974534,-0.1670196,0.2338051],[-0.0082425,-0.1218548,0.183163],[0.0003338,-0.0964459,0.1461963],[0.0097219,-0.0774092,0.0931777],[0.0394478,-0.0453136,0.0572351],[0.1218441,-0.025047,0.0424858],[0.1599032,0.0252326,0.0128221],[0.1407393,0.0498845,-0.0115877],[0.0043037,0.0757703,-0.0127672],[-0.1538598,0.0893998,-0.0258295],[-0.1436231,0.1270166,-0.0172421],[-0.1452354,0.115352,0.0080471],[-0.1560494,0.1735049,0.034389],[-0.1717064,0.1619345,0.0384284],[-0.1945444,0.087178,0.0234129],[-0.1822398,0.0489489,-0.0190577],[-0.0987132,0.0101042,-0.0387499],[0.0024267,0.004406,-0.0037248],[-0.0524769,-0.0217221,0.1063546],[-0.029067,-0.101413,0.1749758],[-0.0202329,-0.1079686,0.1833633],[0.0017225,-0.1077682,0.1546088],[0.0872047,-0.0530392,0.0992144],[0.0913215,-0.0062295,0.0695834],[0.1424896,0.0346901,0.0347773],[0.1679944,0.0497424,0.0143815],[0.1467535,0.0691328,0.0028198],[0.1500986,0.0571166,0.034861],[0.0929069,0.0601379,0.042229]]},{"id":"F4","outcome":"failure","focus":false,"featured":false,"worker":0,"snapshot":0,"candidate":11,"episodeId":100000011,"T":52,"failureType":"single_subtask_omission","video":null,"points":[[-0.027551,-0.0851007,-0.1436943],[-0.0797167,-0.1127239,-0.0870736],[-0.0725774,-0.1397079,-0.1125567],[-0.0440434,-0.1610771,-0.1302057],[-0.0771482,-0.1590383,-0.1373984],[-0.0602535,-0.1207002,-0.1246395],[-0.0022121,-0.1041687,-0.0639555],[0.069793,-0.0696232,-0.0462914],[0.1097931,-0.0753728,-0.0244109],[0.1460541,0.0019613,-0.0281467],[0.097333,0.0127911,-0.0953258],[-0.0089908,0.0675622,-0.0781015],[-0.1009083,0.1364659,-0.0467436],[-0.1357189,0.1361619,-0.0122278],[-0.1377445,0.1009451,0.0185357],[-0.132417,0.0744899,-0.0063471],[-0.1040639,0.0584636,-0.0286004],[-0.0595188,-0.0039574,-0.0699952],[-0.0062699,0.0080279,-0.0161968],[-0.0735843,-0.0333983,0.0654038],[-0.0501633,-0.0774638,0.0851308],[-0.0322105,-0.1037513,0.1150313],[-0.0519909,-0.0764884,0.0428131],[-0.0087784,-0.0843777,0.0151948],[0.0220966,-0.064369,0.0104676],[0.0416997,-0.0108469,0.0148623],[0.0567017,0.0161834,0.0314095],[0.1449993,0.052846,0.0206468],[0.1270795,0.0726665,0.0089963],[0.1512008,0.0827606,0.035102],[0.1752669,0.1010919,0.0357896],[0.1823019,0.1133421,0.0309837],[0.1733227,0.113206,0.0230716],[0.1586947,0.1130592,0.0050023],[0.1758048,0.118357,0.0169893],[0.1700909,0.126648,0.0300859],[0.168065,0.121463,0.0196249],[0.1770961,0.1205632,0.017249],[0.1800268,0.1130563,0.0243391],[0.188664,0.1319406,0.0227453],[0.1923303,0.1287662,0.0257681],[0.1864199,0.1220166,0.0226951],[0.1837927,0.1127,0.0243201],[0.1828975,0.1226323,0.0180495],[0.1917936,0.1125273,0.0169712],[0.1953749,0.1201811,0.0419529],[0.1851479,0.1204641,0.0173001],[0.1955189,0.1156124,0.020396],[0.1455208,0.0999503,-0.0156285],[0.108818,0.0949449,-0.0124846],[0.0892408,0.0805878,-0.0046349],[0.0136514,0.0534221,-0.0121056]]},{"id":"F5","outcome":"failure","focus":false,"featured":false,"worker":0,"snapshot":0,"candidate":15,"episodeId":100000015,"T":52,"failureType":"loop_or_cycling","video":null,"points":[[-0.0328609,-0.0985889,-0.1483504],[-0.1019002,-0.1243873,-0.1045458],[-0.0823559,-0.1389067,-0.0965325],[-0.046461,-0.1583288,-0.1126764],[-0.0724138,-0.1637806,-0.1269328],[-0.0575822,-0.1199741,-0.1279109],[0.0049787,-0.0936895,-0.0822711],[0.0979727,-0.0861201,-0.0537838],[0.0974735,-0.0705706,-0.0210007],[0.1545293,-0.0246571,-0.0669922],[0.1547637,-0.0230492,-0.0771002],[0.053809,0.0107326,-0.1194449],[-0.1113102,0.1284768,-0.1084399],[-0.1695457,0.1370665,0.0185202],[-0.1696629,0.1601458,0.0386192],[-0.2052341,0.1208647,0.030014],[-0.178954,0.0788349,0.035902],[-0.1691351,0.0217026,0.0091535],[-0.0530171,0.0256789,-0.0255543],[0.0242685,0.0084477,0.0405088],[-0.0377327,-0.0401784,0.1378638],[-0.0866281,-0.1235099,0.2251197],[-0.0826274,-0.1604312,0.2313517],[-0.0237109,-0.1240829,0.1918741],[-0.0022341,-0.1008801,0.1417806],[0.0092701,-0.0888984,0.0948725],[0.0255798,-0.0578059,0.0510406],[0.0954366,-0.0184693,0.0422166],[0.1609582,0.0247916,0.027158],[0.1547128,0.046379,-0.0129249],[0.1601773,0.043201,-0.0066177],[0.1473655,0.0462469,-0.0208163],[0.1474907,0.0343605,-0.0193826],[0.1542794,0.0501538,-0.0127981],[0.1730009,0.0674061,-0.0097953],[0.1690678,0.0677521,-0.0037482],[0.1659855,0.0555839,0.0020761],[0.1624757,0.0441056,0.0155891],[0.1620748,0.0507001,-0.022837],[0.1093578,0.0723755,-0.017924],[0.0108492,0.1033688,-0.0134704],[-0.1507574,0.1033611,0.0043101],[-0.1466572,0.1527454,0.0213907],[-0.1498994,0.1658307,0.0155971],[-0.1943787,0.1328305,0.0304311],[-0.187442,0.0929241,0.0163536],[-0.144796,0.0305969,-0.0080815],[-0.0602085,-0.0082878,-0.0313678],[-0.0197838,-0.0279746,0.0395329],[-0.0535505,-0.0387053,0.1287237],[-0.0478745,-0.1265639,0.1768876],[-0.0255275,-0.1267444,0.1808532]]}]}/*ENDOBS*/;
+(function(){
+"use strict";
+
+const canvas=document.getElementById("scene");
+const ctx=canvas.getContext("2d",{alpha:false});
+const spatialCanvas=document.getElementById("scene3d");
+const timeline=document.getElementById("timeline");
+const playButton=document.getElementById("play");
+const playIcon=document.getElementById("playIcon");
+const phaseName=document.getElementById("phaseName");
+const phaseIndex=document.getElementById("phaseIndex");
+const phaseNote=document.getElementById("phaseNote");
+const queryLabel=document.getElementById("query");
+const stageRoot=document.getElementById("stages");
+const okVideo=document.getElementById("okVideo");
+const failVideo=document.getElementById("failVideo");
+const axisNote=document.getElementById("axisNote");
+const projectionNote=document.getElementById("projectionNote");
+const methodNote=document.getElementById("method");
+const viewOptions=[...document.querySelectorAll(".view-option")];
+const reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const COLORS={
+  bg:"#071018",grid:"#152630",gridStrong:"#20333f",prefix:"#bec7cd",
+  success:"#6d9fbe",failure:"#ba8652",current:"#f3f7f8",muted:"#586873"
+};
+const CUTS=[0,.18,.39,.61,.81,1.001];
+const NOTES=[
+  "structural trunk / measured series begins at q0",
+  "route scores diverge at aligned query steps",
+  "compare PC1 displacement at the same query",
+  "late PC1 oscillations become directly visible",
+  "one-PC timeline does not define a spatial basin"
+];
+const SPATIAL_NOTES=[
+  "structural trunk / measured coordinates begin at q0",
+  "PC1-PC2 paths separate along the aligned query axis",
+  "depth is exact control step, not another latent component",
+  "late returns remain separated by when they occurred",
+  "PC1-PC2 recurrence is not full-space proof of a basin"
+];
+const DURATION=28;
+let W=1,H=1,dpr=1,progress=0,playing=false,lastFrame=0,lastQuery=-1,phase=-1;
+let screenTracks=[];
+let plot={x:42,y:42,w:100,h:100};
+let yMin=-1,yMax=1;
+let viewMode="timeline",threeState=null,threePromise=null;
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function mix(a,b,t){return a+(b-a)*t;}
+function rgba(hex,a){
+  const n=parseInt(hex.slice(1),16);
+  return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`;
+}
+function currentPhase(p){
+  for(let i=0;i<CUTS.length-1;i++) if(p>=CUTS[i]&&p<CUTS[i+1]) return i;
+  return 4;
+}
+function branchProgress(p){return clamp((p-CUTS[1])/(1-CUTS[1]),0,1);}
+function activeNotes(){return viewMode==="spatial3d"?SPATIAL_NOTES:NOTES;}
+
+function buildStages(){
+  stageRoot.innerHTML="";
+  OBS.stages.forEach((name,i)=>{
+    const button=document.createElement("button");
+    button.className="stage";
+    button.innerHTML=`<span class="num">0${i+1}</span>${name}`;
+    button.onclick=()=>{stop();setProgress(CUTS[i]+.002,true);};
+    stageRoot.appendChild(button);
+  });
+}
+
+function configureData(){
+  if(!OBS) return;
+  document.getElementById("snapshotMeta").textContent=`ROLLING-STAR / ${OBS.snapshot.toUpperCase()} / 8 ROUTES`;
+  const s=OBS.trajectories.find(t=>t.id==="S1");
+  const f=OBS.trajectories.find(t=>t.id==="F1");
+  document.getElementById("pairMeta").textContent=`${OBS.snapshot} / candidates ${String(s.candidate).padStart(2,"0")} and ${String(f.candidate).padStart(2,"0")}`;
+  updateProjectionNote();
+  okVideo.src=s.video;
+  failVideo.src=f.video;
+  bindVideo(okVideo,"okStatus");
+  bindVideo(failVideo,"failStatus");
+  buildStages();
+}
+
+function bindVideo(video,statusId){
+  const status=document.getElementById(statusId);
+  const ready=()=>{status.textContent="continuous query sync";seekVideos();};
+  video.addEventListener("loadedmetadata",ready);
+  video.addEventListener("loadeddata",ready);
+  video.addEventListener("error",()=>{status.textContent="observation unavailable";});
+  video.load();
+}
+
+function resize(){
+  const r=document.querySelector(".observatory").getBoundingClientRect();
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  W=Math.max(1,r.width);H=Math.max(1,r.height);
+  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const compact=W<650;
+  plot={x:compact?55:72,y:compact?94:74,w:W-(compact?75:106),h:H-(compact?145:126)};
+  const scores=(OBS?OBS.trajectories:[]).flatMap(track=>track.points.map(point=>point[0]));
+  const rawMin=Math.min(...scores),rawMax=Math.max(...scores);
+  const pad=Math.max((rawMax-rawMin)*.09,1e-4);
+  yMin=rawMin-pad;yMax=rawMax+pad;
+  screenTracks=(OBS?OBS.trajectories:[]).map(track=>({
+    ...track,
+    screen:track.points.map(([pc1],query)=>[
+      plot.x+(query/OBS.maxQuery)*plot.w,
+      plot.y+plot.h-((pc1-yMin)/(yMax-yMin))*plot.h
+    ])
+  }));
+  resizeSpatial();
+  draw(performance.now());
+}
+
+function drawGrid(){
+  ctx.fillStyle=COLORS.bg;ctx.fillRect(0,0,W,H);
+  const variance=OBS.projection.explainedVariance;
+  const span=yMax-yMin,decimals=span<.1?3:span<1?2:1;
+  ctx.save();ctx.lineWidth=1;ctx.font="8px ui-monospace, SFMono-Regular, Menlo, monospace";
+  for(let i=0;i<=4;i++){
+    const ratio=i/4,y=plot.y+ratio*plot.h,value=yMax-ratio*span;
+    ctx.strokeStyle=rgba(COLORS.grid,i===4?.62:.42);ctx.beginPath();ctx.moveTo(plot.x,Math.round(y)+.5);ctx.lineTo(plot.x+plot.w,Math.round(y)+.5);ctx.stroke();
+    ctx.fillStyle="#40525d";ctx.textAlign="right";ctx.fillText(value.toFixed(decimals),plot.x-8,y+3);
+  }
+  [0,10,20,30,40,51].forEach(query=>{
+    const x=plot.x+(query/OBS.maxQuery)*plot.w;
+    ctx.strokeStyle=rgba(COLORS.grid,query===0?.62:.42);ctx.beginPath();ctx.moveTo(Math.round(x)+.5,plot.y);ctx.lineTo(Math.round(x)+.5,plot.y+plot.h);ctx.stroke();
+    ctx.fillStyle="#40525d";ctx.textAlign=query===0?"left":query===51?"right":"center";ctx.fillText(`q${query}`,x,plot.y+plot.h+16);
+  });
+  ctx.strokeStyle=rgba(COLORS.gridStrong,.52);ctx.strokeRect(Math.round(plot.x)+.5,Math.round(plot.y)+.5,Math.round(plot.w),Math.round(plot.h));
+  ctx.fillStyle="#3c4e59";ctx.textAlign="left";ctx.fillText(`PC1 route score / ${(variance[0]*100).toFixed(1)}%`,plot.x,plot.y-10);
+  ctx.textAlign="right";ctx.fillText("query step",plot.x+plot.w,plot.y+plot.h+33);
+  ctx.restore();
+}
+
+function pathShape(points){
+  if(points.length<2) return;
+  ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);
+  for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);
+}
+
+function visiblePoints(track,qFloat){
+  const n=clamp(qFloat,0,track.screen.length-1);
+  const whole=Math.floor(n),fraction=n-whole;
+  const out=track.screen.slice(0,whole+1);
+  if(fraction>0&&whole+1<track.screen.length){
+    const a=track.screen[whole],b=track.screen[whole+1];
+    out.push([mix(a[0],b[0],fraction),mix(a[1],b[1],fraction)]);
+  }
+  return out;
+}
+
+function branchRoot(){
+  const starts=screenTracks.map(t=>t.screen[0]);
+  return [starts.reduce((s,p)=>s+p[0],0)/starts.length,starts.reduce((s,p)=>s+p[1],0)/starts.length];
+}
+
+function drawPrefix(now){
+  const root=branchRoot();
+  const start=[Math.max(8,plot.x-44),root[1]+plot.h*.13];
+  const bend=[plot.x-18,root[1]+plot.h*.04];
+  const p=clamp(progress/CUTS[1],0,1);
+  let pts;
+  if(p<.5){pts=[start,[mix(start[0],bend[0],p*2),mix(start[1],bend[1],p*2)]];}
+  else{pts=[start,bend,[mix(bend[0],root[0],(p-.5)*2),mix(bend[1],root[1],(p-.5)*2)]];}
+  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.setLineDash([5,4]);
+  ctx.shadowBlur=7;ctx.shadowColor=rgba(COLORS.prefix,.24);ctx.strokeStyle=rgba(COLORS.prefix,.77);ctx.lineWidth=1.8;
+  pathShape(pts);ctx.stroke();ctx.shadowBlur=0;
+  ctx.setLineDash([]);
+  for(let i=0;i<pts.length-1;i++){
+    ctx.fillStyle=rgba(COLORS.prefix,.16+i*.12);ctx.beginPath();ctx.arc(pts[i][0],pts[i][1],1.4,0,Math.PI*2);ctx.fill();
+  }
+  if(p>.94){
+    const pulse=3.2+Math.sin(now/650)*.55;
+    ctx.strokeStyle=rgba(COLORS.current,.35);ctx.lineWidth=1;ctx.beginPath();ctx.arc(root[0],root[1],pulse,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=COLORS.current;ctx.beginPath();ctx.arc(root[0],root[1],1.65,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawTimeCursor(qFloat){
+  const x=plot.x+(clamp(qFloat,0,OBS.maxQuery)/OBS.maxQuery)*plot.w;
+  ctx.save();ctx.setLineDash([2,4]);ctx.strokeStyle=rgba(COLORS.current,.16);ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(Math.round(x)+.5,plot.y);ctx.lineTo(Math.round(x)+.5,plot.y+plot.h);ctx.stroke();ctx.restore();
+}
+
+function drawTrack(track,qFloat,now){
+  if(progress<=CUTS[1]) return;
+  const pts=visiblePoints(track,qFloat);
+  if(pts.length<2) return;
+  const color=track.outcome==="success"?COLORS.success:COLORS.failure;
+  const featured=track.featured;
+  const alpha=featured?.90:(track.outcome==="success"?.14:.12);
+  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.strokeStyle=rgba(color,alpha*.24);ctx.lineWidth=featured?5.4:2.8;ctx.shadowBlur=featured?8:3;ctx.shadowColor=rgba(color,featured?.30:.10);pathShape(pts);ctx.stroke();
+  ctx.shadowBlur=0;ctx.strokeStyle=rgba(color,alpha);ctx.lineWidth=featured?1.95:.9;pathShape(pts);ctx.stroke();
+  const step=featured?3:6;
+  for(let i=0;i<pts.length-1;i+=step){
+    const age=1-i/Math.max(1,pts.length-1);const nodeAlpha=alpha*(.08+(1-age)*.35);
+    ctx.fillStyle=rgba(color,nodeAlpha);ctx.beginPath();ctx.arc(pts[i][0],pts[i][1],featured?1.25:.75,0,Math.PI*2);ctx.fill();
+  }
+  const end=pts[pts.length-1];
+  if(featured){
+    const pulse=4.3+Math.sin(now/620)*.7;
+    ctx.strokeStyle=rgba(COLORS.current,.28);ctx.lineWidth=1;ctx.beginPath();ctx.arc(end[0],end[1],pulse,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=COLORS.current;ctx.shadowBlur=7;ctx.shadowColor=rgba(COLORS.current,.38);ctx.beginPath();ctx.arc(end[0],end[1],1.85,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    ctx.fillStyle=rgba(color,.86);ctx.font="700 9px ui-monospace, SFMono-Regular, Menlo, monospace";ctx.fillText(track.id,end[0]+8,end[1]-7);
+  }
+  ctx.restore();
+}
+
+function updateProjectionNote(){
+  if(!OBS)return;
+  const variance=OBS.projection.explainedVariance;
+  if(viewMode==="spatial3d"){
+    const cumulative=variance.slice(0,2).reduce((sum,value)=>sum+value,0);
+    projectionNote.innerHTML=`<strong>Measured latent-time view.</strong> PC1-PC2 retain ${(cumulative*100).toFixed(1)}% of route variance. Depth is the within-rollout control step q0-q${OBS.maxQuery}, linearly scaled for display and excluded from latent-distance diagnostics. Outcome labels are not used.`;
+  }else{
+    projectionNote.innerHTML=`<strong>Measured timeline.</strong> Horizontal position is query index; vertical position is PC1 (${(variance[0]*100).toFixed(1)}% of route variance). Silver trunk is structural and measured routes start at q0. No basin is inferred from one component.`;
+  }
+}
+
+async function ensureSpatial(){
+  if(threeState)return threeState;
+  if(!threePromise){
+    threePromise=import("./vendor/three.module.min.js").then(THREE=>initSpatial(THREE));
+  }
+  return threePromise;
+}
+
+function initSpatial(THREE){
+  const renderer=new THREE.WebGLRenderer({canvas:spatialCanvas,antialias:true,alpha:false,powerPreference:"high-performance",preserveDrawingBuffer:true});
+  renderer.setClearColor(0x071018,1);
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x071018);
+  scene.fog=new THREE.FogExp2(0x071018,.035);
+  const camera=new THREE.PerspectiveCamera(35,1,.1,100);
+
+  const values=OBS.trajectories.flatMap(track=>track.points);
+  const mins=[0,1].map(axis=>Math.min(...values.map(point=>point[axis])));
+  const maxs=[0,1].map(axis=>Math.max(...values.map(point=>point[axis])));
+  const center=mins.map((value,axis)=>(value+maxs[axis])*.5);
+  const rawSpan=Math.max(...mins.map((value,axis)=>maxs[axis]-value));
+  const latentScale=5.4/Math.max(rawSpan,1e-6),timeSpan=5.4;
+  const toWorld=(point,query)=>new THREE.Vector3((point[0]-center[0])*latentScale,(point[1]-center[1])*latentScale,(query/OBS.maxQuery-.5)*timeSpan);
+  const worldTracks=OBS.trajectories.map(track=>({...track,world:track.points.map((point,query)=>toWorld(point,query))}));
+  const extent=Math.max(...worldTracks.flatMap(track=>track.world.flatMap(point=>[Math.abs(point.x),Math.abs(point.y),Math.abs(point.z)])))*1.18;
+
+  const grid=new THREE.GridHelper(extent*2,10,0x2a3a46,0x152630);
+  grid.position.y=-extent*.92;
+  grid.material.transparent=true;grid.material.opacity=.34;grid.material.depthWrite=false;
+  scene.add(grid);
+  const axisGeometry=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-extent,0,0),new THREE.Vector3(extent,0,0),
+    new THREE.Vector3(0,-extent,0),new THREE.Vector3(0,extent,0),
+    new THREE.Vector3(0,0,-extent),new THREE.Vector3(0,0,extent)
+  ]);
+  const axes=new THREE.LineSegments(axisGeometry,new THREE.LineBasicMaterial({color:0x40525d,transparent:true,opacity:.42,depthWrite:false}));
+  scene.add(axes);
+
+  function labelSprite(text,color,size=.48){
+    const labelCanvas=document.createElement("canvas");labelCanvas.width=128;labelCanvas.height=48;
+    const labelContext=labelCanvas.getContext("2d");labelContext.font="600 22px ui-monospace, monospace";labelContext.textAlign="center";labelContext.textBaseline="middle";labelContext.fillStyle=color;labelContext.fillText(text,64,24);
+    const texture=new THREE.CanvasTexture(labelCanvas);texture.colorSpace=THREE.SRGBColorSpace;texture.minFilter=THREE.LinearFilter;
+    const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));sprite.scale.set(size,size*.375,1);return sprite;
+  }
+  [["PC1",new THREE.Vector3(extent*.88,0,0)],["PC2",new THREE.Vector3(0,extent*.88,0)],["q0",new THREE.Vector3(0,0,-timeSpan*.5)],[`q${OBS.maxQuery}`,new THREE.Vector3(0,0,timeSpan*.5)]].forEach(([label,position])=>{
+    const sprite=labelSprite(label,"#71818b",.56);sprite.position.copy(position);scene.add(sprite);
+  });
+
+  const starts=worldTracks.map(track=>track.world[0]);
+  const root=starts.reduce((sum,point)=>sum.add(point),new THREE.Vector3()).multiplyScalar(1/starts.length);
+  const prefixPath=[root.clone().add(new THREE.Vector3(-extent*.82,-extent*.48,extent*.50)),root.clone().add(new THREE.Vector3(-extent*.32,-extent*.16,extent*.18)),root.clone()];
+  const prefixArray=new Float32Array(9);
+  const prefixGeometry=new THREE.BufferGeometry();
+  const prefixAttribute=new THREE.BufferAttribute(prefixArray,3);prefixAttribute.setUsage(THREE.DynamicDrawUsage);prefixGeometry.setAttribute("position",prefixAttribute);
+  const prefixLine=new THREE.Line(prefixGeometry,new THREE.LineDashedMaterial({color:0xbec7cd,transparent:true,opacity:.72,dashSize:.12,gapSize:.09,depthWrite:false}));
+  scene.add(prefixLine);
+  const rootCore=new THREE.Mesh(new THREE.SphereGeometry(.045,14,10),new THREE.MeshBasicMaterial({color:0xf3f7f8}));rootCore.position.copy(root);scene.add(rootCore);
+
+  const tracks=[];
+  worldTracks.forEach(track=>{
+    const positionArray=new Float32Array(track.world.length*3);
+    const geometry=new THREE.BufferGeometry();
+    const attribute=new THREE.BufferAttribute(positionArray,3);attribute.setUsage(THREE.DynamicDrawUsage);geometry.setAttribute("position",attribute);
+    const color=track.outcome==="success"?0x6d9fbe:0xba8652;
+    const opacity=track.featured?.90:(track.outcome==="success"?.14:.12);
+    const line=new THREE.Line(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity,depthWrite:false}));line.renderOrder=track.featured?3:1;scene.add(line);
+    const points=new THREE.Points(geometry,new THREE.PointsMaterial({color,size:track.featured?.043:.023,sizeAttenuation:true,transparent:true,opacity:opacity*.66,depthWrite:false}));points.renderOrder=line.renderOrder;scene.add(points);
+    let current=null,label=null;
+    if(track.featured){
+      current=new THREE.Group();
+      const halo=new THREE.Mesh(new THREE.SphereGeometry(.09,16,12),new THREE.MeshBasicMaterial({color:0xf3f7f8,transparent:true,opacity:.12,depthWrite:false}));
+      const core=new THREE.Mesh(new THREE.SphereGeometry(.038,16,12),new THREE.MeshBasicMaterial({color:0xf3f7f8,depthWrite:false}));
+      current.add(halo,core);current.renderOrder=5;scene.add(current);
+      label=labelSprite(track.id,track.outcome==="success"?"#7facc7":"#c69360",.45);label.renderOrder=6;scene.add(label);
+    }
+    tracks.push({...track,geometry,attribute,line,points,current,label});
+  });
+
+  const portraitScale=Math.max(1,1/Math.max(W/Math.max(H,1),.72));
+  const state={THREE,renderer,scene,camera,tracks,prefixLine,prefixAttribute,prefixPath,root,rootCore,extent,yaw:.73,pitch:.34,distance:extent*3.15*portraitScale,target:new THREE.Vector3(),dragging:false,pointer:null,lastRender:0};
+  const updateCamera=()=>{
+    const horizontal=Math.cos(state.pitch)*state.distance;
+    camera.position.set(Math.sin(state.yaw)*horizontal,Math.sin(state.pitch)*state.distance,Math.cos(state.yaw)*horizontal);
+    camera.lookAt(state.target);
+  };
+  state.updateCamera=updateCamera;updateCamera();
+
+  spatialCanvas.addEventListener("pointerdown",event=>{state.dragging=true;state.pointer=[event.clientX,event.clientY];spatialCanvas.setPointerCapture(event.pointerId);});
+  spatialCanvas.addEventListener("pointermove",event=>{
+    if(!state.dragging||!state.pointer)return;
+    const dx=event.clientX-state.pointer[0],dy=event.clientY-state.pointer[1];state.pointer=[event.clientX,event.clientY];
+    state.yaw-=dx*.006;state.pitch=clamp(state.pitch+dy*.005,-1.15,1.15);state.updateCamera();
+  });
+  const release=event=>{state.dragging=false;state.pointer=null;if(spatialCanvas.hasPointerCapture(event.pointerId))spatialCanvas.releasePointerCapture(event.pointerId);};
+  spatialCanvas.addEventListener("pointerup",release);spatialCanvas.addEventListener("pointercancel",release);
+  spatialCanvas.addEventListener("wheel",event=>{event.preventDefault();state.distance=clamp(state.distance*Math.exp(event.deltaY*.001),extent*1.45,extent*4.8);state.updateCamera();},{passive:false});
+  threeState=state;resizeSpatial();return state;
+}
+
+function resizeSpatial(){
+  if(!threeState)return;
+  threeState.renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  threeState.renderer.setSize(W,H,false);
+  threeState.camera.aspect=W/Math.max(H,1);threeState.camera.updateProjectionMatrix();
+}
+
+function drawSpatial(now){
+  const state=threeState;if(!state)return;
+  const {THREE}=state;
+  if(playing&&!reduceMotion&&!state.dragging&&state.lastRender){state.yaw+=(now-state.lastRender)*.000035;state.updateCamera();}
+  state.lastRender=now;
+
+  const prefixProgress=clamp(progress/CUTS[1],0,1);
+  const prefixPoints=prefixProgress<.5
+    ?[state.prefixPath[0],state.prefixPath[0].clone().lerp(state.prefixPath[1],prefixProgress*2)]
+    :[state.prefixPath[0],state.prefixPath[1],state.prefixPath[1].clone().lerp(state.prefixPath[2],(prefixProgress-.5)*2)];
+  prefixPoints.forEach((point,index)=>state.prefixAttribute.setXYZ(index,point.x,point.y,point.z));
+  state.prefixAttribute.needsUpdate=true;state.prefixLine.geometry.setDrawRange(0,prefixPoints.length);state.prefixLine.computeLineDistances();
+  state.rootCore.visible=prefixProgress>.94;state.rootCore.scale.setScalar(1+Math.sin(now/650)*.12);
+
+  const qFloat=branchProgress(progress)*OBS.maxQuery,active=progress>CUTS[1];
+  state.tracks.forEach(track=>{
+    track.line.visible=active;track.points.visible=active;
+    if(!active){if(track.current)track.current.visible=false;if(track.label)track.label.visible=false;return;}
+    const n=clamp(qFloat,0,track.world.length-1),whole=Math.floor(n),fraction=n-whole;
+    for(let index=0;index<=whole;index++){
+      const point=track.world[index];track.attribute.setXYZ(index,point.x,point.y,point.z);
+    }
+    let count=whole+1,end=track.world[whole];
+    if(fraction>0&&whole+1<track.world.length){
+      end=track.world[whole].clone().lerp(track.world[whole+1],fraction);track.attribute.setXYZ(count,end.x,end.y,end.z);count++;
+    }
+    track.attribute.needsUpdate=true;track.geometry.setDrawRange(0,count);
+    if(track.current){
+      track.current.visible=count>1;track.current.position.copy(end);track.current.scale.setScalar(1+Math.sin(now/620)*.14);
+      track.label.visible=count>1;track.label.position.copy(end).add(new THREE.Vector3(.18,.17,.05));
+    }
+  });
+  state.renderer.render(state.scene,state.camera);
+}
+
+async function setView(mode){
+  if(mode!=="timeline"&&mode!=="spatial3d")return;
+  viewMode=mode;
+  viewOptions.forEach(option=>option.classList.toggle("active",option.dataset.view===mode));
+  canvas.hidden=mode!=="timeline";spatialCanvas.hidden=mode!=="spatial3d";
+  const variance=OBS.projection.explainedVariance;
+  if(mode==="spatial3d"){
+    axisNote.textContent=`PC1 / PC2 / control step q / latent variance ${(variance.slice(0,2).reduce((sum,value)=>sum+value,0)*100).toFixed(1)}%`;
+    methodNote.innerHTML="HB12-15 / ACTION TOKENS / D9<br>HELLINGER PCA / PC1-PC2 + CONTROL STEP";
+    try{await ensureSpatial();resizeSpatial();}catch(error){axisNote.textContent="3D renderer unavailable";console.warn(error);}
+  }else{
+    axisNote.textContent="x = query step / y = PC1 route score";
+    methodNote.innerHTML="HB12-15 / ACTION TOKENS / D9<br>32-EXPERT SOFT ROUTES";
+  }
+  phaseNote.textContent=activeNotes()[phase<0?0:phase];updateProjectionNote();draw(performance.now());
+}
+
+function draw(now){
+  if(viewMode==="spatial3d"){drawSpatial(now);return;}
+  if(!OBS){ctx.fillStyle=COLORS.bg;ctx.fillRect(0,0,W,H);ctx.fillStyle="#84929c";ctx.font="12px monospace";ctx.fillText("Run build_observatory_data.py --inline",24,30);return;}
+  drawGrid();
+  drawPrefix(now);
+  const qFloat=branchProgress(progress)*OBS.maxQuery;
+  if(progress>CUTS[1]) drawTimeCursor(qFloat);
+  screenTracks.filter(t=>!t.featured).forEach(t=>drawTrack(t,qFloat,now));
+  screenTracks.filter(t=>t.featured).forEach(t=>drawTrack(t,qFloat,now));
+}
+
+function updateInterface(forceVideo){
+  const next=currentPhase(progress);
+  if(next!==phase){
+    phase=next;phaseName.textContent=OBS.stages[phase];phaseIndex.textContent=`0${phase+1}`;phaseNote.textContent=activeNotes()[phase];
+  }
+  [...stageRoot.children].forEach((el,i)=>{el.classList.toggle("past",i<phase);el.classList.toggle("active",i===phase);});
+  const bp=branchProgress(progress),q=Math.min(OBS.maxQuery,Math.floor(bp*OBS.maxQuery));
+  queryLabel.textContent=progress<CUTS[1]?"PREFIX / q00":`QUERY / q${String(q).padStart(2,"0")} / ${OBS.maxQuery}`;
+  document.getElementById("okQ").textContent=`q${String(Math.min(q,39)).padStart(2,"0")}`;
+  document.getElementById("failQ").textContent=`q${String(q).padStart(2,"0")}`;
+  timeline.value=Math.round(progress*1000);
+  if(q!==lastQuery)lastQuery=q;
+  if(forceVideo)seekVideos();
+}
+
+function videoTargets(){
+  const query=branchProgress(progress)*OBS.maxQuery;
+  return [[okVideo,Math.min(query,39),39],[failVideo,query,OBS.maxQuery]];
+}
+
+function seekVideos(){
+  if(!OBS) return;
+  videoTargets().forEach(([video,vq])=>{
+    if(video.readyState<1) return;
+    const want=Math.min(vq*OBS.secondsPerQuery,Math.max(0,(video.duration||99)-.05));
+    if(Math.abs(video.currentTime-want)>.04){try{video.currentTime=want;}catch(_){}}
+  });
+}
+
+function pauseVideos(){okVideo.pause();failVideo.pause();}
+
+function updateVideoPlayback(){
+  if(!OBS)return;
+  const active=playing&&progress>=CUTS[1]&&progress<1;
+  const baseRate=OBS.maxQuery*OBS.secondsPerQuery/(DURATION*(1-CUTS[1]));
+  videoTargets().forEach(([video,vq,maxQuery])=>{
+    if(video.readyState<2)return;
+    const limit=Math.min(maxQuery*OBS.secondsPerQuery,Math.max(0,video.duration-.05));
+    const want=Math.min(vq*OBS.secondsPerQuery,limit);
+    if(!active||want>=limit-.02){video.pause();return;}
+    const drift=want-video.currentTime;
+    if(Math.abs(drift)>.55){try{video.currentTime=want;}catch(_){}}
+    video.playbackRate=clamp(baseRate+drift*.16,.5,2);
+    if(video.paused)video.play().catch(()=>{});
+  });
+}
+
+function setProgress(value,forceVideo){progress=clamp(value,0,1);updateInterface(forceVideo);draw(performance.now());}
+function stop(){playing=false;pauseVideos();playIcon.innerHTML="&#9654;";playIcon.style.transform="translateX(1px)";}
+function toggle(){
+  if(progress>=.999)setProgress(0,true);
+  if(playing){stop();return;}
+  playing=true;playIcon.textContent="II";playIcon.style.transform="none";lastFrame=0;updateVideoPlayback();
+}
+function tick(now){
+  if(playing){
+    if(!lastFrame)lastFrame=now;
+    const dt=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;
+    progress+=dt/DURATION;
+    if(progress>=1){progress=1;stop();}
+    updateInterface(false);
+    updateVideoPlayback();
+  }
+  draw(now);requestAnimationFrame(tick);
+}
+
+timeline.addEventListener("input",()=>{stop();setProgress(Number(timeline.value)/1000,true);});
+playButton.addEventListener("click",toggle);
+document.getElementById("reset").addEventListener("click",()=>{stop();setProgress(0,true);});
+viewOptions.forEach(option=>option.addEventListener("click",()=>setView(option.dataset.view)));
+window.addEventListener("keydown",event=>{
+  if(event.code==="Space"){toggle();event.preventDefault();}
+  if(event.key==="ArrowRight"){stop();setProgress(progress+.01,true);event.preventDefault();}
+  if(event.key==="ArrowLeft"){stop();setProgress(progress-.01,true);event.preventDefault();}
+});
+window.addEventListener("resize",resize);
+
+configureData();resize();setProgress(0,true);
+if(!reduceMotion){setTimeout(toggle,450);}
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

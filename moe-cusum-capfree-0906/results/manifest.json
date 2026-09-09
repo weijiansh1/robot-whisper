@@ -1,0 +1,981 @@
+{
+  "bundle": "moe-cusum-capfree-0906",
+  "date": "2026-09-06",
+  "question": "在冻结的无 cap 协议下，用 CUSUM 做时间积分，能否超过 v7_guard 的 external 347/57（提前量>=4）",
+  "protocol": {
+    "detector_inputs": "chunk index + routing only",
+    "metric": "TP / FP / 绝对提前量 = length - alarm_chunk",
+    "headline_lead": 4,
+    "leads": [
+      0,
+      2,
+      4,
+      8,
+      12
+    ],
+    "baseline": "still_running_q0, q0 in [2, 40)",
+    "reference_statistic": "同等误报数下超出最优固定 chunk 基线的 TP（步进包络），另报随机化凸包参照",
+    "target_fp_window": [
+      80,
+      320
+    ],
+    "harness": "moe-capfree-0906/experiments/capfree_protocol.py （score / fixed_chunk_baseline / baseline_frontier / rate_matched_null / cohort_frame 全部 import，未重写）",
+    "tie_rule": ">="
+  },
+  "anchors_reproduced": {
+    "v7_guard_external": {
+      "tp": 439,
+      "fp": 80,
+      "tp_lead4": 347,
+      "fp_lead4": 57,
+      "tp_lead8": 261,
+      "fp_lead8": 43,
+      "median_lead": 13
+    },
+    "v7_guard_development": {
+      "tp": 382,
+      "fp": 67,
+      "tp_lead4": 303,
+      "fp_lead4": 38,
+      "tp_lead8": 217,
+      "fp_lead8": 26,
+      "median_lead": 10
+    },
+    "capfree_baseline_lead4_fp80": {
+      "external": [
+        "still_running_q37",
+        274
+      ],
+      "development": [
+        "still_running_q37",
+        222
+      ]
+    },
+    "checked_by": "tests/test_protocol.py::test_v7_guard_anchor, ::test_capfree_baseline_anchor"
+  },
+  "fit": {
+    "cohort": "development_main",
+    "development_iterations": 6,
+    "external_seen_before_fitting": "只看过两件事：(1) 任务书要求先复现的 v7_guard / 基线锚点数字；(2) 缓存校验时打印过 token_entropy 与 token_differentiation 在 L2/L3/L4、chunk 32 上的 external 内任务 AUC。二者都没有进入任何选择；通道、权重、k、h、K、M、q_min 全部只在 development 上拟合。",
+    "channels_screened": 540,
+    "banned_channels": [
+      "expert_load_effective_rank",
+      "load_entropy"
+    ],
+    "normalisation_arms": [
+      "raw",
+      "self"
+    ],
+    "selections": {
+      "window": {
+        "cusum": {
+          "channels": [
+            "chan:query_hard_churn:L14:-|self|-",
+            "chan:query_top1_churn:L15:-|self|-",
+            "hb:flow_settling_log_ratio:L3:-|self|+",
+            "chan:tie_margin:L15:-|raw|+",
+            "chan:query_top1_churn:L15:-|raw|-"
+          ],
+          "weights": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 956.0,
+            "tp": 486.0,
+            "fp": 470.0,
+            "recall": 0.997946611909651,
+            "precision": 0.5083682008368201,
+            "median_lead": 14.0,
+            "tp_lead0": 486.0,
+            "fp_lead0": 470.0,
+            "recall_lead0": 0.997946611909651,
+            "tp_lead2": 486.0,
+            "fp_lead2": 417.0,
+            "recall_lead2": 0.997946611909651,
+            "tp_lead4": 483.0,
+            "fp_lead4": 320.0,
+            "recall_lead4": 0.9917864476386037,
+            "tp_lead8": 413.0,
+            "fp_lead8": 234.0,
+            "recall_lead8": 0.8480492813141683,
+            "tp_lead12": 303.0,
+            "fp_lead12": 148.0,
+            "recall_lead12": 0.62217659137577,
+            "thr": 27.95472638104413,
+            "excess_tp": 261.0,
+            "family": "cusum",
+            "k": -1.0,
+            "q_min": 0.0
+          }
+        },
+        "cusum_k>=0": {
+          "channels": [
+            "chan:query_hard_churn:L14:-|self|-",
+            "chan:query_top1_churn:L15:-|self|-",
+            "hb:flow_settling_log_ratio:L3:-|self|+",
+            "chan:tie_margin:L15:-|raw|+",
+            "chan:query_top1_churn:L15:-|raw|-"
+          ],
+          "weights": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 868.0,
+            "tp": 409.0,
+            "fp": 459.0,
+            "recall": 0.839835728952772,
+            "precision": 0.47119815668202764,
+            "median_lead": 14.0,
+            "tp_lead0": 409.0,
+            "fp_lead0": 459.0,
+            "recall_lead0": 0.839835728952772,
+            "tp_lead2": 404.0,
+            "fp_lead2": 371.0,
+            "recall_lead2": 0.8295687885010267,
+            "tp_lead4": 399.0,
+            "fp_lead4": 294.0,
+            "recall_lead4": 0.8193018480492813,
+            "tp_lead8": 338.0,
+            "fp_lead8": 206.0,
+            "recall_lead8": 0.6940451745379876,
+            "tp_lead12": 260.0,
+            "fp_lead12": 135.0,
+            "recall_lead12": 0.5338809034907598,
+            "thr": 9.667232799530039,
+            "excess_tp": 177.0,
+            "family": "cusum",
+            "k": 0.0,
+            "q_min": 0.0
+          }
+        },
+        "kofm": {
+          "channels": [
+            "chan:query_top1_churn:L15:-|raw|-",
+            "flow:flow_speed:L3:s9|self|+",
+            "chan:query_hard_churn_d9:L13:-|self|-",
+            "flow:token_differentiation:L2:s9|raw|+",
+            "chan:query_top1_churn:L13:-|raw|-",
+            "hb:flow_settling_log_ratio:L3:-|self|+"
+          ],
+          "weights": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 847.0,
+            "tp": 441.0,
+            "fp": 406.0,
+            "recall": 0.9055441478439425,
+            "precision": 0.5206611570247934,
+            "median_lead": 14.0,
+            "tp_lead0": 441.0,
+            "fp_lead0": 406.0,
+            "recall_lead0": 0.9055441478439425,
+            "tp_lead2": 439.0,
+            "fp_lead2": 375.0,
+            "recall_lead2": 0.9014373716632443,
+            "tp_lead4": 424.0,
+            "fp_lead4": 320.0,
+            "recall_lead4": 0.8706365503080082,
+            "tp_lead8": 315.0,
+            "fp_lead8": 288.0,
+            "recall_lead8": 0.6468172484599589,
+            "tp_lead12": 249.0,
+            "fp_lead12": 241.0,
+            "recall_lead12": 0.5112936344969199,
+            "family": "kofm",
+            "K": 8.0,
+            "M": 12.0,
+            "thr": 0.4246377646923065,
+            "q_min": 0.0,
+            "excess_tp": 202.0
+          }
+        },
+        "single": {
+          "channels": [
+            "chan:set_dwell:L2:-|raw|-"
+          ],
+          "weights": [
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 789.0,
+            "tp": 351.0,
+            "fp": 438.0,
+            "recall": 0.7207392197125256,
+            "precision": 0.4448669201520912,
+            "median_lead": 25.0,
+            "tp_lead0": 351.0,
+            "fp_lead0": 438.0,
+            "recall_lead0": 0.7207392197125256,
+            "tp_lead2": 347.0,
+            "fp_lead2": 372.0,
+            "recall_lead2": 0.7125256673511293,
+            "tp_lead4": 294.0,
+            "fp_lead4": 319.0,
+            "recall_lead4": 0.6036960985626283,
+            "tp_lead8": 222.0,
+            "fp_lead8": 273.0,
+            "recall_lead8": 0.45585215605749485,
+            "tp_lead12": 220.0,
+            "fp_lead12": 183.0,
+            "recall_lead12": 0.4517453798767967,
+            "thr": 0.5079474449157715,
+            "excess_tp": 72.0,
+            "family": "single",
+            "q_min": 0.0
+          }
+        }
+      },
+      "v7budget": {
+        "cusum": {
+          "channels": [
+            "flow:token_differentiation:L2:s9|raw|+",
+            "flow:flow_speed:L2:s9|raw|+",
+            "flow:token_entropy:L15:sm|raw|-",
+            "chan:query_hard_churn:L13:-|raw|-",
+            "deriv:log_mobility:back:s9|self|-"
+          ],
+          "weights": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 441.0,
+            "tp": 384.0,
+            "fp": 57.0,
+            "recall": 0.7885010266940452,
+            "precision": 0.8707482993197279,
+            "median_lead": 11.0,
+            "tp_lead0": 384.0,
+            "fp_lead0": 57.0,
+            "recall_lead0": 0.7885010266940452,
+            "tp_lead2": 382.0,
+            "fp_lead2": 52.0,
+            "recall_lead2": 0.784394250513347,
+            "tp_lead4": 378.0,
+            "fp_lead4": 46.0,
+            "recall_lead4": 0.7761806981519507,
+            "tp_lead8": 300.0,
+            "fp_lead8": 31.0,
+            "recall_lead8": 0.6160164271047228,
+            "tp_lead12": 189.0,
+            "fp_lead12": 13.0,
+            "recall_lead12": 0.38809034907597534,
+            "thr": 40.65532922048826,
+            "excess_tp": 156.0,
+            "family": "cusum",
+            "k": -1.0,
+            "q_min": 0.0
+          }
+        },
+        "cusum_k>=0": {
+          "channels": [
+            "flow:token_differentiation:L2:s9|raw|+",
+            "flow:flow_speed:L2:s9|raw|+",
+            "flow:token_entropy:L15:sm|raw|-",
+            "chan:query_hard_churn:L13:-|raw|-",
+            "deriv:log_mobility:back:s9|self|-"
+          ],
+          "weights": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 535.0,
+            "tp": 307.0,
+            "fp": 228.0,
+            "recall": 0.6303901437371663,
+            "precision": 0.5738317757009346,
+            "median_lead": 12.0,
+            "tp_lead0": 307.0,
+            "fp_lead0": 228.0,
+            "recall_lead0": 0.6303901437371663,
+            "tp_lead2": 301.0,
+            "fp_lead2": 91.0,
+            "recall_lead2": 0.6180698151950719,
+            "tp_lead4": 292.0,
+            "fp_lead4": 46.0,
+            "recall_lead4": 0.5995893223819302,
+            "tp_lead8": 258.0,
+            "fp_lead8": 31.0,
+            "recall_lead8": 0.5297741273100616,
+            "tp_lead12": 161.0,
+            "fp_lead12": 16.0,
+            "recall_lead12": 0.33059548254620125,
+            "thr": 16.298621702194215,
+            "excess_tp": 70.0,
+            "family": "cusum",
+            "k": 0.0,
+            "q_min": 0.0
+          }
+        },
+        "kofm": {
+          "channels": [
+            "hb:flow_endpoint:L15:-|raw|+",
+            "chan:query_hard_churn:L15:-|self|-",
+            "flow:flow_speed:L2:s9|raw|+",
+            "chan:query_hard_churn:L13:-|self|-",
+            "flow:flow_speed:L15:s3|raw|+",
+            "chan:query_hard_churn:L12:-|self|-"
+          ],
+          "weights": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 1121.0,
+            "tp": 326.0,
+            "fp": 795.0,
+            "recall": 0.6694045174537988,
+            "precision": 0.29081177520071366,
+            "median_lead": 11.0,
+            "tp_lead0": 326.0,
+            "fp_lead0": 795.0,
+            "recall_lead0": 0.6694045174537988,
+            "tp_lead2": 323.0,
+            "fp_lead2": 404.0,
+            "recall_lead2": 0.6632443531827515,
+            "tp_lead4": 317.0,
+            "fp_lead4": 41.0,
+            "recall_lead4": 0.6509240246406571,
+            "tp_lead8": 272.0,
+            "fp_lead8": 30.0,
+            "recall_lead8": 0.5585215605749486,
+            "tp_lead12": 123.0,
+            "fp_lead12": 17.0,
+            "recall_lead12": 0.25256673511293637,
+            "family": "kofm",
+            "K": 12.0,
+            "M": 12.0,
+            "thr": -0.1129085049033165,
+            "q_min": 0.0,
+            "excess_tp": 95.0
+          }
+        },
+        "single": {
+          "channels": [
+            "chan:set_dwell:L3:-|raw|-"
+          ],
+          "weights": [
+            1.0
+          ],
+          "weight_scheme": "greedy_equal",
+          "operating_point": {
+            "alarms": 397.0,
+            "tp": 222.0,
+            "fp": 175.0,
+            "recall": 0.45585215605749485,
+            "precision": 0.5591939546599496,
+            "median_lead": 14.0,
+            "tp_lead0": 222.0,
+            "fp_lead0": 175.0,
+            "recall_lead0": 0.45585215605749485,
+            "tp_lead2": 222.0,
+            "fp_lead2": 79.0,
+            "recall_lead2": 0.45585215605749485,
+            "tp_lead4": 222.0,
+            "fp_lead4": 26.0,
+            "recall_lead4": 0.45585215605749485,
+            "tp_lead8": 219.0,
+            "fp_lead8": 7.0,
+            "recall_lead8": 0.44969199178644764,
+            "tp_lead12": 197.0,
+            "fp_lead12": 2.0,
+            "recall_lead12": 0.40451745379876797,
+            "thr": 0.5067367553710938,
+            "excess_tp": 0.0,
+            "family": "single",
+            "q_min": 0.0
+          }
+        }
+      }
+    },
+    "stability_task_disjoint_halves": {
+      "window": [
+        {
+          "n": 7200,
+          "tp": 259,
+          "fp": 225,
+          "excess": 98,
+          "median_lead": 21.0
+        },
+        {
+          "n": 7600,
+          "tp": 224,
+          "fp": 95,
+          "excess": 66,
+          "median_lead": 11.0
+        }
+      ],
+      "v7budget": [
+        {
+          "n": 7200,
+          "tp": 232,
+          "fp": 33,
+          "excess": 71,
+          "median_lead": 14.0
+        },
+        {
+          "n": 7600,
+          "tp": 146,
+          "fp": 13,
+          "excess": 85,
+          "median_lead": 9.0
+        }
+      ]
+    }
+  },
+  "headline": {
+    "anchor_v7_guard_external": {
+      "tp_lead4": 347,
+      "fp_lead4": 57,
+      "tp_lead8": 261,
+      "fp_lead8": 43,
+      "tp": 439,
+      "fp": 80,
+      "median_lead": 13.0,
+      "excess_tp": 73,
+      "excess_hull_tp": 63.6,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "published"
+    },
+    "cusum|window": {
+      "tp_lead4": 551,
+      "fp_lead4": 446,
+      "tp_lead8": 489,
+      "fp_lead8": 298,
+      "tp": 562,
+      "fp": 672,
+      "median_lead": 16.0,
+      "excess_tp": 171,
+      "excess_hull_tp": 143.2,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"k\": -1.0, \"thr\": 27.95472638104413, \"q_min\": 0.0}"
+    },
+    "cusum|window@fp<=57": {
+      "tp_lead4": 363,
+      "fp_lead4": 38,
+      "tp_lead8": 252,
+      "fp_lead8": 29,
+      "tp": 433,
+      "fp": 53,
+      "median_lead": 9.0,
+      "excess_tp": 89,
+      "excess_hull_tp": 85.8,
+      "beats_347_57": true,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "cusum_k>=0|window": {
+      "tp_lead4": 477,
+      "fp_lead4": 375,
+      "tp_lead8": 435,
+      "fp_lead8": 272,
+      "tp": 491,
+      "fp": 573,
+      "median_lead": 15.0,
+      "excess_tp": 97,
+      "excess_hull_tp": 90.9,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"k\": 0.0, \"thr\": 9.667232799530039, \"q_min\": 0.0}"
+    },
+    "cusum_k>=0|window@fp<=57": {
+      "tp_lead4": 274,
+      "fp_lead4": 44,
+      "tp_lead8": 192,
+      "fp_lead8": 35,
+      "tp": 312,
+      "fp": 52,
+      "median_lead": 9.0,
+      "excess_tp": 0,
+      "excess_hull_tp": -5.2,
+      "beats_347_57": false,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "kofm|window": {
+      "tp_lead4": 493,
+      "fp_lead4": 372,
+      "tp_lead8": 405,
+      "fp_lead8": 331,
+      "tp": 505,
+      "fp": 434,
+      "median_lead": 16.0,
+      "excess_tp": 113,
+      "excess_hull_tp": 107.8,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"K\": 8.0, \"M\": 12.0, \"thr\": 0.4246377646923065, \"q_min\": 0.0}"
+    },
+    "kofm|window@fp<=57": {
+      "tp_lead4": 343,
+      "fp_lead4": 47,
+      "tp_lead8": 241,
+      "fp_lead8": 40,
+      "tp": 417,
+      "fp": 53,
+      "median_lead": 11.0,
+      "excess_tp": 69,
+      "excess_hull_tp": 62.8,
+      "beats_347_57": false,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "single|window": {
+      "tp_lead4": 361,
+      "fp_lead4": 348,
+      "tp_lead8": 274,
+      "fp_lead8": 278,
+      "tp": 412,
+      "fp": 684,
+      "median_lead": 25.0,
+      "excess_tp": 87,
+      "excess_hull_tp": -16.7,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"thr\": 0.5079474449157715, \"q_min\": 0.0}"
+    },
+    "single|window@fp<=57": {
+      "tp_lead4": 252,
+      "fp_lead4": 7,
+      "tp_lead8": 199,
+      "fp_lead8": 2,
+      "tp": 252,
+      "fp": 21,
+      "median_lead": 9.0,
+      "excess_tp": 252,
+      "excess_hull_tp": 183.5,
+      "beats_347_57": false,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "cusum|v7budget": {
+      "tp_lead4": 450,
+      "fp_lead4": 63,
+      "tp_lead8": 345,
+      "fp_lead8": 49,
+      "tp": 457,
+      "fp": 74,
+      "median_lead": 13.0,
+      "excess_tp": 176,
+      "excess_hull_tp": 164.7,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"k\": -1.0, \"thr\": 40.65532922048826, \"q_min\": 0.0}"
+    },
+    "cusum|v7budget@fp<=57": {
+      "tp_lead4": 409,
+      "fp_lead4": 41,
+      "tp_lead8": 290,
+      "fp_lead8": 31,
+      "tp": 437,
+      "fp": 49,
+      "median_lead": 12.0,
+      "excess_tp": 135,
+      "excess_hull_tp": 130.8,
+      "beats_347_57": true,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "cusum_k>=0|v7budget": {
+      "tp_lead4": 357,
+      "fp_lead4": 62,
+      "tp_lead8": 320,
+      "fp_lead8": 39,
+      "tp": 368,
+      "fp": 210,
+      "median_lead": 11.0,
+      "excess_tp": 83,
+      "excess_hull_tp": 72.0,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"k\": 0.0, \"thr\": 16.298621702194215, \"q_min\": 0.0}"
+    },
+    "cusum_k>=0|v7budget@fp<=57": {
+      "tp_lead4": 353,
+      "fp_lead4": 53,
+      "tp_lead8": 308,
+      "fp_lead8": 34,
+      "tp": 362,
+      "fp": 173,
+      "median_lead": 11.0,
+      "excess_tp": 79,
+      "excess_hull_tp": 70.9,
+      "beats_347_57": true,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "kofm|v7budget": {
+      "tp_lead4": 378,
+      "fp_lead4": 66,
+      "tp_lead8": 332,
+      "fp_lead8": 41,
+      "tp": 390,
+      "fp": 811,
+      "median_lead": 11.0,
+      "excess_tp": 104,
+      "excess_hull_tp": 91.7,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"K\": 12.0, \"M\": 12.0, \"thr\": -0.1129085049033165, \"q_min\": 0.0}"
+    },
+    "kofm|v7budget@fp<=57": {
+      "tp_lead4": 375,
+      "fp_lead4": 57,
+      "tp_lead8": 328,
+      "fp_lead8": 37,
+      "tp": 388,
+      "fp": 757,
+      "median_lead": 11.0,
+      "excess_tp": 101,
+      "excess_hull_tp": 91.6,
+      "beats_347_57": true,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "single|v7budget": {
+      "tp_lead4": 274,
+      "fp_lead4": 36,
+      "tp_lead8": 274,
+      "fp_lead8": 11,
+      "tp": 274,
+      "fp": 174,
+      "median_lead": 14.0,
+      "excess_tp": 0,
+      "excess_hull_tp": -2.6,
+      "beats_347_57": false,
+      "post_hoc_threshold": false,
+      "params": "{\"thr\": 0.5067367553710938, \"q_min\": 0.0}"
+    },
+    "single|v7budget@fp<=57": {
+      "tp_lead4": 274,
+      "fp_lead4": 36,
+      "tp_lead8": 274,
+      "fp_lead8": 11,
+      "tp": 274,
+      "fp": 174,
+      "median_lead": 14.0,
+      "excess_tp": 0,
+      "excess_hull_tp": -2.6,
+      "beats_347_57": false,
+      "post_hoc_threshold": true,
+      "params": NaN
+    },
+    "null": {
+      "max_excess_step_envelope_any_fp": {
+        "episode_constant|v7budget": 67,
+        "episode_constant|window": 67,
+        "white_noise|v7budget": 190,
+        "white_noise|window": 190
+      },
+      "max_excess_step_envelope_in_target_window": {
+        "episode_constant|v7budget": -106,
+        "episode_constant|window": -106,
+        "white_noise|v7budget": 27,
+        "white_noise|window": 27
+      },
+      "max_excess_randomised_hull_any_fp": {
+        "episode_constant|v7budget": 16.2,
+        "episode_constant|window": 16.2,
+        "white_noise|v7budget": 85.4,
+        "white_noise|window": 85.4
+      },
+      "max_excess_randomised_hull_in_target_window": {
+        "episode_constant|v7budget": -180.0,
+        "episode_constant|window": -180.0,
+        "white_noise|v7budget": -38.3,
+        "white_noise|window": -38.3
+      },
+      "max_tp_at_fp_le_57": {
+        "episode_constant|v7budget": 97,
+        "episode_constant|window": 97,
+        "white_noise|v7budget": 235,
+        "white_noise|window": 235
+      },
+      "note": "positive step-envelope excess occurs only below the smallest admissible baseline false-alarm count, where the step envelope returns 0"
+    },
+    "rate_matched_null": {
+      "development_main": {
+        "tp_lead4": 81,
+        "fp_lead4": 226,
+        "excess_tp": -141
+      },
+      "external_8b": {
+        "tp_lead4": 79,
+        "fp_lead4": 304,
+        "excess_tp": -195
+      }
+    }
+  },
+  "controls": {
+    "rate_matched_null": {
+      "development_main": {
+        "tp_lead4": 81,
+        "fp_lead4": 226,
+        "excess_tp": -141
+      },
+      "external_8b": {
+        "tp_lead4": 79,
+        "fp_lead4": 304,
+        "excess_tp": -195
+      }
+    },
+    "white_noise_and_episode_constant_null": {
+      "max_excess_step_envelope_any_fp": {
+        "episode_constant|v7budget": 67,
+        "episode_constant|window": 67,
+        "white_noise|v7budget": 190,
+        "white_noise|window": 190
+      },
+      "max_excess_step_envelope_in_target_window": {
+        "episode_constant|v7budget": -106,
+        "episode_constant|window": -106,
+        "white_noise|v7budget": 27,
+        "white_noise|window": 27
+      },
+      "max_excess_randomised_hull_any_fp": {
+        "episode_constant|v7budget": 16.2,
+        "episode_constant|window": 16.2,
+        "white_noise|v7budget": 85.4,
+        "white_noise|window": 85.4
+      },
+      "max_excess_randomised_hull_in_target_window": {
+        "episode_constant|v7budget": -180.0,
+        "episode_constant|window": -180.0,
+        "white_noise|v7budget": -38.3,
+        "white_noise|window": -38.3
+      },
+      "max_tp_at_fp_le_57": {
+        "episode_constant|v7budget": 97,
+        "episode_constant|window": 97,
+        "white_noise|v7budget": 235,
+        "white_noise|window": 235
+      },
+      "note": "positive step-envelope excess occurs only below the smallest admissible baseline false-alarm count, where the step envelope returns 0"
+    },
+    "length_is_negative_control": true,
+    "tie_audit": "results/tie_audit.csv"
+  },
+  "inputs": {
+    "moe-flow-semantics-0906/results/step_profiles/development_main_metrics.npy": {
+      "bytes": 1970176128,
+      "sha256_16": "26fb3982a82dc50a"
+    },
+    "moe-flow-semantics-0906/results/step_profiles/external_8b_metrics.npy": {
+      "bytes": 2076672128,
+      "sha256_16": "360079ed81b86eb9"
+    },
+    "moe-flow-semantics-0906/results/step_profiles/development_main_mobility.npy": {
+      "bytes": 246272128,
+      "sha256_16": "bbafd8f228200047"
+    },
+    "moe-flow-semantics-0906/results/step_profiles/external_8b_mobility.npy": {
+      "bytes": 259584128,
+      "sha256_16": "7489aef0d4e32851"
+    },
+    "moe-flow-semantics-0906/results/step_profiles/development_main_state_mobility.npy": {
+      "bytes": 246272128,
+      "sha256_16": "5177c6dc857a9dee"
+    },
+    "moe-flow-semantics-0906/results/step_profiles/external_8b_state_mobility.npy": {
+      "bytes": 259584128,
+      "sha256_16": "ae57d26420041e75"
+    },
+    "moe-flow-semantics-0906/results/step_profiles/development_main_index.npz": {
+      "bytes": 20916,
+      "sha256_16": "ccbc4d875881d854"
+    },
+    "moe-flow-semantics-0906/results/step_profiles/external_8b_index.npz": {
+      "bytes": 22690,
+      "sha256_16": "0d60a8c976b7ee95"
+    },
+    "moe-unused-channels-0906/results/channels/development_main_quantities.npy": {
+      "bytes": 197017728,
+      "sha256_16": "6b219015b57bc635"
+    },
+    "moe-unused-channels-0906/results/channels/external_8b_quantities.npy": {
+      "bytes": 207667328,
+      "sha256_16": "49c3da2a2ef3afa4"
+    },
+    "moe-unused-channels-0906/results/channels/development_main_index.npz": {
+      "bytes": 20881,
+      "sha256_16": "00d58b5d8b00f6a6"
+    },
+    "moe-unused-channels-0906/results/channels/external_8b_index.npz": {
+      "bytes": 22655,
+      "sha256_16": "685f92e8374478af"
+    },
+    "moe-hb-front-back-0905/results/layer_graphs/development_main.npz": {
+      "bytes": 71053375,
+      "sha256_16": "79c3b0b91e10170e"
+    },
+    "moe-hb-front-back-0905/results/layer_graphs/external_8b.npz": {
+      "bytes": 79478631,
+      "sha256_16": "0fa0c789a25c9c4f"
+    }
+  },
+  "files": {
+    "_bank_names.npy": {
+      "bytes": 82208,
+      "sha256_16": "935b6cbd4f855023",
+      "description": "通道 bank 的名称顺序"
+    },
+    "channel_screen_development.csv": {
+      "bytes": 54119,
+      "sha256_16": "8385942de1391684",
+      "description": "单 chunk 阈值（floor）在 development 上的全通道扫描：episode 内信息量、最优符号/阈值、FP∈[80,320] 内超出基线的 TP"
+    },
+    "cusum_channel_screen_development.csv": {
+      "bytes": 213728,
+      "sha256_16": "2578a1d34de49623",
+      "description": "单通道 CUSUM 在 development 上的全扫描（2 归一化臂 × 2 符号 × 6 个 k）"
+    },
+    "development_frontier_v7budget.csv": {
+      "bytes": 1321250,
+      "sha256_16": "56f5a18887a66e2a",
+      "description": "development 上 v7budget 目标下三个检测器族的完整前沿"
+    },
+    "development_frontier_window.csv": {
+      "bytes": 1279001,
+      "sha256_16": "92ed1f5fbcd259c9",
+      "description": "development 上 window 目标下三个检测器族的完整前沿"
+    },
+    "external_first_alarms.npz": {
+      "bytes": 3072,
+      "sha256_16": "5b365feecc0882ba",
+      "description": "external 上 cusum|window 的首次报警向量"
+    },
+    "fit_log.txt": {
+      "bytes": 3711,
+      "sha256_16": "c7422f341ee99254",
+      "description": "拟合日志（贪心每一步）"
+    },
+    "fit_log_full.txt": {
+      "bytes": 3952,
+      "sha256_16": "c460373690da9c62",
+      "description": "拟合 stdout"
+    },
+    "frontier_all.csv": {
+      "bytes": 1361733,
+      "sha256_16": "cd0a4bba9e59eacd",
+      "description": "描述性前沿：冻结通道/权重/k/M 不变，只扫描判决门限；含基线与零对照"
+    },
+    "frontier_external.png": {
+      "bytes": 230336,
+      "sha256_16": "fdd008240de83f39",
+      "description": "图 1：external TP–FP 前沿 + 提前量代价"
+    },
+    "frontier_external.svg": {
+      "bytes": 168492,
+      "sha256_16": "017a440198be1c3b",
+      "description": "图 1（矢量）"
+    },
+    "frozen_config.json": {
+      "bytes": 40864,
+      "sha256_16": "75feaa317054be9d",
+      "description": "冻结配置：通道、权重、逐 chunk 归一化常数、k、h、K、M、q_min，以及任务不相交二折稳定性"
+    },
+    "frozen_operating_points.csv": {
+      "bytes": 29108,
+      "sha256_16": "ffa0904e9f480f2c",
+      "description": "所有臂在两个 cohort 上的冻结工作点（含 5 个提前量档、两种基线参照）"
+    },
+    "frozen_pool.npz": {
+      "bytes": 1382,
+      "sha256_16": "93eda2d9971712a2",
+      "description": "候选池通道名与相关性去重后保留的下标"
+    },
+    "headline.json": {
+      "bytes": 6851,
+      "sha256_16": "c18ea27046732bb0",
+      "description": "头条数字：锚点、各臂、零对照、rate-matched 零对照"
+    },
+    "null_sweep.csv": {
+      "bytes": 821924,
+      "sha256_16": "81c17045fd869e6f",
+      "description": "白噪声与 episode 常数零对照，走完全相同的流程"
+    },
+    "score_external_log.txt": {
+      "bytes": 7021,
+      "sha256_16": "93e7765bbe6e48ab",
+      "description": "external 评分 stdout"
+    },
+    "screen_cusum_log.txt": {
+      "bytes": 4674,
+      "sha256_16": "49423f41542cbf17",
+      "description": "CUSUM 扫描 stdout"
+    },
+    "screen_cusum_meta.json": {
+      "bytes": 622,
+      "sha256_16": "739b595e33087dad",
+      "description": "CUSUM 通道扫描元信息"
+    },
+    "screen_log.txt": {
+      "bytes": 4287,
+      "sha256_16": "90f62ef9f6506337",
+      "description": "floor 扫描 stdout"
+    },
+    "screen_meta.json": {
+      "bytes": 169,
+      "sha256_16": "8a3d3bcfb932cda7",
+      "description": "floor 扫描元信息"
+    },
+    "suite_breakdown.csv": {
+      "bytes": 1292,
+      "sha256_16": "32294339151bd1d1",
+      "description": "诊断表：各臂在四个 suite 上的命中分解（suite 从不进入检测决策）"
+    },
+    "tie_audit.csv": {
+      "bytes": 714,
+      "sha256_16": "808270fe488834e2",
+      "description": "并列组审计：把 >= 换成 > 会丢失/推迟多少个报警 episode"
+    }
+  },
+  "reproduce": [
+    "python experiments/screen_channels.py    # 单 chunk floor，development",
+    "python experiments/screen_cusum.py       # 单通道 CUSUM，development",
+    "python experiments/fit_composite.py      # 冻结通道/权重/k/h/K/M",
+    "python experiments/score_external.py     # external 只评一次",
+    "python experiments/make_figure.py",
+    "python -m pytest tests/test_protocol.py -q"
+  ],
+  "environment": {
+    "python": "3.13.12",
+    "numpy": "2.5.1",
+    "pandas": "3.0.1",
+    "device": "cpu"
+  }
+}

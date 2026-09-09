@@ -1,0 +1,90 @@
+====================================================================================================
+LEGACY V1-V4 (back block, action tokens, denoise 9, Hellinger, 8-step mean)
+  raw directional AUC / detection AUC
+  baseline(V2)          A t30 raw=0.2012 det=0.7988  B t30 raw=0.2490 det=0.7510
+  V1 prob-avg both      A t30 raw=0.1920 det=0.8080  B t30 raw=0.3581 det=0.6419
+  V3 layer-first        A t30 raw=0.1984 det=0.8016  B t30 raw=0.2565 det=0.7435
+  V4 token-first        A t30 raw=0.1851 det=0.8149  B t30 raw=0.2794 det=0.7206
+  corpus B spread across V1-V4 at t=30: 0.642 .. 0.751  (range 0.109)
+====================================================================================================
+CANDIDATE CELLS: detection AUC at every t, raw and residual, both corpora
+cell                     | A t20 raw/res | A t25 raw/res | A t30 raw/res | B t20 raw/res | B t25 raw/res | B t30 raw/res
+baseline(V2)             | 0.594/0.500 | 0.635/0.500 | 0.799/0.500 | 0.644/0.500 | 0.525/0.500 | 0.751/0.500
+V1 prob-avg both         | 0.503/0.561 | 0.674/0.595 | 0.808/0.618 | 0.656/0.548 | 0.538/0.533 | 0.642/0.532
+V3 layer-first           | 0.599/0.515 | 0.648/0.571 | 0.802/0.544 | 0.627/0.528 | 0.512/0.511 | 0.744/0.542
+V4 token-first           | 0.512/0.607 | 0.689/0.621 | 0.815/0.618 | 0.645/0.555 | 0.546/0.518 | 0.721/0.516
+tokminALL/Lallmean       | 0.519/0.575 | 0.694/0.663 | 0.783/0.501 | 0.680/0.590 | 0.690/0.663 | 0.734/0.601
+tokminALL/Lfrontmed      | 0.563/0.586 | 0.757/0.721 | 0.829/0.672 | 0.577/0.503 | 0.665/0.658 | 0.732/0.602
+tokminALL/d9/Lallq75     | 0.503/0.551 | 0.675/0.626 | 0.755/0.553 | 0.628/0.541 | 0.715/0.690 | 0.750/0.618
+tokstdALL/backAmin       | 0.529/0.502 | 0.670/0.609 | 0.820/0.664 | 0.606/0.541 | 0.579/0.589 | 0.794/0.661
+tokstdACT/allAmean       | 0.552/0.595 | 0.742/0.754 | 0.802/0.605 | 0.587/0.503 | 0.594/0.584 | 0.797/0.670
+backBmin/tokAmean        | 0.540/0.626 | 0.678/0.643 | 0.825/0.651 | 0.637/0.566 | 0.568/0.560 | 0.803/0.644
+
+within-group rank |rho| with the baseline (t=30 / t=25):
+  baseline(V2)             A 1.000/1.000   B 1.000/1.000
+  V1 prob-avg both         A 0.857/0.707   B 0.734/0.629
+  V3 layer-first           A 0.963/0.958   B 0.898/0.844
+  V4 token-first           A 0.952/0.810   B 0.903/0.765
+  tokminALL/Lallmean       A 0.898/0.817   B 0.693/0.194
+  tokminALL/Lfrontmed      A 0.849/0.627   B 0.643/0.231
+  tokminALL/d9/Lallq75     A 0.755/0.483   B 0.505/0.130
+  tokstdALL/backAmin       A 0.819/0.627   B 0.655/0.040
+  tokstdACT/allAmean       A 0.917/0.836   B 0.784/0.447
+  backBmin/tokAmean        A 0.938/0.886   B 0.824/0.621
+====================================================================================================
+PER-GROUP breakdown of the two joint-residual leaders (raw scores)
+  tokminALL/Lallmean     A t=25 pooled=0.306 | 0:0.25(1775) 2:0.49(375) 3:0.34(783)
+  tokminALL/Lallmean     B t=25 pooled=0.310 | 0:0.42(252) 3:0.20(135) 7:0.49(87) 10:0.12(207) 13:0.34(207) 16:0.42(112) 20:0.55(207) 23:0.03(87) 26:0.11(207) 29:0.50(112) 39:0.34(112) 42:0.20(252) 46:0.71(31)
+  tokstdALL/backAmin     A t=30 pooled=0.180 | 0:0.14(1775) 2:0.60(375) 3:0.08(783)
+  tokstdALL/backAmin     B t=30 pooled=0.206 | 0:0.09(252) 3:0.19(135) 7:0.36(87) 10:0.16(207) 13:0.19(207) 16:0.00(112) 20:0.30(207) 23:0.06(87) 26:0.24(207) 29:0.39(112) 39:0.46(112) 42:0.17(252) 46:0.23(31)
+  baseline(V2)           A t=30 pooled=0.201 | 0:0.15(1775) 2:0.70(375) 3:0.08(783)
+  baseline(V2)           B t=30 pooled=0.249 | 0:0.08(252) 3:0.18(135) 7:0.21(87) 10:0.15(207) 13:0.22(207) 16:0.00(112) 20:0.45(207) 23:0.43(87) 26:0.26(207) 29:0.13(112) 39:0.38(112) 42:0.36(252) 46:0.97(31)
+====================================================================================================
+NULL CALIBRATION of the 'clears in both corpora' count
+  raw: threshold 0.6321; observed cells clearing = 8548; null draws' cell count: mean 0, p95 0, max 8  (only 5% of draws have any)
+  res: threshold 0.6326; observed cells clearing = 118; null draws' cell count: mean 0, p95 0, max 3  (only 5% of draws have any)
+====================================================================================================
+EFFECTIVE INDEPENDENCE: how many distinct cells are behind the survivors?
+t   T           
+25  all11/A/max     10
+    all11/A/std     10
+    all11/B/mean     2
+    all11/B/min     44
+    state/-/id      11
+30  act/A/mean       1
+    act/A/median     1
+    act/B/std       24
+    all11/A/mean     6
+    all11/A/q75      2
+    all11/B/std      7
+
+t   L             
+25  all/A/q75          2
+    all/B/mean        11
+    all/B/min         29
+    all/B/q75         12
+    front/A/q75        2
+    front/A/std        8
+    front/B/max        1
+    front/B/median    11
+    front/B/min        1
+30  all/A/max          3
+    all/A/q75          1
+    all/A/std          3
+    all/B/std          1
+    back/A/max         4
+    back/A/mean        6
+    back/A/median      2
+    back/A/min         3
+    back/A/q75         4
+    back/B/median      4
+    back/B/min         6
+    back/B/std         4
+====================================================================================================
+LEAD-TIME CHECK: is the t=25 survivor the baseline's t=30 information arriving early?
+  A cand@25 vs base@30: within-group rank rho = +0.098
+  A cand@25 vs base@25: within-group rank rho = +0.810
+  A cand@30 vs base@30: within-group rank rho = +0.876
+  B cand@25 vs base@30: within-group rank rho = +0.146
+  B cand@25 vs base@25: within-group rank rho = +0.201
+  B cand@30 vs base@30: within-group rank rho = +0.662

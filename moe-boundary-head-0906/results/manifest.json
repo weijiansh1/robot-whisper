@@ -1,0 +1,509 @@
+{
+  "bundle": "moe-boundary-head-0906",
+  "question": "Does the chunk-boundary routing reshuffle earn a head in the v8 intrinsic guard?",
+  "verdict": "No, not as a general head.",
+  "verdict_detail": {
+    "headline": "v8 932/1358 at 126 FP -> v8+head 987/1358 at 139 FP, net +55 TP / +13 FP = 4.23 TP per FP at lead >= 4, which clears the ~2:1 bar on its face",
+    "why_it_fails_anyway": [
+      "87.3% of the net (+48 of +55 TP) comes from one task, libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove, which holds 505 of the 1,358 failures and which v8 already recalls at 0.80.  Removing it leaves +7 TP / +2 FP over the remaining 853 failures.",
+      "The two suites v8 is worst on gain exactly nothing: object stays 41/81 and spatial stays 118/315, +0 TP / +0 FP each.",
+      "Tasks with v8 recall <= 0.4 (10 tasks, 253 failures) gain +4 TP; tasks with v8 recall >= 0.8 (18 tasks, 819 failures) gain +50 TP.  It helps what v8 already handles.",
+      "Development split-half: the same selection rule yields a pooled 3.16 TP/FP on the half it was chosen on and 0.06 TP/FP on the held-out half, with 15 different winners in 24 selections.  The development frontier is search noise."
+    ],
+    "structural_finding": "The state half of the boundary 2x2 is not a boundary measurement.  The state token's route is constant across the ten denoising steps (mean within-query chord 0.00005 against a seam of 0.182), so the state seam and adjacent-query state mobility are the same series: Pearson 1.000000 on development and external, bit-identical on legacy.  The action seam is genuinely distinct but is explained by the v7 freeze axis plus the v8 flow axis at R^2 0.80 (front) and 0.93 (back); its headline q9 AUC of 0.660 falls to 0.513 in the residual."
+  },
+  "frozen_spec": {
+    "score": "rankdiff|bnd:fa-bs",
+    "raw_key": "rankdiff|bnd:fa-bs|low|1|3|0.99|2|-",
+    "direction": "low",
+    "width": 1,
+    "confirm": 3,
+    "quantile": 0.99,
+    "earliest": 2,
+    "gate": "-",
+    "development": {
+      "d_tp0": 20,
+      "d_fp0": 8,
+      "d_tp4": 17,
+      "d_fp4": 4
+    },
+    "selection_rule": "max d_tp0 subject to d_tp0/d_fp0 >= 2.0 at lead >= 0; ties by fewer d_fp0, then more d_tp4, then key order",
+    "n_configs_enumerated": 123438,
+    "split_half": {
+      "n_selections": 24,
+      "median_train_d_tp0": 16.5,
+      "median_test_d_tp0": 6.0,
+      "median_train_d_fp0": 4.0,
+      "median_test_d_fp0": 42.5,
+      "pooled_train_rate": 3.1559633027522938,
+      "pooled_test_rate": 0.06378378378378378,
+      "frac_test_positive": 0.9166666666666666
+    }
+  },
+  "headline": {
+    "v8_tp": 932,
+    "v8_fp": 126,
+    "new_tp": 987,
+    "new_fp": 139,
+    "d_tp": 55,
+    "d_fp": 13,
+    "risk": 1358,
+    "rate": 4.230769230769231
+  },
+  "per_suite": [
+    {
+      "suite": "goal",
+      "n_risk": 250,
+      "v8_tp": 181,
+      "v8_fp": 10,
+      "new_tp": 187,
+      "new_fp": 12
+    },
+    {
+      "suite": "long",
+      "n_risk": 712,
+      "v8_tp": 592,
+      "v8_fp": 105,
+      "new_tp": 641,
+      "new_fp": 116
+    },
+    {
+      "suite": "object",
+      "n_risk": 81,
+      "v8_tp": 41,
+      "v8_fp": 7,
+      "new_tp": 41,
+      "new_fp": 7
+    },
+    {
+      "suite": "spatial",
+      "n_risk": 315,
+      "v8_tp": 118,
+      "v8_fp": 4,
+      "new_tp": 118,
+      "new_fp": 4
+    }
+  ],
+  "weak_tasks": {
+    "n": 10,
+    "n_risk": 253,
+    "d_tp": 4,
+    "d_fp": 0
+  },
+  "strong_tasks": {
+    "n": 18,
+    "n_risk": 819,
+    "d_tp": 50,
+    "d_fp": 11
+  },
+  "leave_one_task_out_min_d_tp": 7,
+  "top_task_share_of_gain": 0.8727272727272727,
+  "pairwise_scan": {
+    "argmax_agrees_across_cohorts": false,
+    "argmax_per_cohort": {
+      "development_main": [
+        "bnd:back_state",
+        "bnd:back_action",
+        16
+      ],
+      "external_8b": [
+        "bnd:back_action",
+        "wc:back_action",
+        16
+      ],
+      "legacy_main16x32": [
+        "bnd:front_state",
+        "bnd:back_state",
+        9
+      ]
+    },
+    "n_significant_gains": {
+      "development_main": 0,
+      "external_8b": 0,
+      "legacy_main16x32": 0
+    },
+    "n_cells": {
+      "development_main": 84,
+      "external_8b": 84,
+      "legacy_main16x32": 84
+    },
+    "mean_gain": {
+      "development_main": -0.02348474207883317,
+      "external_8b": -0.02386888746437329,
+      "legacy_main16x32": -0.06694369371577691
+    },
+    "nulls": [
+      {
+        "surrogate": "flat_shuffle",
+        "median_max_gain": 0.009599097411481933,
+        "worst_max_gain": 0.019637908738222798,
+        "observed_max_gain": 0.09146490944214003,
+        "ratio_to_worst": 4.657568718817535,
+        "p_exceed": 0.0,
+        "n_draws": 24
+      },
+      {
+        "surrogate": "circular_shift",
+        "median_max_gain": 0.04710208608589195,
+        "worst_max_gain": 0.060658311009830435,
+        "observed_max_gain": 0.09146490944214003,
+        "ratio_to_worst": 1.5078710224443441,
+        "p_exceed": 0.0,
+        "n_draws": 24
+      },
+      {
+        "surrogate": "episode_swap",
+        "median_max_gain": 0.06367242275370422,
+        "worst_max_gain": 0.06809735337667555,
+        "observed_max_gain": 0.09146490944214003,
+        "ratio_to_worst": 1.343149254805962,
+        "p_exceed": 0.0,
+        "n_draws": 24
+      }
+    ]
+  },
+  "decomposition": {
+    "state_chord_over_seam": {
+      "development_main": {
+        "front_state": 4.7736925019742775e-05,
+        "front_action": 0.04033736049037981,
+        "back_state": 0.00036368653855483945,
+        "back_action": 0.03985524964890958
+      },
+      "external_8b": {
+        "front_state": 4.779009288548128e-05,
+        "front_action": 0.0406423913063589,
+        "back_state": 0.00036341711564481577,
+        "back_action": 0.03990500744206638
+      },
+      "legacy_main16x32": {
+        "front_state": 0.0,
+        "front_action": 0.0391415002146801,
+        "back_state": 0.0,
+        "back_action": 0.03756954380182316
+      }
+    },
+    "seam_vs_step9_pearson": {
+      "development_main": {
+        "front_state": 0.9999998004258301,
+        "front_action": 0.8162954618526319,
+        "back_state": 0.999998347607595,
+        "back_action": 0.9303222093379442
+      },
+      "external_8b": {
+        "front_state": 0.9999998101490718,
+        "front_action": 0.814529654300328,
+        "back_state": 0.9999982766509277,
+        "back_action": 0.9265890843182489
+      },
+      "legacy_main16x32": {
+        "front_state": 1.0,
+        "front_action": 0.8138856586144536,
+        "back_state": 1.0,
+        "back_action": 0.9152623536160371
+      }
+    },
+    "n_residual_significant": 7,
+    "n_residual_cells": 36
+  },
+  "selection_intensity": {
+    "n_configurations_swept": 137048,
+    "n_configurations_selectable": 123438,
+    "split_half": {
+      "n_selections": 24,
+      "median_train_d_tp0": 16.5,
+      "median_test_d_tp0": 6.0,
+      "median_train_d_fp0": 4.0,
+      "median_test_d_fp0": 42.5,
+      "pooled_train_rate": 3.1559633027522938,
+      "pooled_test_rate": 0.06378378378378378,
+      "frac_test_positive": 0.9166666666666666
+    }
+  },
+  "null_equivalence": [
+    {
+      "surrogate": "flat_shuffle",
+      "reached_target": 6,
+      "median_fp_at_target": 1591.0,
+      "real_fp": 139,
+      "cost_ratio": 11.446043165467627,
+      "best_tp_seen": 1006,
+      "fp_at_best_tp": 1616
+    },
+    {
+      "surrogate": "circular_shift",
+      "reached_target": 6,
+      "median_fp_at_target": 369.0,
+      "real_fp": 139,
+      "cost_ratio": 2.6546762589928057,
+      "best_tp_seen": 1049,
+      "fp_at_best_tp": 345
+    },
+    {
+      "surrogate": "episode_swap",
+      "reached_target": 6,
+      "median_fp_at_target": 557.5,
+      "real_fp": 139,
+      "cost_ratio": 4.010791366906475,
+      "best_tp_seen": 1008,
+      "fp_at_best_tp": 755
+    }
+  ],
+  "protocol": {
+    "cap_free": true,
+    "selection_lead": 0,
+    "reported_leads": [
+      0,
+      2,
+      4,
+      8,
+      12
+    ],
+    "headline_lead": 4,
+    "thresholds": "order statistics of the unlabeled development scores, method='lower', applied with >= / <=",
+    "rank_reference": "development_main, frozen; no test cohort enters any transform",
+    "length_is_baseline": false,
+    "development_iterations": 3,
+    "saw_external_before_design_was_fixed": true
+  },
+  "stages": [
+    {
+      "script": "experiments/extract_boundary.py",
+      "purpose": "Raw zarr -> the twelve cross-query series (boundary / within-chunk / within-query chord) for all three cohorts, float64.",
+      "outputs": [
+        {
+          "file": "development_main_boundary.npz",
+          "bytes": 17386249,
+          "sha256_16": "20b9626cf63bd66c"
+        },
+        {
+          "file": "external_8b_boundary.npz",
+          "bytes": 19494253,
+          "sha256_16": "455840479f778e90"
+        },
+        {
+          "file": "legacy_main16x32_boundary.npz",
+          "bytes": 3755531,
+          "sha256_16": "fcf24d0fa6676d62"
+        },
+        {
+          "file": "extract_boundary.log",
+          "bytes": 4508,
+          "sha256_16": "25459e9b81bd9b40"
+        }
+      ]
+    },
+    {
+      "script": "experiments/reproduce_exploratory.py",
+      "purpose": "Reproduces the exploratory magnitudes and the external AUC table from the recomputed data, then extends it to development and legacy.",
+      "outputs": [
+        {
+          "file": "auc_table.csv",
+          "bytes": 6329,
+          "sha256_16": "ad7097e118cea2f3"
+        },
+        {
+          "file": "reproduce_exploratory.json",
+          "bytes": 5552,
+          "sha256_16": "aae6a64e744efc9c"
+        }
+      ]
+    },
+    {
+      "script": "experiments/decompose_axis.py",
+      "purpose": "Is the seam a new axis?  Decomposes it into the v7 freeze axis and the v8 flow axis and scores the residual.",
+      "outputs": [
+        {
+          "file": "triangle_magnitudes.csv",
+          "bytes": 1279,
+          "sha256_16": "f04066e90c8f256b"
+        },
+        {
+          "file": "seam_vs_step9.csv",
+          "bytes": 830,
+          "sha256_16": "82d16cbe35c7eedb"
+        },
+        {
+          "file": "seam_decomposition.csv",
+          "bytes": 999,
+          "sha256_16": "a21eb10fb5789e82"
+        },
+        {
+          "file": "seam_residual_auc.csv",
+          "bytes": 4288,
+          "sha256_16": "02be0ecd46b5461b"
+        },
+        {
+          "file": "decompose_axis.json",
+          "bytes": 13845,
+          "sha256_16": "6d4fe74bba3c5adb"
+        }
+      ]
+    },
+    {
+      "script": "experiments/pairwise_scan.py",
+      "purpose": "All 28 pairwise rank differences x 3 chunks, on all three cohorts, with task-clustered CIs on the gain and three surrogates.",
+      "outputs": [
+        {
+          "file": "pairwise_development.csv",
+          "bytes": 28946,
+          "sha256_16": "bf393c9d7d641b91"
+        },
+        {
+          "file": "pairwise_all_cohorts.csv",
+          "bytes": 46506,
+          "sha256_16": "39257beb76bdb6ad"
+        },
+        {
+          "file": "pairwise_nulls.csv",
+          "bytes": 391,
+          "sha256_16": "a94f1608632d9247"
+        },
+        {
+          "file": "pairwise_scan.json",
+          "bytes": 2704,
+          "sha256_16": "bab62a63f205c684"
+        },
+        {
+          "file": "pairwise.log",
+          "bytes": 3329,
+          "sha256_16": "7cff59939e3d9e87"
+        }
+      ]
+    },
+    {
+      "script": "experiments/sweep_head.py",
+      "purpose": "The development-only design sweep, plus the v8-dial control.  Selection at lead >= 0.",
+      "outputs": [
+        {
+          "file": "sweep_development.csv",
+          "bytes": 18678717,
+          "sha256_16": "6ee9b3e0231028f6"
+        },
+        {
+          "file": "sweep_summary.json",
+          "bytes": 6477,
+          "sha256_16": "36379c8a92345e97"
+        },
+        {
+          "file": "v8_dial_development.csv",
+          "bytes": 972,
+          "sha256_16": "da0a1476c6944531"
+        },
+        {
+          "file": "dial_comparison_development.csv",
+          "bytes": 111,
+          "sha256_16": "512297238891bbe6"
+        },
+        {
+          "file": "family_comparison_development.csv",
+          "bytes": 114,
+          "sha256_16": "c7939441ce4bca1e"
+        },
+        {
+          "file": "sweep.log",
+          "bytes": 11866,
+          "sha256_16": "fd145dd0604880e7"
+        }
+      ]
+    },
+    {
+      "script": "experiments/split_half.py",
+      "purpose": "Task split-half: how much of the sweep winner is search noise.  Freezes the spec.",
+      "outputs": [
+        {
+          "file": "split_half.csv",
+          "bytes": 1885,
+          "sha256_16": "6be04682641438e6"
+        },
+        {
+          "file": "frozen_spec.json",
+          "bytes": 750,
+          "sha256_16": "bf814246760e49bc"
+        },
+        {
+          "file": "full_development_configs.csv",
+          "bytes": 6994366,
+          "sha256_16": "3a37bea9abe55c35"
+        },
+        {
+          "file": "split_half.log",
+          "bytes": 1919,
+          "sha256_16": "4ac7ca4c503c77da"
+        }
+      ]
+    },
+    {
+      "script": "experiments/freeze_and_score.py",
+      "purpose": "The frozen spec applied once to external_8b and legacy_main16x32.  Per suite, per task, LOTO, nulls, length negative control.",
+      "outputs": [
+        {
+          "file": "frozen_scores.csv",
+          "bytes": 816,
+          "sha256_16": "b20fe2e76937a064"
+        },
+        {
+          "file": "frozen_summary.json",
+          "bytes": 6345,
+          "sha256_16": "72ad685dcbdaf542"
+        },
+        {
+          "file": "boundary_head_alarms.npz",
+          "bytes": 37105,
+          "sha256_16": "bd1022c563b14e84"
+        },
+        {
+          "file": "per_suite.csv",
+          "bytes": 131,
+          "sha256_16": "3d9825fa17e6b9ac"
+        },
+        {
+          "file": "per_task.csv",
+          "bytes": 4399,
+          "sha256_16": "890fa7a0f6b84764"
+        },
+        {
+          "file": "leave_one_task_out.csv",
+          "bytes": 2970,
+          "sha256_16": "b42c6608b653604c"
+        },
+        {
+          "file": "nulls.csv",
+          "bytes": 143,
+          "sha256_16": "04c657a1622dbb6e"
+        },
+        {
+          "file": "negative_control_length.csv",
+          "bytes": 183,
+          "sha256_16": "4a6e8c6b080671b9"
+        },
+        {
+          "file": "freeze.log",
+          "bytes": 6724,
+          "sha256_16": "cf5d6dd316567a76"
+        }
+      ]
+    },
+    {
+      "script": "experiments/null_equivalence.py",
+      "purpose": "How many false alarms a surrogate head needs to buy the same true positives.",
+      "outputs": [
+        {
+          "file": "null_equivalence.csv",
+          "bytes": 1655,
+          "sha256_16": "e24285001277fbcc"
+        },
+        {
+          "file": "null_equivalence.json",
+          "bytes": 1018,
+          "sha256_16": "ed1e6b9959bc486b"
+        },
+        {
+          "file": "null_equivalence.log",
+          "bytes": 2216,
+          "sha256_16": "5740c4a15be01e6f"
+        }
+      ]
+    }
+  ]
+}

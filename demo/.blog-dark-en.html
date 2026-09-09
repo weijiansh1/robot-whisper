@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The neurons inside a VLA can see physical state the tokens never show</title>
+<meta name="description" content="A cooking robot keeps getting stuck. Its model writes a log at every step that nobody reads — read it, and the failure becomes visible early enough to do something about it.">
+<style>
+:root{--bg:#0b0f14;--panel:#0e141b;--line:#1d2833;--tick:#38495a;
+  --ink:#e8eef3;--dim:#98a6b3;--faint:#5d6d7b;
+  --ok:#5aa9e6;--bad:#e08c4a;--gold:#e8c56a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:17px/1.9 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+a{color:var(--ok);text-decoration:none}
+a:hover{text-decoration:underline}
+b,strong{font-weight:650;color:var(--ink)}
+.prose{max-width:72ch;margin:0 auto;padding:72px 24px 96px}
+.lang{text-align:right;font-size:13.5px;color:var(--faint);margin-bottom:34px}
+h1{font-size:clamp(27px,5vw,40px);line-height:1.25;font-weight:700;margin:0 0 14px}
+.meta{color:var(--faint);font-size:14px;margin:0 0 10px}
+.blurb{color:var(--dim);font-size:18.5px;line-height:1.75;margin:0 0 40px;
+  font-family:Georgia,serif;font-style:italic}
+h2{font-size:22.5px;font-weight:700;margin:60px 0 16px;line-height:1.4}
+p{margin:0 0 22px;color:var(--dim)}
+p.em{color:var(--ink)}
+blockquote{margin:34px 0;padding:4px 0 4px 22px;border-left:3px solid var(--tick);
+  color:var(--ink);font-family:Georgia,serif;font-style:italic;font-size:18px;line-height:1.8}
+figure{margin:36px -8px}
+figure img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+figcaption{margin:12px 6px 0;font-size:13.6px;color:var(--faint);line-height:1.75}
+.figtag{display:inline-block;margin-right:.6em;padding:1px 8px;border:1px solid var(--tick);
+  border-radius:4px;font-size:11.5px;letter-spacing:.06em;vertical-align:1px}
+.vids{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:36px -8px}
+@media(max-width:640px){.vids{grid-template-columns:1fr}}
+.vids figure{margin:0}
+.vids video{width:100%;border-radius:10px;border:1px solid var(--line);background:#000;display:block}
+.vids figcaption{margin:10px 4px 0}
+.tag-ok{color:var(--ok);font-weight:650}.tag-bad{color:var(--bad);font-weight:650}
+ul{margin:0 0 22px;padding-left:1.3em;color:var(--dim)}
+li{margin-bottom:10px}
+li::marker{color:var(--faint)}
+code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.9em;color:var(--gold);
+  background:rgba(232,197,106,.08);padding:1px 6px;border-radius:4px}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:30px 0}
+.nums div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px 11px}
+.nums b{display:block;font-size:23px;font-variant-numeric:tabular-nums}
+.nums span{font-size:12.5px;color:var(--faint);line-height:1.5;display:block;margin-top:3px}
+hr{border:0;border-top:1px solid var(--line);margin:56px 0}
+.foot{color:var(--faint);font-size:14px}
+</style>
+</head>
+<body>
+<article class="prose">
+  <div class="lang">EN · <a href="index.html">中文</a></div>
+
+  <h1>The neurons inside a VLA can see physical state the tokens never show</h1>
+  <p class="meta">2026-08-30 · HiMoE-VLA · LIBERO "put both moka pots on the stove"</p>
+  <p class="blurb">Something first seen in language models — a neuron's internal state holds
+    information the tokens never show — carried over to a cooking robot, and grew a full
+    sequel: the failure becomes visible, and rescuable.</p>
+
+  <p>This story starts with a different kind of model.</p>
+
+  <p>On reasoning LLMs we built a thing called <b>NAD</b> (Neuron Activation Distribution):
+    while the model answers, record the activation distribution of tens of thousands of
+    neurons — never reading what it wrote, only these internal states. The result: among
+    many sampled answers to the same question, <b>the neuron activity alone picks out the
+    one more likely to be right</b>. Confidence and hesitation are not written into the
+    tokens, but the internal state carries them.</p>
+
+  <p>It left one question open: is this a quirk of language models, or a property of large
+    models in general?</p>
+
+  <p>So we carried the same pair of eyes over to a cooking robot. Its "words" are not text
+    but twenty joint actions per second; it too can "think wrong" — not a wrong answer,
+    but an arm frozen mid-air, or shuttling between two pots until time runs out.
+    The two rollouts below start from a <b>bit-identical simulator state</b>, run the same
+    model, and differ in exactly one thing: the noise stream used for sampling. The left
+    one puts both pots on the stove in 19 seconds. The right one struggles for the full
+    26, times out, and fails.</p>
+
+  <div class="vids">
+    <figure><video src="video/success.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-ok">Success</span> — 38 steps, both pots placed.</figcaption></figure>
+    <figure><video src="video/failure.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-bad">Failure</span> — all 52 steps spent; the pot never sits,
+      retry after retry until the horizon.</figcaption></figure>
+  </div>
+
+  <p class="em">Whatever separates these two runs never appears in any token.
+    The action stream keeps flowing, the trajectory keeps extending, and every frame looks
+    like work being done. To tell them apart <em>while they are still running</em>, the output
+    is the wrong place to look. You have to look inside the model.</p>
+
+  <h2>Part one — what a trap looks like in the physical world</h2>
+
+  <p>First, the failure itself. We sampled 32 rollouts from one initial state (again, only the
+    noise differs): 14 succeed, 18 fail, with a 52-step budget. The failures are not random —
+    they have shapes, mainly two:</p>
+
+  <ul>
+    <li><b>Stagnation</b> — the arm hangs mid-air, nearly motionless, as if paused.
+      Consecutive observation frames are almost identical.</li>
+    <li><b>Looping</b> — the arm shuttles between the two pots, returning to the same spot
+      again and again. Plenty of path, zero progress.</li>
+  </ul>
+
+  <p>The rest is a grab-bag of "still moving, but doing the wrong thing": pots lifted and
+    dropped, placed and then dragged away. We rendered these trajectories frame by frame,
+    together with the deep-layer routing, in
+    <a href="viz-trap.html">an animation</a> — the traps are easiest
+    to see there.</p>
+
+  <p>And from the token side, three limits you cannot get around:</p>
+
+  <ul>
+    <li><b>The action stream won't tell you.</b> A stuck model still emits a full,
+      well-formed action chunk every step — ten numbers, right format, normal magnitudes.
+      No error, no silence. The failure happens in the form of perfectly normal output.</li>
+    <li><b>Length has two readings.</b> A long trajectory might mean the problem is hard,
+      or that the run is already stuck. The two call for opposite responses — wait it out
+      versus cut it off — but the trace shows one symptom: long.</li>
+    <li><b>The verdict comes at the finish line.</b> The success predicate stamps only when
+      the episode ends. By the time failure is "confirmed", the 26 seconds are spent and
+      nothing can be done.</li>
+  </ul>
+
+  <h2>Part two — the neurons knew all along</h2>
+
+  <p>This VLA is a Mixture-of-Experts model: inside certain layers, a small group of neurons
+    acts as a dispatcher (the router), scoring 32 experts at every control step and lighting
+    up the top 4 to handle that step. <b>Which four are lit — we call that roster the
+    pattern.</b></p>
+
+  <p class="em">While the arm is working, the observation changes every step and the pattern
+    reshuffles with it. The moment the arm stalls, the observation freezes — and the pattern
+    freezes too: the same four neural pathways stay lit until the clock runs out.</p>
+
+  <p>So the detector can afford to be one sentence long: count how much the pattern changes
+    per step, divide by this rollout's <b>own opening rate</b> to get a dimensionless ratio
+    <code>r(t)</code>, and fire when it spends <b>three consecutive steps below
+    <code>θ = 0.95</code></b>. No learning, no calibration, four constants, all frozen in
+    advance.</p>
+
+  <figure>
+    <img src="assets/fig_fan.png" loading="lazy"
+      alt="A fan of 352 r(t) curves, blue for success and orange for failure; a dot marks each branch's alarm step, with red dots crowding the failure side.">
+    <figcaption><span class="figtag">Fig. 1</span>r(t) for 352 branches (22 states × 16 noise
+      streams). Orange = failure (235), blue = success (117); each dot is that branch's alarm.
+      Alarms land at q18–q36, median q28 — just past halfway through the 52-step horizon.</figcaption>
+  </figure>
+
+  <div class="nums">
+    <div><b>80.1%</b><span>corpus A correct (352 rollouts; majority guess 66.8%)</span></div>
+    <div><b>82.0%</b><span>corpus B correct (512 rollouts; majority guess 57.8%)</span></div>
+    <div><b>one θ</b><span>false alarms align within 0–2 points across both corpora — the threshold just transfers</span></div>
+    <div><b>19 / 203</b><span>false alarms — every one a slow success that stalled and crawled out</span></div>
+  </div>
+
+  <p>The two corpora were collected independently (352 and 512 rollouts) and the threshold was
+    set once. The false alarms deserve a look of their own: the 19 runs that alarmed and then
+    succeeded have median length 48 steps against 39 overall — they <b>really did stall</b>,
+    then walked out of it. So the alarm's semantics are
+    "<b>this run is stuck right now</b>", not "this run is doomed". That distinction becomes
+    important in part three.</p>
+
+  <h2>Part three — an honest word about why it works</h2>
+
+  <p>The first time we saw the deep-layer pattern freeze, we got excited too — until the
+    control experiment made things soberingly plain:</p>
+
+  <blockquote>Robot stuck → observation unchanged → router input unchanged → of course the
+    experts don't change. The routing's stickiness correlates with the input's own stability
+    at r = +0.93; regress the input out, and the routing metric collapses to chance.</blockquote>
+
+  <p class="em">The neurons are not an oracle. They are a <b>free state sensor</b>: they
+    faithfully write "the physical world has stopped moving" into a log the model produces
+    anyway.</p>
+
+  <p>Mundane is precisely why it is dependable — nothing mystical, so nothing fails
+    mystically. And "free" is meant literally: expert selection is a by-product of the MoE
+    forward pass; the model cannot run without making the choice, so reading it adds no
+    inference and no probe. One counter-intuitive detail: <b>which</b> neurons are lit
+    carries almost no outcome information — the static roster identifies the initial scene
+    at nearly 100% accuracy yet is nearly useless about success. <b>Identity is a fingerprint
+    of the scene; change is the state.</b> Our ratio is invariant to renumbering the experts,
+    so it takes only the latter.</p>
+
+  <h2>One more thinking — can it be rescued, live?</h2>
+
+  <p>An alarm that only keeps score is a dashboard nobody reads. So the last experiment used
+    it as a trigger: a fresh rollout runs online (threshold and all constants frozen
+    beforehand), the alarm fires at step 32 — and <b>at that exact step</b> the full simulator
+    state is saved and eight fresh noise streams are run out of it.</p>
+
+  <div class="vids">
+    <figure><video src="video/rescue_trunk.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-bad">Original noise, continued</span> — 26.0 s (52 steps),
+      runs out the horizon, fails.</figcaption></figure>
+    <figure><video src="video/rescue_ok.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-ok">Resampled at the alarm</span> — same state, one new
+      noise stream, done in 3.9 s (8 steps).</figcaption></figure>
+  </div>
+
+  <figure>
+    <img src="assets/fig_rescue.png" loading="lazy"
+      alt="r(t) of one rollout: after the alarm at step 32 the run forks — the original noise sinks and fails at 52 steps while the resampled branch climbs back and finishes at step 40.">
+    <figcaption><span class="figtag">Fig. 2</span>The rescue, as read from the log. White is the
+      shared history, the red ring is the alarm; the orange line (original noise) runs 52 steps
+      and fails, the blue line (resample) finishes in 8. All three curves are measured — the
+      blue one comes from the server's routing log.</figcaption>
+  </figure>
+
+  <p>Three of the eight resamples succeed. A rollout that was headed for certain failure
+    swapped its noise at the step the alarm pointed to, and finished the task in eight steps.
+    <b>Detection closed into intervention for the first time.</b></p>
+
+  <p>The limits were measured the same way, and none are hidden:</p>
+
+  <ul>
+    <li><b>Not every state is rescuable.</b> Another initial state, same procedure: 0/8.
+      Nothing in the alarm reading tells the two apart.</li>
+    <li><b>The moment is not special.</b> A control arm forked at a random earlier step also
+      rescued 3/8. The alarm's value is knowing <em>that</em> it is time to act — not having
+      found the perfect instant.</li>
+    <li><b>The pattern cannot pick the winner.</b> Choosing the candidate with the largest
+      routing change failed; the rescue happened to be the smallest (n = 1, and the direction
+      ran against intuition).</li>
+    <li><b>No early warning.</b> The median alarm lands at 54% of the horizon; before that,
+      single-step readings are coin flips. It reads "already stuck", it does not prophesy
+      "about to be".</li>
+  </ul>
+
+  <figure>
+    <img src="assets/fig_candidates.png" loading="lazy"
+      alt="Bar chart of routing change for the eight candidates sampled at the alarm: all above the stuck trunk, yet the largest change failed and the executed rescue was the smallest.">
+    <figcaption><span class="figtag">Fig. 3</span>The eight candidates at the alarm step: any
+      fresh noise moves the pattern more than the stuck trunk (0.42) — corroborating the
+      mechanism — but magnitude does not pick winners.</figcaption>
+  </figure>
+
+  <h2>The takeaway</h2>
+
+  <p class="em">A trajectory is what the model did. The pattern is what state it was in.
+    The first gets stamped only at the finish line; the second says its piece halfway
+    through — in a log the model writes at every step, that nobody had read.
+    The gauge was on the whole time. We just finally looked at it.</p>
+
+  <hr>
+  <p class="foot">The 50-second animated version: <a href="live.html?lang=en">pattern — a short
+    film about routing</a> · Every curve in this post is measured (Figs. 1–3 are drawn from
+    the 352/512-rollout corpora and the server's routing log); data and scripts live in
+    <code>analysis_online_2026-08-29/</code> and <code>analysis_triggered_fork/</code> ·
+    <a href="index.html">中文版</a></p>
+</article>
+</body>
+</html>

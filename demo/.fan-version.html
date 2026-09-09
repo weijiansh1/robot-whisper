@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MoE 路由在线检测</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#0e141b; --line:#1d2833; --tick:#38495a;
+  --ink:#e8eef3; --dim:#7d8d9b;
+  --ok:#5aa9e6; --bad:#e08c4a; --alarm:#f0644a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font:14px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.app{height:100dvh;display:grid;grid-template-columns:minmax(0,1fr) 380px}
+
+.main{display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:22px 24px 18px;
+  min-width:0}
+.head{display:flex;align-items:flex-start;gap:28px}
+h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.2px}
+.sub{margin:5px 0 0;color:var(--dim);font-size:13px}
+.sub b{color:var(--ink);font-weight:600}
+.stats{margin-left:auto;display:flex;gap:22px;flex:none;padding-top:2px}
+.stats>div{text-align:right}
+.stats span{display:block;font-size:17px;font-weight:600;
+  font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.stats em{display:block;font-style:normal;font-size:11px;color:var(--dim);margin-top:1px}
+.plot{position:relative;min-height:0;margin:16px 0 0}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+
+.transport{display:flex;align-items:center;gap:14px;margin-top:16px}
+button{width:38px;height:38px;border:1px solid var(--line);background:var(--panel);
+  border-radius:50%;color:var(--ink);cursor:pointer;font-size:13px;flex:none;
+  display:grid;place-items:center;transition:border-color .15s}
+button:hover{border-color:var(--tick)}
+input[type=range]{flex:1;appearance:none;height:3px;border-radius:2px;
+  background:var(--line);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:13px;height:13px;
+  border-radius:50%;background:var(--ink);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;
+  background:var(--ink);cursor:pointer}
+.step{font-variant-numeric:tabular-nums;color:var(--dim);font-size:13px;
+  min-width:104px;text-align:right}
+.step b{color:var(--ink);font-size:15px}
+
+.side{border-left:1px solid var(--line);display:grid;grid-template-rows:1fr 1fr;min-width:0}
+.cell{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr);
+  padding:14px 16px;min-height:0}
+.cell+.cell{border-top:1px solid var(--line)}
+.cap{display:flex;align-items:center;gap:9px;font-size:13px;margin-bottom:9px}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.cap .who{font-weight:600}
+.cap .meta{color:var(--dim);font-size:12px;margin-left:auto;
+  font-variant-numeric:tabular-nums}
+video{width:100%;height:100%;object-fit:contain;background:#000;border-radius:3px;
+  min-height:0;transition:opacity .25s}
+.cell.done video{opacity:.38}
+.cell.done .cap .who{color:var(--dim)}
+.badge{position:absolute;right:16px;bottom:14px;padding:3px 9px;border-radius:3px;
+  font-size:11.5px;font-weight:600;letter-spacing:.3px;opacity:0;transition:opacity .25s;
+  background:var(--alarm);color:#160604}
+.badge.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="main">
+    <div class="head">
+      <div>
+        <h1>MoE 路由能在线判出这条 rollout 会不会失败</h1>
+        <p class="sub">全部 <b id="nb">352</b> 条分支 —— <b id="nf">235</b> 条失败、<b id="ns">117</b>
+          条成功。加粗的两条是 sibling:同一个模拟器状态,只有 flow-noise 不同。</p>
+      </div>
+      <div class="stats">
+        <div><span id="sA"></span><em>语料 A · 352 条</em></div>
+        <div><span id="sB"></span><em>语料 B · 512 条</em></div>
+      </div>
+    </div>
+    <div class="plot"><canvas id="cv"></canvas></div>
+    <div class="transport">
+      <button id="play" title="播放 / 暂停">▶</button>
+      <input type="range" id="scrub" min="0" max="52" value="0" step="1">
+      <div class="step">控制步 <b id="q">0</b> / <span id="qmax">52</span></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="cell">
+      <div class="cap"><span class="dot" style="background:var(--ok)"></span>
+        <span class="who">成功</span><span class="meta" id="m-ok"></span></div>
+      <video id="v-ok" muted playsinline preload="auto"></video>
+    </div>
+    <div class="cell">
+      <div class="cap"><span class="dot" style="background:var(--bad)"></span>
+        <span class="who">失败</span><span class="meta" id="m-bad"></span></div>
+      <video id="v-bad" muted playsinline preload="auto"></video>
+      <div class="badge" id="badge">路由报警</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let D=null, q=0, playing=false, raf=null, last=0;
+
+const Y0=0.30, Y1=1.45;                        // r(t) 的绘图范围
+const PAD={l:56,r:16,t:14,b:36};
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+fetch('demo.json').then(r=>r.json()).then(d=>{
+  D=d;
+  const QMAX=Math.max(...D.branches.map(b=>b.T));
+  $('#scrub').max=QMAX; $('#qmax').textContent=QMAX;
+  $('#nb').textContent=D.branches.length;
+  $('#nf').textContent=D.branches.filter(b=>!b.success).length;
+  $('#ns').textContent=D.branches.filter(b=>b.success).length;
+  // 这一屏只有 16 条,而且构成偏斜 —— 把两批语料的总账摆在旁边,免得被读成挑出来的
+  const pct=x=>(x*100).toFixed(1)+'%';
+  $('#sA').textContent=pct(D.corpus.A.accuracy);
+  $('#sB').textContent=pct(D.corpus.B.accuracy);
+  $('#sA').parentElement.title=`基线 ${pct(D.corpus.A.baseline)} · `
+    +`检出 ${pct(D.corpus.A.recall)} · 误报 ${pct(D.corpus.A.fa)}`;
+  $('#sB').parentElement.title=`基线 ${pct(D.corpus.B.baseline)} · `
+    +`检出 ${pct(D.corpus.B.recall)} · 误报 ${pct(D.corpus.B.fa)}`;
+
+  const ok=D.branches.find(b=>b.video==='success');
+  const bad=D.branches.find(b=>b.video==='failure');
+  if(ok) $('#m-ok').textContent=
+    `c${String(ok.candidate).padStart(2,'0')} · ${ok.T} 步 · 未报警`;
+  if(bad) $('#m-bad').textContent=
+    `c${String(bad.candidate).padStart(2,'0')} · ${bad.T} 步 · 报警于第 ${bad.alarm} 步`;
+  if(D.videos.success) $('#v-ok').src=D.videos.success;
+  if(D.videos.failure) $('#v-bad').src=D.videos.failure;
+
+  resize();
+});
+
+/* 坐标框:刻度画在框上,框内不画网格 */
+function frame(w,h){
+  const x0=PAD.l, x1=w-PAD.r, y0=PAD.t, y1=h-PAD.b;
+  ctx.strokeStyle='#2a3846'; ctx.lineWidth=1;
+  ctx.strokeRect(x0+.5,y0+.5,x1-x0,y1-y0);
+
+  const QMAX=+$('#scrub').max;
+  ctx.font='11px ui-monospace,SFMono-Regular,monospace';
+  ctx.strokeStyle=css('--tick');
+  ctx.fillStyle=css('--dim');
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let t=0;t<=QMAX;t+=10){
+    const x=Math.round(x0+(x1-x0)*t/QMAX)+.5;
+    ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y1-6); ctx.stroke();
+    ctx.fillText(t,x,y1+8);
+  }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(const v of [0.4,0.6,0.8,1.0,1.2,1.4]){
+    const y=Math.round(y0+(y1-y0)*(Y1-v)/(Y1-Y0))+.5;
+    ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x0+6,y); ctx.stroke();
+    ctx.fillText(v.toFixed(1),x0-9,y);
+  }
+  ctx.fillStyle='#5d6d7b';
+  ctx.font='11.5px -apple-system,"PingFang SC",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('控制步',(x0+x1)/2,y1+21);
+  ctx.save(); ctx.translate(15,(y0+y1)/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('路由变化率 / 自身开头',0,0); ctx.restore();
+  return {x0,x1,y0,y1,QMAX};
+}
+
+function draw(){
+  if(!D) return;
+  const k=devicePixelRatio||1, w=cv.width/k, h=cv.height/k;
+  ctx.clearRect(0,0,w,h);
+  const F=frame(w,h);
+  const X=t=>F.x0+(F.x1-F.x0)*t/F.QMAX;
+  const Y=v=>F.y0+(F.y1-F.y0)*(Y1-Math.max(Y0,Math.min(Y1,v)))/(Y1-Y0);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(F.x0,F.y0,F.x1-F.x0,F.y1-F.y0); ctx.clip();
+
+  ctx.strokeStyle='#4d6070'; ctx.setLineDash([5,4]); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(F.x0,Y(D.config.theta)); ctx.lineTo(F.x1,Y(D.config.theta));
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#6b7f90'; ctx.font='11px ui-monospace,monospace';
+  ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('θ = '+D.config.theta, F.x0+7, Y(D.config.theta)-4);
+
+  // 判定窗口的右界:报警只在这条线之前统计,越过之后仍然画线但不再计入
+  const S=D.config.stop;
+  if(S<F.QMAX){
+    ctx.fillStyle='rgba(255,255,255,.022)';
+    ctx.fillRect(X(S),F.y0,F.x1-X(S),F.y1-F.y0);
+    ctx.strokeStyle='#31424f'; ctx.setLineDash([2,3]);
+    ctx.beginPath(); ctx.moveTo(X(S)+.5,F.y0); ctx.lineTo(X(S)+.5,F.y1); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#54646f'; ctx.font='10.5px -apple-system,"PingFang SC",sans-serif';
+    ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.fillText('判定窗口止于此',X(S)+6,F.y0+5);
+  }
+
+  const hi=b=>b.video!==null;
+  // 352 条:陪衬压到很淡,只有加粗的两条画报警点和当前点,否则 200 多个点会糊成一片
+  for(const pass of [0,1]) for(const b of D.branches){
+    if((pass===0)!==!hi(b)) continue;
+    const col=css(b.success?'--ok':'--bad');
+    ctx.strokeStyle=col; ctx.globalAlpha=hi(b)?1:0.085;
+    ctx.lineWidth=hi(b)?2.4:1; ctx.lineJoin='round';
+    ctx.beginPath();
+    let started=false;
+    for(let t=0;t<=Math.min(q,b.mean.length-1);t++){
+      const v=b.mean[t]; if(v===null||v===undefined) continue;
+      const px=X(t), py=Y(v);
+      started?ctx.lineTo(px,py):(ctx.moveTo(px,py),started=true);
+    }
+    if(started) ctx.stroke();
+
+    if(!hi(b)) continue;
+    if(b.alarm!==null && q>=b.alarm && b.mean[b.alarm]!=null){
+      ctx.globalAlpha=1; ctx.fillStyle=css('--alarm');
+      ctx.beginPath(); ctx.arc(X(b.alarm),Y(b.mean[b.alarm]),4.5,0,7); ctx.fill();
+    }
+    const t=Math.min(q,b.mean.length-1);
+    if(b.mean[t]!=null){
+      ctx.globalAlpha=1; ctx.fillStyle=col;
+      ctx.beginPath(); ctx.arc(X(t),Y(b.mean[t]),3.6,0,7); ctx.fill();
+    }
+  }
+  ctx.globalAlpha=1;
+  ctx.strokeStyle='#5b6c7a'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(X(q)+.5,F.y0); ctx.lineTo(X(q)+.5,F.y1); ctx.stroke();
+  ctx.restore();
+}
+
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect(), k=devicePixelRatio||1;
+  cv.width=Math.max(1,Math.round(r.width*k));
+  cv.height=Math.max(1,Math.round(r.height*k));
+  ctx.setTransform(k,0,0,k,0,0);
+  draw();
+}
+addEventListener('resize',resize);
+
+/* 1 控制步 = 10 帧 = 0.5 秒 */
+function seek(){
+  if(!D) return;
+  const s=q*D.config.frames_per_step/D.config.fps;
+  for(const [id,kind] of [['#v-ok','success'],['#v-bad','failure']]){
+    const v=$(id), b=D.branches.find(x=>x.video===kind);
+    if(v.getAttribute('src')&&isFinite(v.duration)&&v.duration)
+      v.currentTime=Math.min(s,Math.max(0,v.duration-0.04));
+    // episode 已经结束的那一格调暗,免得最后一帧看起来像卡住
+    if(b) v.closest('.cell').classList.toggle('done', q>=b.T);
+  }
+  const bad=D.branches.find(b=>b.video==='failure');
+  $('#badge').classList.toggle('on', !!bad && bad.alarm!==null && q>=bad.alarm);
+}
+function setQ(v){
+  q=Math.max(0,Math.min(+$('#scrub').max,v));
+  $('#scrub').value=q; $('#q').textContent=q;
+  draw(); seek();
+}
+$('#scrub').addEventListener('input',e=>{stop();setQ(+e.target.value)});
+for(const id of ['#v-ok','#v-bad']) $(id).addEventListener('loadedmetadata',seek);
+
+function tick(ts){
+  if(!playing) return;
+  if(ts-last>170){ last=ts; setQ(q>=+$('#scrub').max?0:q+1); }
+  raf=requestAnimationFrame(tick);
+}
+function stop(){playing=false;$('#play').textContent='▶';cancelAnimationFrame(raf)}
+$('#play').addEventListener('click',()=>{
+  if(playing){stop();return}
+  if(q>=+$('#scrub').max) setQ(0);
+  playing=true;$('#play').textContent='❚❚';last=0;raf=requestAnimationFrame(tick);
+});
+addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();$('#play').click()}
+  if(e.key==='ArrowRight'){stop();setQ(q+1)}
+  if(e.key==='ArrowLeft'){stop();setQ(q-1)}
+});
+</script>
+</body>
+</html>

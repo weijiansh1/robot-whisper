@@ -1,0 +1,367 @@
+{
+  "bundle": "moe-longlead-search-0906",
+  "question": "raise long-lead detection on the short-horizon suites",
+  "protocol": {
+    "cap_free": "detector input is chunk index + routing only",
+    "comparison": ">= and <=, never strict",
+    "thresholds": "order statistics of the unlabeled development pool",
+    "fit": "development_main only; external_8b and legacy_main16x32 scored once, in step 9",
+    "development_iterations_before_sealing": 9,
+    "sealed_cohorts_seen_before_design_was_fixed": "only in step 0, and only to reproduce the published v8.3 anchors; no head built here was evaluated on them until step 9"
+  },
+  "support": {
+    "common.py": "Cohort loading, scoring, union, confirmed_first, per-suite and per-task reporting, frozen v8.3 constants and anchors.",
+    "bank.py": "Named [n, 52] causal series from the cached arrays and from the newly extracted raw quantities, plus the fixed-window opening self-baseline and the after-end mask."
+  },
+  "pipeline": [
+    {
+      "script": "experiments/step0_anchor.py",
+      "produces": "Reproduces every published v8.3 anchor before anything new is built: per-cohort lead>=4, the whole lead profile, a bit-exact rebuild of v8.3 from flow_speed, and the reachability table.",
+      "files": {
+        "anchor.json": {
+          "bytes": 966,
+          "sha256": "3f2ef78d9c2da7d035b788097a37d7fa70041fa4ae6fa66dab90fd36a21c1f0f"
+        },
+        "anchor_reachability.csv": {
+          "bytes": 207,
+          "sha256": "87b13700016db9b70c8887296ff8202779fee82993419bba3983e99df575c193"
+        },
+        "logs/step0_anchor.log": {
+          "bytes": 2118,
+          "sha256": "296e92e935b06f1c1c2ed29cab771026131b7403539f3a5155b1bff264fca363"
+        }
+      }
+    },
+    {
+      "script": "experiments/step1_diagnose.py",
+      "produces": "Decomposes the lead>=16 shortfall into DETECTED-BUT-LATE and NEVER-DETECTED. 715 late, 110 never; in goal, object and spatial the never-detected count is zero.",
+      "files": {
+        "shortfall.json": {
+          "bytes": 743,
+          "sha256": "ed163d4891623d2c8a023a4aed7bc9cf3621bb836743fdcd5e5f267d01e4fb30"
+        },
+        "shortfall_decomposition.csv": {
+          "bytes": 887,
+          "sha256": "4a12f35d71f1b628c0d9ef4004139391a16a30eb6b8d957ee9d2d491f89a2744"
+        },
+        "goal_object_per_task.csv": {
+          "bytes": 1128,
+          "sha256": "4cff4a6a5e57eb248120c84acf747361232140f0400ecaa6d1960b9d33c34aa6"
+        },
+        "logs/step1_diagnose.log": {
+          "bytes": 3463,
+          "sha256": "efd1e482331220ad1345bb0cfaa7b626aba5fa458f3858751782e987c27b8851"
+        }
+      }
+    },
+    {
+      "script": "experiments/step2_feasibility.py",
+      "produces": "Survivor composition at each suite's lead>=16 deadline and the enrichment a head would need to close the gap.",
+      "files": {
+        "feasibility.json": {
+          "bytes": 608,
+          "sha256": "467d9c42fbe970b975a7c87e478beeaf62311e9c191885e23b46e4199fe77715"
+        },
+        "survivor_table.csv": {
+          "bytes": 5790,
+          "sha256": "1ef62478c4a78a0b6e0e462ded645103584db2abf3a7dd9edfec92be9713a491"
+        },
+        "logs/step2_feasibility.log": {
+          "bytes": 2737,
+          "sha256": "8ed90e3511888c5ab5779e14945f7357c4ebf294e753ae516f24cce07b66455b"
+        }
+      }
+    },
+    {
+      "script": "experiments/step3_ceiling.py",
+      "produces": "Ceiling scan over the published mobility / flow_speed bank: within-task survivor-only AUC and the operational oracle conversion TP@FP, with the Gaussian prediction for comparison.",
+      "files": {
+        "ceiling.json": {
+          "bytes": 977,
+          "sha256": "6fe7053be57fcf2e53380676923c178552a4d57b47ef5ec1a9ea9714965ef3d1"
+        },
+        "ceiling_scan_development.csv": {
+          "bytes": 107020,
+          "sha256": "62df3f95920ace939a32b0b75d3dd2cd41f8c1f0e7fe3401aa97d96012c6fa6f"
+        },
+        "logs/step3_ceiling.log": {
+          "bytes": 5522,
+          "sha256": "416027679984fd44c3341ee7ad9e903481ce385ac1d031b2951d26fd012029db"
+        }
+      }
+    },
+    {
+      "script": "experiments/extract_raw_quantities.py",
+      "produces": "One pass over routes.zarr for seventeen quantities not previously computed: top-4 support set structure, rank structure, the ten action tokens jointly, the state token in its own right, and load concentration. [n, 52, 8] float32 per quantity, row-aligned with the published caches.",
+      "files": {
+        "development_main_rawq.npz": {
+          "bytes": 79529699,
+          "sha256": "b01ab2663768195fc0869c767138163f3c36f62f95170adaa968aa9fade04d5b"
+        },
+        "external_8b_rawq.npz": {
+          "bytes": 88955763,
+          "sha256": "2f8409b8e435aa7660c06c9f073ce70194abf3930a9f42e8cb5d7490b635aa73"
+        },
+        "legacy_main16x32_rawq.npz": {
+          "bytes": 18225511,
+          "sha256": "d593e601b19a0bbe9052ef72b25b13f9acdc1fb8e042a67a6f7432d2783fb9b5"
+        },
+        "extract_raw.log": {
+          "bytes": 3630,
+          "sha256": "00bfa48d2ae91afe7dfd8f91f3b89b22b0a88ca80c5d5d127b84d5552686a4f7"
+        }
+      }
+    },
+    {
+      "script": "experiments/step4_ceiling_raw.py",
+      "produces": "The ceiling scan again over 128 series, with a null floor computed per (suite, chunk) cell from a task-stratified label permutation at the full sweep width.",
+      "files": {
+        "ceiling_raw.json": {
+          "bytes": 8844,
+          "sha256": "6a27372d71370481a332d896b09ea3d92492ecdc45eb1d641d3798a4d5e73f87"
+        },
+        "ceiling_scan_raw_development.csv": {
+          "bytes": 469179,
+          "sha256": "19e22b0dc9dee748d9084d8fd41641dca4672286936e0340cbf696a6563d4ce6"
+        },
+        "null_floor_by_cell.csv": {
+          "bytes": 1020,
+          "sha256": "a2052d85dfaa27f6d5fcaa200113daa733b2b106145f71bc44f917fe78f10287"
+        },
+        "logs/step4_ceiling_raw.log": {
+          "bytes": 9797,
+          "sha256": "24d822a832d7e300d65c8542c4c4dc625eb9a35a9d9e3a6b64bcc5b85b4a7c61"
+        }
+      }
+    },
+    {
+      "script": "experiments/step5_rules.py",
+      "produces": "2,520 decision rules on the shortlist: hard threshold, m-of-k excursion in time, CUSUM accumulation and opening-regime-stratified thresholds. Development only; selection rule declared in the module docstring.",
+      "files": {
+        "rule_sweep.json": {
+          "bytes": 3400,
+          "sha256": "e1e996ed7ce83421e6fa34c20469a51bb54536e4ce5847a36d9d57a7dc25df55"
+        },
+        "rule_sweep_development.csv": {
+          "bytes": 433001,
+          "sha256": "3da58b6b6a2e400a8ff21c4796f14612a869af739bc995643a2dc1a1844f901d"
+        },
+        "logs/step5_rules.log": {
+          "bytes": 7312,
+          "sha256": "51d87d0e7d15c5a37ebecfc4d63e1f0e34de86a88296f19666cfd3aed5be8da0"
+        }
+      }
+    },
+    {
+      "script": "experiments/step6_capfree_cost.py",
+      "produces": "Separates 'the protocol blocks it' from 'the signal is not there': the same head with global, opening-stratified, per-suite and per-task thresholds, against an oracle handed the suite, the chunk and a labelled threshold.",
+      "files": {
+        "capfree_cost.json": {
+          "bytes": 10190,
+          "sha256": "1dadae7ba9d4db74e45aabb75e4e9e6cd010a1254eb70b6f5e1d354185a46128"
+        },
+        "capfree_cost_development.csv": {
+          "bytes": 3126,
+          "sha256": "f904d617de0e5c668d72a94f5b18562793f0f8929498c61f41c6a362140d7650"
+        },
+        "logs/step6_capfree_cost.log": {
+          "bytes": 6131,
+          "sha256": "95b4a8ff11642de87cb3578eff1300c71b69f8d172bc4dadccd4fd0f98fb13a5"
+        }
+      }
+    },
+    {
+      "script": "experiments/step7_opening_regime.py",
+      "produces": "How much of the suite the episode's own opening regime carries (purity 0.947 at 49 cells, 0.995 at 2,002), and whether a 2-D opening x chunk-band threshold grid recovers the oracle gap.",
+      "files": {
+        "opening_regime.json": {
+          "bytes": 5239,
+          "sha256": "5e3610e24dff0c277c9c7fe57fc003d86cb073f13ca7e28c6b9ba22846e1c36a"
+        },
+        "opening_regime_development.csv": {
+          "bytes": 1350,
+          "sha256": "8b63b829203d890469365b9afec8cc5950f44f1a135c516ac2d5720044cb48f8"
+        },
+        "logs/step7_opening_regime.log": {
+          "bytes": 5977,
+          "sha256": "683eca88d56df789976cf6ac39aac5a7ff06e40e800e430509cd45e77317d2f5"
+        }
+      }
+    },
+    {
+      "script": "experiments/step8_multiple_looks.py",
+      "produces": "The mechanism: false-alarm compounding over the chunk window a long lead forces, measured directly; plus the last compliant sweep over quantile x rule x stratification.",
+      "files": {
+        "multiple_looks.json": {
+          "bytes": 2554,
+          "sha256": "1faa2b4589759b20fa1334562d0a218c2ed1ad270edc4055a0c066e75337ffae"
+        },
+        "strat_sweep_development.csv": {
+          "bytes": 117524,
+          "sha256": "75ae26401e0f6405e4afb6020fe62484d6541506b856679fecd32d1edf3269e9"
+        },
+        "logs/step8_multiple_looks.log": {
+          "bytes": 7096,
+          "sha256": "35768c30f0e108c3123925c4ba8fb7d7c9e6964aca7fa5d098e9f6c514fb896d"
+        }
+      }
+    },
+    {
+      "script": "experiments/step9_freeze_and_seal.py",
+      "produces": "Freezes the two pre-declared arms and scores external_8b and legacy_main16x32 ONCE. Per cohort, per suite, per task, leave-one-task-out.",
+      "files": {
+        "sealed_summary.json": {
+          "bytes": 2243,
+          "sha256": "4f1891971ec85c3000cb5af6922e16d7db0e4ccf3ac1c46bf2e2a2729ea4e1c3"
+        },
+        "sealed_alarms.npz": {
+          "bytes": 67821,
+          "sha256": "f9776db0b6e6942037de61c53b1601030682c22b320ead1104b75e462f3521d1"
+        },
+        "sealed_per_cohort.csv": {
+          "bytes": 606,
+          "sha256": "75e9cd2fa38ad8b6961c3ffcb1ae8b30cae32d47779cbaf392dd85442ae958d5"
+        },
+        "sealed_per_suite.csv": {
+          "bytes": 3125,
+          "sha256": "a8eb0e64a7d89bb815115c97b549ae8437aa2d60698f08f819192ab3942eca40"
+        },
+        "sealed_per_task_gain.csv": {
+          "bytes": 3098,
+          "sha256": "3987e1acb7c60ad6c30090438d04f4b6a31f86aa1a063a30081752d0c85529e0"
+        },
+        "logs/step9_freeze_and_seal.log": {
+          "bytes": 7680,
+          "sha256": "a9ab2635eb46c6734da5bcdf01a69ed17798d0f36682aa8f99131ab7d544310c"
+        }
+      }
+    },
+    {
+      "script": "experiments/step10_controls.py",
+      "produces": "The controls that decide the result: a fixed-chunk constant with no routing input, and a rate-matched random-episode null at the head's own alarm count and chunk distribution.",
+      "files": {
+        "controls.json": {
+          "bytes": 4395,
+          "sha256": "01de0423b56bdc139ae5a2ea9bb1d798774460b3f272b64f1dbe183f5d83d98e"
+        },
+        "trivial_control.csv": {
+          "bytes": 612,
+          "sha256": "1ccab1ee4c470df918429f7dca1f588d6c52599b3154be37db8d7592e81a5f55"
+        },
+        "logs/step10_controls.log": {
+          "bytes": 7673,
+          "sha256": "71c5c727973d20b326f53408a1d5d0888b6d19ecb542121fb6fe1ff729f904f8"
+        }
+      }
+    },
+    {
+      "script": "experiments/step11_failure_modes.py",
+      "produces": "Whether routing can see object_released_or_dropped_before_goal early. Detection by physical mode, and fixed-chunk separability of drop-type risks against all other risks.",
+      "files": {
+        "failure_modes.json": {
+          "bytes": 4023,
+          "sha256": "3f2c52b8e7f31162c9be50c80b249e7440b08a0124c9d3b6257218ddee57df17"
+        },
+        "failure_mode_detection.csv": {
+          "bytes": 1245,
+          "sha256": "904559ff25a2dbec40d308025f4b0a858710016f6bff2fe7d94e9ed8afdf5f5f"
+        },
+        "drop_separability.csv": {
+          "bytes": 4277,
+          "sha256": "50b25452f1089d648d460c18bf26e7ef672090428dc71350e5bb5a1168b79d93"
+        },
+        "logs/step11_failure_modes.log": {
+          "bytes": 8319,
+          "sha256": "e5a355f5c27192653b1488a22a9bdeb55eff951f2b2a4cb85e3483459947de97"
+        }
+      }
+    }
+  ],
+  "headline": {
+    "corpus": {
+      "episodes": 32960,
+      "risks": 1358,
+      "successes": 31602
+    },
+    "v7": {
+      "0": [
+        1078,
+        172
+      ],
+      "4": [
+        870,
+        111
+      ],
+      "8": [
+        638,
+        82
+      ],
+      "12": [
+        564,
+        60
+      ],
+      "16": [
+        513,
+        29
+      ],
+      "20": [
+        343,
+        14
+      ]
+    },
+    "v8.3": {
+      "0": [
+        1167,
+        209
+      ],
+      "4": [
+        967,
+        134
+      ],
+      "8": [
+        711,
+        104
+      ],
+      "12": [
+        617,
+        66
+      ],
+      "16": [
+        533,
+        30
+      ],
+      "20": [
+        352,
+        14
+      ]
+    },
+    "v8.3+A+B": {
+      "0": [
+        1210,
+        258
+      ],
+      "4": [
+        1118,
+        171
+      ],
+      "8": [
+        778,
+        134
+      ],
+      "12": [
+        647,
+        90
+      ],
+      "16": [
+        552,
+        41
+      ],
+      "20": [
+        357,
+        15
+      ]
+    },
+    "verdict": "lead>=4 moves a lot (+151 TP / +37 FP, and +139 TP over a rate-matched null); lead>=12 and lead>=16 move little (+30/+24 and +19/+11, margins of +18 and +9 over the null); lead>=20 does not move at all (the null wins by 12 TP). On legacy_main16x32, the only never-fitted cohort, the gain is +32 TP at lead>=4 for zero extra false alarms and exactly zero at lead>=12 and lead>=16."
+  },
+  "tests": "tests/test_longlead.py -- 15 tests, all passing"
+}

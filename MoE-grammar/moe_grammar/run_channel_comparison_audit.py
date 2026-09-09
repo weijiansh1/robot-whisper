@@ -130,6 +130,8 @@ def main() -> None:
         "plus_mobility",
         "plus_both",
         "plus_grammar_shuffled",
+        "plus_grammar_traj_shuffled",
+        "plus_grammar_rolled",
         "plus_mobility_shuffled",
         "budget_cost_only",
     ]
@@ -223,6 +225,40 @@ def main() -> None:
                 copy[index] = values[generator.permutation(index)]
             shuffled[label] = copy
 
+        # The per-query shuffle also destroys within-episode autocorrelation, and the
+        # two-consecutive-query rule penalises an uncorrelated score for that alone. The
+        # stricter null swaps whole trajectories between same-task, same-length episodes:
+        # marginals and autocorrelation survive, only the episode-to-outcome link breaks.
+        buckets: dict[tuple[int, int], list] = {}
+        for episode in usable:
+            buckets.setdefault((episode.task_index, episode.length), []).append(episode)
+        trajectory = {}
+        for label, values in channels.items():
+            copy = values.copy()
+            for group in buckets.values():
+                if len(group) < 2:
+                    continue
+                order = generator.permutation(len(group))
+                for target, source in zip(group, [group[i] for i in order]):
+                    copy[target.start : target.stop] = values[source.start : source.stop]
+            trajectory[label] = copy
+        shuffled["grammar_trajectory"] = trajectory["grammar"]
+
+        # Decisive control. Both shuffles above are flawed in opposite directions: the
+        # per-query one destroys the autocorrelation that the two-consecutive rule needs,
+        # and the trajectory swap keeps outcome class intact because every failure runs
+        # to the horizon. A within-episode circular shift keeps the marginal exactly and
+        # the autocorrelation almost exactly, and destroys only *when* the score is high.
+        # A genuine early warning must not survive it.
+        rolled = channels["grammar"].copy()
+        for episode in usable:
+            if episode.length < 3:
+                continue
+            offset = int(generator.integers(1, episode.length))
+            piece = channels["grammar"][episode.start : episode.stop]
+            rolled[episode.start : episode.stop] = np.roll(piece, offset)
+        shuffled["grammar_rolled"] = rolled
+
         # `plus_both` must not be max() of two percentiles: a single threshold over the
         # max has to rise to hold the budget and cancels what each channel contributes.
         # Each channel is calibrated independently and the alarms are unioned.
@@ -231,6 +267,8 @@ def main() -> None:
             "plus_mobility": [channels["mobility"]],
             "plus_both": [channels["grammar"], channels["mobility"]],
             "plus_grammar_shuffled": [shuffled["grammar"]],
+            "plus_grammar_traj_shuffled": [shuffled["grammar_trajectory"]],
+            "plus_grammar_rolled": [shuffled["grammar_rolled"]],
             "plus_mobility_shuffled": [shuffled["mobility"]],
             # No second channel at all: isolates the cost of reserving 20% of the budget.
             "budget_cost_only": [],

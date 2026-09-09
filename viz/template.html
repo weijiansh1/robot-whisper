@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>HiMoE-VLA · 一次 rollout 的 MoE 路由</title>
+<style>
+  :root { --bg:#0e1117; --fg:#eef2f8; --dim:#93a0b4; --hi:#ffd166; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+              font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; }
+  .panel { position:fixed; background:rgba(20,25,35,.92); border:1px solid #333c4d;
+           border-radius:8px; padding:10px 12px; }
+  #hud { top:12px; left:12px; width:320px; }
+  #hud h1 { margin:0 0 2px; font-size:14px; }
+  #hud .sub { color:var(--dim); font-size:11px; margin-bottom:8px; }
+  .row { display:flex; justify-content:space-between; gap:8px; padding:1px 0; }
+  .bar { height:7px; background:#222a38; border-radius:4px; overflow:hidden; margin:2px 0 7px; }
+  .bar > i { display:block; height:100%; background:var(--hi); }
+  #legend { bottom:12px; left:12px; width:320px; font-size:11px; }
+  #legend .k { display:inline-block; width:11px; height:11px; border-radius:2px;
+               vertical-align:-1px; margin-right:6px; }
+  #ctl { bottom:12px; left:50%; transform:translateX(-50%);
+         width:min(720px,calc(100vw - 700px)); min-width:330px;
+         display:flex; align-items:center; gap:9px; }
+  #ctl button { background:#232b3a; color:var(--fg); border:1px solid #3a4557;
+                border-radius:6px; padding:5px 11px; cursor:pointer; font:inherit; }
+  #ctl button:hover { background:#2e394c; }
+  #ctl input[type=range] { flex:1; accent-color:var(--hi); min-width:60px; }
+  #strip { position:fixed; right:12px; top:12px; width:300px; }
+  canvas.spark { width:100%; height:76px; display:block; }
+  .tag { color:var(--dim); font-size:10px; }
+  .on { color:#ff7b7b; font-weight:700; }
+  #err { position:fixed; inset:0; display:none; place-items:center; text-align:center;
+         background:#0e1117; z-index:99; padding:40px; }
+  #err div { max-width:560px; color:#ffb4b4; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="err"><div>
+  <h2>three.js 没能加载</h2>
+  <p>这个页面从 unpkg CDN 取 three.js，需要能上网。<br>
+  如果在离线环境，把 three.js 下到本地再改 importmap 即可。</p>
+  <p id="errmsg" style="color:#8b96a8;font-size:11px"></p>
+</div></div>
+
+<div id="hud" class="panel">
+  <h1>HiMoE-VLA · MoE 路由</h1>
+  <div class="sub" id="meta">加载中…</div>
+  <div class="row"><span>控制步</span><b id="t">— / —</b></div>
+  <div class="row"><span>去噪迭代</span><b id="d">— / —</b></div>
+  <div class="row"><span>本帧被选中的专家格</span><b id="ncall">—</b></div>
+  <div class="row" style="margin-top:6px"><span>夹爪开合度</span><b id="grip">—</b></div>
+  <div class="bar"><i id="gripbar" style="width:0%"></i></div>
+  <div class="row"><span id="gatelbl">L5 门</span><b id="gate">—</b></div>
+  <div class="bar"><i id="gatebar" style="width:0%;background:#ff7b7b"></i></div>
+  <div class="row"><span>L5 本帧用到的不同专家</span><b id="uniq">—</b></div>
+  <div class="row" style="margin-top:6px;color:#93a0b4"><span>渲染</span><b id="diag">—</b></div>
+</div>
+
+<div id="strip" class="panel">
+  <div class="tag">整局：夹爪开合（灰） vs L5 门（红）</div>
+  <canvas class="spark" id="spark"></canvas>
+  <div class="tag">夹爪闭合时门打开 —— 全模型唯一读世界的路由</div>
+</div>
+
+<div id="legend" class="panel">
+  <div><span class="k" style="background:#ffc93c"></span>AS（层 0,1,16,17）· 3 选 1 · 全程恒定</div>
+  <div><span class="k" style="background:#5ab7ff"></span>HB 前块（2–5）· 32 选 4 · 状态 token 有夹爪门</div>
+  <div><span class="k" style="background:#ff7b7b"></span>HB 后块（12–15）· 32 选 4 · 近均匀</div>
+  <div><span class="k" style="background:#4a5568"></span>稠密层（6–11）· 无路由</div>
+  <div style="margin-top:6px;color:var(--dim)">
+    每层一张网格：<b>竖 11 行 = 11 个 token</b>（最下一行是状态 token），
+    <b>横 32 列 = 32 个专家</b>。<br>
+    亮块 = 被选中，大小/亮度 = 组合权重。<br>
+    左键拖动旋转 · 滚轮缩放 · 空格播放 · ←→ 单帧
+  </div>
+</div>
+
+<div id="ctl" class="panel">
+  <button id="play">▶ 播放</button>
+  <input id="scrub" type="range" min="0" max="1" value="0" step="1">
+  <span class="tag" id="speedlbl">1×</span>
+  <input id="speed" type="range" min="1" max="24" value="6" step="1" style="flex:0 0 80px">
+  <button id="only">只看选中</button>
+  <button id="reset">复位视角</button>
+  <span class="tag" id="winlbl" style="white-space:nowrap">瞬时</span>
+  <input id="win" type="range" min="1" max="200" value="1" step="1" style="flex:0 0 110px">
+</div>
+
+<script>
+  // if the module below never runs, three.js failed to import
+  window.__ok = false;
+  setTimeout(() => { if (!window.__ok) {
+    document.getElementById('err').style.display = 'grid';
+    document.getElementById('errmsg').textContent = window.__lasterr || '';
+  } }, 4000);
+  addEventListener('error', e => { window.__lasterr = String(e.message || e); }, true);
+</script>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+window.__ok = true;
+try {
+
+const DATA = /*__DATA__*/;
+
+const un = s => { const b = atob(s), a = new Uint8Array(b.length);
+                  for (let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a; };
+const IDS = un(DATA.ids_b64), WQ = un(DATA.w_b64);
+const T = DATA.T, ND = DATA.n_denoise, NT = DATA.n_token, K = DATA.top_k;
+const HB = DATA.hb_layers, AS = DATA.as_layers, NE = DATA.n_expert_hb, NAS = DATA.n_expert_as;
+const NL = HB.length;
+const idx = (t,l,d,tok,k) => ((t*NL + l)*ND + d)*NT*K + tok*K + k;
+
+// ---- scene --------------------------------------------------------------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e1117);
+const cam = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, .1, 600);
+const rnd = new THREE.WebGLRenderer({canvas:document.getElementById('c'), antialias:true});
+rnd.setPixelRatio(Math.min(devicePixelRatio, 2));
+rnd.setSize(innerWidth, innerHeight);
+const ctr = new OrbitControls(cam, rnd.domElement);
+ctr.enableDamping = true;
+ctr.enableZoom = true; ctr.zoomSpeed = 1.2;
+ctr.minDistance = 12; ctr.maxDistance = 220;
+
+// x = layer depth, y = token, z = expert.  Kept compact so the whole stack
+// fits in view with cells still several tens of pixels across.
+const DX = 2.6, DY = 1.25, DZ = 1.0;
+const xOf = L   => (L - 8.5) * DX;
+const yOf = tok => (tok - 5) * DY;
+const zOf = e   => (e - (NE-1)/2) * DZ;
+
+{ // unmistakable reference marks: if these are invisible, WebGL itself is not
+  // drawing and nothing about the data or the colours is the problem
+  const ax = new THREE.AxesHelper(6); ax.position.set(xOf(0)-4, -8, 0); scene.add(ax);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12),
+      new THREE.MeshBasicMaterial({color:0x00ff88}));
+  dot.position.set(xOf(0)-4, -8, 0); scene.add(dot); }
+
+const HOME = new THREE.Vector3(30, 17, 34);
+function home() { cam.position.copy(HOME); ctr.target.set(0, 0, 0); ctr.update(); }
+home();
+
+// a faint frame around each routed layer so the planes read even when dim
+const frameMat = new THREE.LineBasicMaterial({color:0x39445a});
+function addFrame(L, nz, col) {
+  const w = nz*DZ/2 + .5, h = NT*DY/2 + .3, x = xOf(L);
+  const pts = [[-w,-h],[w,-h],[w,h],[-w,h],[-w,-h]].map(p =>
+      new THREE.Vector3(x, p[1], p[0]));
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({color:col})));
+}
+for (const L of HB) addFrame(L, NE, L<=5 ? 0x24506e : 0x6e3030);
+for (const L of AS) addFrame(L, NAS, 0x6b5410);
+for (const L of [6,7,8,9,10,11]) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(.5, NT*DY, 5),
+    new THREE.MeshBasicMaterial({color:0x4a5568, transparent:true, opacity:.30}));
+  m.position.set(xOf(L), 0, 0); scene.add(m);
+}
+
+const mkLabel = (txt, x, col, y=NT*DY/2+2.0) => {
+  const cv = document.createElement('canvas'); cv.width=256; cv.height=72;
+  const g = cv.getContext('2d'); g.fillStyle=col; g.font='bold 46px monospace';
+  g.textAlign='center'; g.textBaseline='middle'; g.fillText(txt,128,38);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map:new THREE.CanvasTexture(cv), transparent:true, depthTest:false}));
+  sp.position.set(x, y, 0); sp.scale.set(6.5,1.9,1); scene.add(sp); };
+for (const L of HB) mkLabel('L'+L, xOf(L), L<=5?'#5ab7ff':'#ff7b7b');
+for (const L of AS) mkLabel('L'+L, xOf(L), '#ffc93c');
+mkLabel('dense', xOf(8.5), '#8b96a8');
+mkLabel('state token ↓', xOf(2), '#93a0b4', -NT*DY/2 - 1.6);
+
+// ---- cells --------------------------------------------------------------
+// MeshBasicMaterial so nothing depends on lights being set up.  Do NOT set
+// vertexColors here: that defines USE_COLOR, whose shader does `vColor *= color`
+// against a `color` attribute BoxGeometry does not have, so vColor goes to zero
+// and every instance renders black no matter what instanceColor says.  Per
+// instance colour comes from setColorAt / instanceColor alone.
+const geo = new THREE.BoxGeometry(1,1,1);
+const mat = new THREE.MeshBasicMaterial({color:0xffffff});
+const nHB = NL*NT*NE, nAS = AS.length*NT*NAS, N = nHB + nAS;
+const mesh = new THREE.InstancedMesh(geo, mat, N);
+mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+for (let i=0;i<N;i++) mesh.setColorAt(i, new THREE.Color(0x222b3a));
+mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+scene.add(mesh);
+
+const dummy = new THREE.Object3D();
+const cells = [];
+for (let l=0;l<NL;l++) for (let tok=0;tok<NT;tok++) for (let e=0;e<NE;e++)
+  cells.push({x:xOf(HB[l]), y:yOf(tok), z:zOf(e), kind:HB[l]<=5?0:1, l, tok, e});
+for (let j=0;j<AS.length;j++) for (let tok=0;tok<NT;tok++) for (let e=0;e<NAS;e++)
+  cells.push({x:xOf(AS[j]), y:yOf(tok), z:zOf(e + (NE-NAS)/2), kind:2, l:j, tok, e});
+
+// Prefix sums of the selection indicator over all frames, so a running mean
+// over any window is two lookups.  The instantaneous view is one frame of a
+// process whose stable part only shows up after tens of frames of averaging
+// (measured: r = 0.16 at 1 frame, 0.87 at 200), which is exactly why the raw
+// animation reads as random.
+const NF = T*ND;
+const cumSel = new Float32Array((NF+1)*nHB);
+for (let f=0; f<NF; f++) {
+  const t = (f/ND)|0, d = f%ND, base = f*nHB, next = (f+1)*nHB;
+  cumSel.copyWithin(next, base, next);
+  for (let l=0;l<NL;l++) for (let tok=0;tok<NT;tok++) for (let k=0;k<K;k++)
+    cumSel[next + (l*NT+tok)*NE + IDS[idx(t,l,d,tok,k)]] += 1;
+}
+let winN = 1;
+
+const COL  = [[0.35,0.72,1.00], [1.00,0.48,0.48], [1.00,0.79,0.24]];
+const IDLE = [0.16,0.20,0.27];
+let onlySelected = false;
+const sel = new Float32Array(nHB);
+
+function draw(t, d) {
+  sel.fill(0);
+  if (winN > 1) {
+    // windowed mean of the selection frequency; uniform would be 4/32 = 0.125
+    const f1 = t*ND + d + 1, f0 = Math.max(0, f1 - winN), n = f1 - f0;
+    const o1 = f1*nHB, o0 = f0*nHB;
+    for (let c=0;c<nHB;c++) sel[c] = (cumSel[o1+c] - cumSel[o0+c]) / n;
+  } else {
+    for (let l=0;l<NL;l++) for (let tok=0;tok<NT;tok++) for (let k=0;k<K;k++) {
+      const p = idx(t,l,d,tok,k);
+      sel[(l*NT + tok)*NE + IDS[p]] = WQ[p]/255;
+    }
+  }
+  let ncall = 0;
+  const c = mesh.instanceColor.array;
+  for (let i=0;i<N;i++) {
+    const q = cells[i];
+    const w = q.kind === 2
+      ? (DATA.as_id[q.l] === q.e ? DATA.as_p[q.l][q.e] : 0)
+      : sel[(q.l*NT + q.tok)*NE + q.e];
+    const lit = w > 0;
+    if (lit) ncall++;
+    // instantaneous: size tracks the combine weight.  averaged: size tracks how
+    // much more often than uniform (0.125) this expert is picked here.
+    const s = lit
+      ? (winN > 1 ? 0.30 + 1.45*Math.min(1, w/0.45)
+                  : 0.62 + 1.5*Math.min(1, w*1.6))
+      : (onlySelected ? 0 : 0.34);
+    dummy.position.set(q.x, q.y, q.z);
+    dummy.scale.set(s*0.8, s, s);
+    dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+    if (lit) { const g = winN > 1 ? 0.25 + 0.75*Math.min(1, w/0.42)
+                                  : 0.45 + 0.55*Math.min(1, w*2.0),
+               b = COL[q.kind];
+               c[i*3]=b[0]*g; c[i*3+1]=b[1]*g; c[i*3+2]=b[2]*g; }
+    else     { c[i*3]=IDLE[0]; c[i*3+1]=IDLE[1]; c[i*3+2]=IDLE[2]; }
+  }
+  mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+  const u = new Set();
+  for (let tok=0;tok<NT;tok++) for (let k=0;k<K;k++) u.add(IDS[idx(t,3,d,tok,k)]);
+  return {ncall, uniq:u.size};
+}
+
+// ---- hud ----------------------------------------------------------------
+const $ = i => document.getElementById(i);
+$('meta').textContent = `${DATA.prompt} · 场景 ${DATA.scene} · 种子 ${DATA.seed} · `
+  + (DATA.success ? '成功' : '失败');
+$('gatelbl').textContent = `L${DATA.gate_layer} 门（专家 ${DATA.gate_expert}）`;
+$('scrub').max = T*ND - 1;
+const gmin = Math.min(...DATA.gripper), gmax = Math.max(...DATA.gripper);
+
+function hud(t, d, st) {
+  $('t').textContent = `${t+1} / ${T}`;
+  $('d').textContent = `${d+1} / ${ND}`;
+  $('ncall').textContent = st.ncall;
+  const g = DATA.gripper[t], gp = DATA.gate_p[t];
+  $('grip').textContent = g.toFixed(4);
+  $('gripbar').style.width = (100*(g-gmin)/(gmax-gmin||1)) + '%';
+  $('gate').innerHTML = gp.toFixed(3) + (gp>0.5 ? ' <span class="on">开</span>' : '');
+  $('gatebar').style.width = (100*gp) + '%';
+  $('uniq').textContent = st.uniq + ' / 32';
+}
+
+const sp = $('spark'), sctx = sp.getContext('2d');
+function spark(t) {
+  const W = sp.width = Math.max(2, sp.clientWidth*2), H = sp.height = 152;
+  sctx.clearRect(0,0,W,H);
+  const px = i => i/(T-1)*(W-10)+5;
+  sctx.lineWidth = 3;
+  sctx.strokeStyle = '#93a0b4'; sctx.beginPath();
+  DATA.gripper.forEach((v,i)=>{ const y = H-8-(v-gmin)/(gmax-gmin||1)*(H-16);
+    i?sctx.lineTo(px(i),y):sctx.moveTo(px(i),y); }); sctx.stroke();
+  sctx.strokeStyle = '#ff7b7b'; sctx.beginPath();
+  DATA.gate_p.forEach((v,i)=>{ const y = H-8-v*(H-16);
+    i?sctx.lineTo(px(i),y):sctx.moveTo(px(i),y); }); sctx.stroke();
+  sctx.strokeStyle = '#ffd166'; sctx.lineWidth = 2; sctx.beginPath();
+  sctx.moveTo(px(t),0); sctx.lineTo(px(t),H); sctx.stroke();
+}
+
+// ---- loop ---------------------------------------------------------------
+let frame = 0, playing = true, fps = 6, acc = 0, last = performance.now();
+let frames = 0, tlast = performance.now();
+setInterval(() => { const now = performance.now();
+  $('diag').textContent = `${Math.round(frames*1000/(now-tlast))} fps · ${N} 个格`;
+  frames = 0; tlast = now; }, 1000);
+function set(f) {
+  frame = ((f % (T*ND)) + T*ND) % (T*ND);
+  const t = Math.floor(frame/ND), d = frame % ND;
+  hud(t, d, draw(t, d)); spark(t); $('scrub').value = frame;
+}
+$('play').onclick = () => { playing = !playing;
+  $('play').textContent = playing ? '❚❚ 暂停' : '▶ 播放'; };
+$('scrub').oninput = e => { playing=false; $('play').textContent='▶ 播放'; set(+e.target.value); };
+$('speed').oninput = e => { fps = +e.target.value; $('speedlbl').textContent=(fps/6).toFixed(1)+'×'; };
+$('only').onclick = () => { onlySelected = !onlySelected;
+  $('only').textContent = onlySelected ? '显示全部' : '只看选中'; set(frame); };
+$('reset').onclick = home;
+$('win').oninput = e => {
+  winN = +e.target.value;
+  $('winlbl').textContent = winN === 1 ? '瞬时'
+      : `平均 ${winN} 帧 (${(winN/ND).toFixed(1)} 控制步)`;
+  set(frame); };
+addEventListener('resize', () => { cam.aspect = innerWidth/innerHeight;
+  cam.updateProjectionMatrix(); rnd.setSize(innerWidth, innerHeight); set(frame); });
+addEventListener('keydown', e => {
+  if (e.code==='Space') { e.preventDefault(); $('play').click(); }
+  if (e.code==='ArrowRight') { playing=false; $('play').textContent='▶ 播放'; set(frame+1); }
+  if (e.code==='ArrowLeft')  { playing=false; $('play').textContent='▶ 播放'; set(frame-1); } });
+
+$('play').textContent = '❚❚ 暂停';
+set(0);
+(function tick(now) {
+  requestAnimationFrame(tick);
+  const dt = (now-last)/1000; last = now;
+  if (playing) { acc += dt; while (acc > 1/fps) { acc -= 1/fps; set(frame+1); } }
+  ctr.update(); rnd.render(scene, cam);
+  frames++;
+})(performance.now());
+
+} catch (e) {
+  document.getElementById('err').style.display = 'grid';
+  document.getElementById('errmsg').textContent = (e && e.stack) || String(e);
+  document.querySelector('#err h2').textContent = '脚本出错了';
+  console.error(e);
+}
+</script>
+</body>
+</html>

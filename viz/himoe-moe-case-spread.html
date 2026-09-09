@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>逐个 case 看：MoE 增量在 13 个初始状态上的分布</title>
+<style>
+:root{
+  color-scheme:light;
+  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#eb6834; --good:#006300; --neg:#e34948;
+}
+@media (prefers-color-scheme:dark){ :root:where(:not([data-theme="light"])){
+  color-scheme:dark;
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --good:#0ca30c; --neg:#e66767; }}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,0.10);
+  --s1:#3987e5; --s2:#d95926; --good:#0ca30c; --neg:#e66767; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);font-size:15px;line-height:1.75;
+  font-family:system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","PingFang SC",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1020px;margin:0 auto;padding:44px 22px 90px}
+h1{font-size:27px;margin:0 0 10px;letter-spacing:-.01em}
+h2{font-size:19px;margin:52px 0 6px}
+p{margin:12px 0;color:var(--ink2)}
+.sub{font-size:13.5px;color:var(--muted);margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:22px 24px 16px;margin:16px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:22px 0}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:12px;padding:15px 18px}
+.tile .l{font-size:12.5px;color:var(--muted)}
+.tile .v{font-size:29px;font-weight:600;margin-top:5px}
+.tile .n{font-size:12.5px;color:var(--ink2);margin-top:3px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.gl{stroke:var(--grid);stroke-width:1}.ax{stroke:var(--axis);stroke-width:1}
+.tk{fill:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.al{fill:var(--ink2);font-size:12px}
+.dl{fill:var(--ink);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:4px 0 12px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.k{width:20px;height:3px;border-radius:2px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:12px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:6px 9px;border-bottom:1px solid var(--grid)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:500;font-size:12px}
+button{font:inherit;font-size:12.5px;color:var(--ink2);background:var(--surface);
+  border:1px solid var(--ring);border-radius:7px;padding:4px 11px;cursor:pointer}
+button:hover{color:var(--ink)}
+.bar{display:flex;justify-content:flex-end;margin-top:10px}
+[hidden]{display:none!important}
+.tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;background:var(--surface);
+  border:1px solid var(--ring);border-radius:8px;padding:8px 11px;font-size:12.5px;
+  box-shadow:0 6px 20px rgba(0,0,0,.14);white-space:nowrap;z-index:9;font-variant-numeric:tabular-nums}
+.box{position:relative}
+.note{color:var(--muted);font-size:12.5px}
+.themetoggle{position:fixed;top:14px;right:14px}
+</style>
+</head>
+<body>
+<button class="themetoggle" id="tt">◐</button>
+<div class="wrap">
+<h1>逐个 case 看：MoE 增量在 13 个初始状态上的分布</h1>
+<p class="sub" id="meta"></p>
+
+<div class="tiles" id="tiles"></div>
+
+<h2>一、13 个初始状态各自的增量曲线</h2>
+<p class="sub">线的粗细与不透明度代表该 state 的正负样本对数——细而淡的线是小样本，噪声大。粗黑线是 pairs 加权均值。</p>
+<div class="card">
+  <div class="legend" id="lg1"></div>
+  <div class="box"><div id="c1"></div><div class="tip" id="t1"></div></div>
+</div>
+<p>极端值全部来自小样本：<code id="worst"></code>。7 个 pairs ≥ 100 的 state 在 t34 上 6/7 为正。</p>
+
+<h2>二、漏斗图：噪声从哪来</h2>
+<p class="sub">横轴是该 state 的正负样本对数，纵轴是 t34 增量。样本越少，散得越开——典型漏斗形。</p>
+<div class="card"><div class="box"><div id="c2"></div><div class="tip" id="t2"></div></div></div>
+
+<h2>三、留一验证：没有哪个 state 在独扛</h2>
+<p class="sub">每次剔掉一个 initial state 重算 t20–t34 合并增量。13 次结果全为正，且范围很窄。</p>
+<div class="card"><div class="box"><div id="c3"></div><div class="tip" id="t3"></div></div></div>
+
+<h2>四、为什么没做跨任务验证</h2>
+<p>每个任务里失败都跑满步数上限、成功早早结束，所以「全员存活」的共同队列在另外三个任务上只到 t8–t16——<b>早于效应出现的窗口</b>。硬做就得砍掉早结束的成功轨迹，直接回到幸存者偏差。</p>
+<div class="card"><div id="tb4"></div></div>
+
+<div class="bar"><button id="tb">全部数据表</button></div>
+<div id="tbl" hidden></div>
+<p class="note" id="foot"></p>
+</div>
+
+<script>
+const D = {"horizons":[7,12,20,27,34],"pool":[20,27,34],"draws":20000,"n_states":13,"n_rollouts":493,"target":{"n_success":296,"n_failure":216,"n_stasis_trap":197,"n_ambiguous_failure_excluded":19},"pooled":{"delta":0.0430756843800322,"ci":[0.005611298166853724,0.08581409133006551],"p_one_sided":0.01205},"restricted":{"states":6,"delta":0.03835307388606881,"ci":[-0.006370570862119969,0.08815433129972108],"p_one_sided":0.0469},"leave_one_out":[{"dropped":0,"delta":0.0437},{"dropped":3,"delta":0.039},{"dropped":7,"delta":0.0371},{"dropped":10,"delta":0.0464},{"dropped":13,"delta":0.0364},{"dropped":16,"delta":0.0475},{"dropped":20,"delta":0.0414},{"dropped":23,"delta":0.044},{"dropped":26,"delta":0.0484},{"dropped":29,"delta":0.0425},{"dropped":39,"delta":0.0432},{"dropped":42,"delta":0.0486},{"dropped":46,"delta":0.0425}],"per_state":[{"state":0,"n_success":14,"n_stasis":18,"pairs":252,"delta":[-0.1468,0.1706,0.0516,0.004,0.0635],"base_auc":[0.6151,0.2262,0.7381,0.9683,0.9365],"moe_auc":[0.4683,0.3968,0.7897,0.9722,1.0]},{"state":42,"n_success":14,"n_stasis":15,"pairs":210,"delta":[-0.0619,0.0524,0.1476,-0.1,-0.0333],"base_auc":[0.6048,0.5,0.4571,0.9476,1.0],"moe_auc":[0.5429,0.5524,0.6048,0.8476,0.9667]},{"state":13,"n_success":9,"n_stasis":22,"pairs":198,"delta":[0.202,-0.0051,0.0758,0.0657,0.1364],"base_auc":[0.4192,0.5808,0.596,0.6616,0.7879],"moe_auc":[0.6212,0.5758,0.6717,0.7273,0.9242]},{"state":10,"n_success":9,"n_stasis":22,"pairs":198,"delta":[0.1111,0.0707,-0.0606,0.0354,0.0808],"base_auc":[0.2424,0.6313,0.9192,0.8687,0.7929],"moe_auc":[0.3535,0.702,0.8586,0.904,0.8737]},{"state":26,"n_success":9,"n_stasis":21,"pairs":189,"delta":[0.0265,-0.2857,-0.1481,0.0741,0.0794],"base_auc":[0.4974,0.6878,0.4762,0.7831,0.9153],"moe_auc":[0.5238,0.4021,0.328,0.8571,0.9947]},{"state":3,"n_success":5,"n_stasis":27,"pairs":135,"delta":[-0.0889,-0.0148,0.2148,-0.0741,0.1259],"base_auc":[0.7111,0.6222,0.1481,0.8889,0.8296],"moe_auc":[0.6222,0.6074,0.363,0.8148,0.9556]},{"state":39,"n_success":4,"n_stasis":28,"pairs":112,"delta":[-0.3214,0.1071,-0.0446,0.0804,0.0893],"base_auc":[0.6161,0.5268,0.5625,0.5,0.4196],"moe_auc":[0.2946,0.6339,0.5179,0.5804,0.5089]},{"state":23,"n_success":29,"n_stasis":3,"pairs":87,"delta":[-0.0805,0.3103,0.0,0.0345,0.046],"base_auc":[0.5402,0.4368,0.977,0.9425,0.9425],"moe_auc":[0.4598,0.7471,0.977,0.977,0.9885]},{"state":16,"n_success":28,"n_stasis":3,"pairs":84,"delta":[-0.2024,0.119,-0.119,0.0,0.0],"base_auc":[0.4048,0.4881,0.7619,1.0,1.0],"moe_auc":[0.2024,0.6071,0.6429,1.0,1.0]},{"state":7,"n_success":29,"n_stasis":2,"pairs":58,"delta":[0.2931,0.1207,0.3793,0.3966,-0.1552],"base_auc":[0.0172,0.5172,0.3448,0.1724,0.9483],"moe_auc":[0.3103,0.6379,0.7241,0.569,0.7931]},{"state":29,"n_success":28,"n_stasis":2,"pairs":56,"delta":[-0.0357,0.0536,0.0893,0.0893,0.0],"base_auc":[0.4286,0.6786,0.0536,0.7321,1.0],"moe_auc":[0.3929,0.7321,0.1429,0.8214,1.0]},{"state":20,"n_success":23,"n_stasis":2,"pairs":46,"delta":[0.1957,-0.587,0.0652,-0.0435,0.2826],"base_auc":[0.6087,0.6522,0.6087,0.7174,0.6739],"moe_auc":[0.8043,0.0652,0.6739,0.6739,0.9565]},{"state":46,"n_success":31,"n_stasis":1,"pairs":31,"delta":[0.2258,0.0,-0.0968,-0.1935,0.5161],"base_auc":[0.129,0.0,0.8065,0.5161,0.4516],"moe_auc":[0.3548,0.0,0.7097,0.3226,0.9677]}],"cross_task":[{"task":"libero_long / KITCHEN_SCENE8","succ_median":39,"fail_len":52,"common":34,"states5":9},{"task":"libero_goal / open_the_top_drawer","succ_median":19,"fail_len":30,"common":16,"states5":2},{"task":"libero_spatial / stove","succ_median":12,"fail_len":22,"common":10,"states5":2},{"task":"libero_spatial / ramekin","succ_median":10,"fail_len":22,"common":8,"states5":0},{"task":"libero_goal / open_the_middle_drawer","succ_median":13,"fail_len":"—","common":11,"states5":0}]};
+const H=D.horizons, PS=D.per_state, NS=PS.length;
+const cv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const NSVG="http://www.w3.org/2000/svg";
+const sg=(v,d=3)=>(v>=0?"+":"−")+Math.abs(v).toFixed(d);
+function svg(h,w,ht){const s=document.createElementNS(NSVG,"svg");
+  s.setAttribute("viewBox",`0 0 ${w} ${ht}`);h.innerHTML="";h.appendChild(s);return s;}
+function el(p,n,a={}){const e=document.createElementNS(NSVG,n);
+  for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e;}
+function tx(p,x,y,s,c,an="start"){const t=el(p,"text",{x,y,class:c,"text-anchor":an});t.textContent=s;return t;}
+function tip(t,host,x,y,html){t.innerHTML=html;t.style.opacity="1";
+  const hb=host.getBoundingClientRect(),tb=t.getBoundingClientRect();
+  t.style.left=Math.max(4,Math.min(hb.width-tb.width-4,x-tb.width/2))+"px";
+  t.style.top=Math.max(0,y-tb.height-12)+"px";}
+
+const maxPairs=Math.max(...PS.map(r=>r.pairs));
+const wsum=PS.reduce((a,r)=>a+r.pairs,0);
+const wmean=H.map((_,i)=>PS.reduce((a,r)=>a+r.delta[i]*r.pairs,0)/wsum);
+
+/* 1 — per-state curves */
+function c1(){
+  const W=920,Ht=430,M={t:20,r:96,b:46,l:60},pw=W-M.l-M.r,ph=Ht-M.t-M.b;
+  const y0=-.62,y1=.56;
+  const X=i=>M.l+i/(H.length-1)*pw, Y=v=>M.t+(1-(Math.max(y0,Math.min(y1,v))-y0)/(y1-y0))*ph;
+  const host=document.getElementById("c1"),s=svg(host,W,Ht),t=document.getElementById("t1");
+  s.setAttribute("aria-label","13 个初始状态各自的 MoE 增量曲线");
+  for(let v=-.6;v<=.56;v+=.2){el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(v),y2:Y(v),class:"gl"});
+    tx(s,M.l-9,Y(v)+4,sg(v,1),"tk","end");}
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(0),y2:Y(0),class:"ax"});
+  H.forEach((h,i)=>tx(s,X(i),M.t+ph+20,"t"+h,"tk","middle"));
+  tx(s,M.l+pw/2,M.t+ph+40,"控制步","al","middle");
+  tx(s,M.l-46,M.t-4,"增量","al");
+  PS.forEach(r=>{
+    const w=.9+2.4*(r.pairs/maxPairs), op=.16+.5*(r.pairs/maxPairs);
+    const d=r.delta.map((v,i)=>(i?"L":"M")+X(i)+" "+Y(v)).join(" ");
+    const path=el(s,"path",{d,fill:"none",stroke:cv("--s1"),"stroke-width":w,
+      "stroke-opacity":op,"stroke-linejoin":"round","stroke-linecap":"round"});
+    path.addEventListener("pointerenter",ev=>{
+      path.setAttribute("stroke-opacity",1);path.setAttribute("stroke-width",w+1.4);
+      const hb=host.getBoundingClientRect();
+      tip(t,host,ev.clientX-hb.left,ev.clientY-hb.top,
+        `<b>state ${r.state}</b><br>成功 ${r.n_success} / 陷入 ${r.n_stasis}　对数 ${r.pairs}<br>`+
+        H.map((h,i)=>`t${h} ${sg(r.delta[i])}`).join("　"));});
+    path.addEventListener("pointerleave",()=>{
+      path.setAttribute("stroke-opacity",op);path.setAttribute("stroke-width",w);
+      t.style.opacity="0";});
+  });
+  const dm=wmean.map((v,i)=>(i?"L":"M")+X(i)+" "+Y(v)).join(" ");
+  el(s,"path",{d:dm,fill:"none",stroke:cv("--ink"),"stroke-width":3,
+    "stroke-linejoin":"round","stroke-linecap":"round"});
+  wmean.forEach((v,i)=>{el(s,"circle",{cx:X(i),cy:Y(v),r:4.5,fill:cv("--ink"),
+    stroke:cv("--surface"),"stroke-width":2});});
+  tx(s,X(H.length-1)+14,Y(wmean[H.length-1])+4,sg(wmean[H.length-1]),"dl");
+  tx(s,X(H.length-1)+14,Y(wmean[H.length-1])+20,"加权均值","al");
+  document.getElementById("lg1").innerHTML=
+    `<span><i class="k" style="background:${cv("--ink")};height:3px"></i>pairs 加权均值</span>`+
+    `<span><i class="k" style="background:${cv("--s1")};opacity:.66"></i>单个 initial state（粗＝样本多）</span>`;
+}
+
+/* 2 — funnel */
+function c2(){
+  const W=920,Ht=360,M={t:20,r:40,b:52,l:60},pw=W-M.l-M.r,ph=Ht-M.t-M.b;
+  const y0=-.62,y1=.56;
+  const X=p=>M.l+p/maxPairs*pw, Y=v=>M.t+(1-(v-y0)/(y1-y0))*ph;
+  const host=document.getElementById("c2"),s=svg(host,W,Ht),t=document.getElementById("t2");
+  s.setAttribute("aria-label","t34 增量对样本对数的漏斗图");
+  for(let v=-.6;v<=.56;v+=.2){el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(v),y2:Y(v),class:"gl"});
+    tx(s,M.l-9,Y(v)+4,sg(v,1),"tk","end");}
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y(0),y2:Y(0),class:"ax"});
+  for(let p=0;p<=maxPairs;p+=50){el(s,"line",{x1:X(p),x2:X(p),y1:M.t,y2:M.t+ph,class:"gl",opacity:.5});
+    tx(s,X(p),M.t+ph+20,p,"tk","middle");}
+  tx(s,M.l+pw/2,M.t+ph+42,"该 initial state 的正负样本对数","al","middle");
+  tx(s,M.l-46,M.t-4,"t34 增量","al");
+  const i34=H.indexOf(34);
+  PS.forEach(r=>{
+    const cx=X(r.pairs),cy=Y(r.delta[i34]);
+    const c=el(s,"circle",{cx,cy,r:6,fill:r.delta[i34]>=0?cv("--s1"):cv("--s2"),
+      stroke:cv("--surface"),"stroke-width":2});
+    const hit=el(s,"circle",{cx,cy,r:14,fill:"transparent",style:"cursor:pointer"});
+    hit.addEventListener("pointerenter",ev=>{const hb=host.getBoundingClientRect();
+      tip(t,host,cx/W*hb.width,ev.clientY-hb.top,
+        `<b>state ${r.state}</b><br>成功 ${r.n_success} / 陷入 ${r.n_stasis}<br>对数 ${r.pairs}　t34 ${sg(r.delta[i34])}`);});
+    hit.addEventListener("pointerleave",()=>t.style.opacity="0");
+  });
+  el(s,"line",{x1:X(100),x2:X(100),y1:M.t,y2:M.t+ph,class:"ax",opacity:.8});
+  tx(s,X(100)+7,M.t+16,"对数 100","al");
+}
+
+/* 3 — leave-one-out */
+function c3(){
+  const L=D.leave_one_out,W=920,Ht=190,M={t:34,r:60,b:52,l:60},pw=W-M.l-M.r;
+  const vals=L.map(r=>r.delta),lo=Math.min(...vals,0),hi=Math.max(...vals);
+  // the axis must also contain the full-sample CI band and its right-hand label
+  const ciB=D.pooled.ci;
+  const x0=Math.min(lo,0,ciB[0])-.012, x1=Math.max(hi,ciB[1])+.030;
+  const X=v=>M.l+(v-x0)/(x1-x0)*pw, Y=M.t+40;
+  const host=document.getElementById("c3"),s=svg(host,W,Ht),t=document.getElementById("t3");
+  s.setAttribute("aria-label","留一验证：13 个估计全为正");
+  el(s,"line",{x1:M.l,x2:M.l+pw,y1:Y,y2:Y,class:"gl"});
+  el(s,"line",{x1:X(0),x2:X(0),y1:Y-30,y2:Y+30,class:"ax"});
+  tx(s,X(0),Y-38,"0","tk","middle");
+  const ci=D.pooled.ci;
+  el(s,"rect",{x:X(ci[0]),y:Y-16,width:X(ci[1])-X(ci[0]),height:32,
+    fill:cv("--s1"),opacity:.13,rx:5});
+  tx(s,X(ci[1])+8,Y+4,"全量 95% CI","al");
+  L.forEach(r=>{el(s,"circle",{cx:X(r.delta),cy:Y,r:5.5,fill:cv("--s1"),
+      stroke:cv("--surface"),"stroke-width":2});
+    const h=el(s,"circle",{cx:X(r.delta),cy:Y,r:13,fill:"transparent",style:"cursor:pointer"});
+    h.addEventListener("pointerenter",ev=>{const hb=host.getBoundingClientRect();
+      tip(t,host,X(r.delta)/W*hb.width,ev.clientY-hb.top,
+        `剔掉 state ${r.dropped}<br><b>${sg(r.delta)}</b>`);});
+    h.addEventListener("pointerleave",()=>t.style.opacity="0");});
+  for(const v of [Math.min(...vals),Math.max(...vals)])
+    tx(s,X(v),Y+34,sg(v),"tk","middle");
+  tx(s,M.l+pw/2,Y+62,"剔掉任意一个 initial state 后的 t20–t34 合并增量","al","middle");
+}
+
+/* chrome */
+const P=D.pooled,R=D.restricted;
+document.getElementById("tiles").innerHTML=
+ `<div class="tile"><div class="l">t20–t34 合并增量</div>
+   <div class="v" style="color:var(--good)">${sg(P.delta)}</div>
+   <div class="n">95% CI [${sg(P.ci[0])}, ${sg(P.ci[1])}]　p=${P.p_one_sided.toFixed(3)}</div></div>
+  <div class="tile"><div class="l">留一验证范围</div>
+   <div class="v">${sg(Math.min(...D.leave_one_out.map(r=>r.delta)))} ~ ${sg(Math.max(...D.leave_one_out.map(r=>r.delta)))}</div>
+   <div class="n">13 次全为正</div></div>
+  <div class="tile"><div class="l">仅用每类 ≥5 条的 state</div>
+   <div class="v">${sg(R.delta)}</div>
+   <div class="n">${R.states} 个 state　p=${R.p_one_sided.toFixed(3)}</div></div>
+  <div class="tile"><div class="l">规模</div>
+   <div class="v">${D.n_rollouts}<span style="font-size:18px;color:var(--muted)"> 条</span></div>
+   <div class="n">${D.n_states} 个 initial state</div></div>`;
+document.getElementById("meta").textContent=
+ `LIBERO-Long KITCHEN_SCENE8 · 成功 ${D.target.n_success} / 失败 ${D.target.n_failure}（其中停滞陷入 ${D.target.n_stasis_trap}，非同类 ${D.target.n_ambiguous_failure_excluded} 条排除）· 全部为记录数据`;
+const i34=H.indexOf(34);
+const ext=[...PS].sort((a,b)=>Math.abs(b.delta[i34])-Math.abs(a.delta[i34])).slice(0,3);
+document.getElementById("worst").textContent=
+ ext.map(r=>`state ${r.state} (${r.n_stasis} 条失败) ${sg(r.delta[i34])}`).join("　·　");
+document.getElementById("tb4").innerHTML=
+ `<table><thead><tr><th>任务</th><th>成功长度中位</th><th>失败长度</th><th>全员存活到</th><th>可用 state</th></tr></thead><tbody>`+
+ D.cross_task.map(r=>`<tr><td>${r.task}</td><td>${r.succ_median}</td><td>${r.fail_len}</td>`+
+   `<td>${r.common>=20?'<b>t'+r.common+'</b>':'t'+r.common}</td><td>${r.states5}</td></tr>`).join("")+
+ `</tbody></table><p class="note">「可用 state」＝失败数 ≥5 的初始状态个数。只有 scene8 的共同队列（t34）覆盖到效应出现的窗口。</p>`;
+document.getElementById("tbl").innerHTML=
+ `<table><thead><tr><th>state</th><th>成功</th><th>陷入</th><th>对数</th>`+
+ H.map(h=>`<th>t${h}</th>`).join("")+`</tr></thead><tbody>`+
+ PS.map(r=>`<tr><td>${r.state}</td><td>${r.n_success}</td><td>${r.n_stasis}</td><td>${r.pairs}</td>`+
+   r.delta.map(v=>`<td>${sg(v)}</td>`).join("")+`</tr>`).join("")+
+ `<tr><td><b>加权均值</b></td><td></td><td></td><td>${wsum}</td>`+
+   wmean.map(v=>`<td><b>${sg(v)}</b></td>`).join("")+`</tr></tbody></table>`;
+document.getElementById("tb").addEventListener("click",e=>{
+  const t=document.getElementById("tbl"),on=t.hasAttribute("hidden");
+  on?t.removeAttribute("hidden"):t.setAttribute("hidden","");});
+document.getElementById("foot").innerHTML=
+ `增量 ＝ AUC(本体感受＋动作＋MoE) − AUC(本体感受＋动作)，同一套 4×4 双留出折、同一读出器，`+
+ `只换喂进去的特征块。合并检验对 t20/t27/t34 取平均后做 initial-state cluster bootstrap（${D.draws} 次）。`+
+ `<br><b>解释边界：</b>增量在陷入起点之后才显著，属于状态读出而非提前预警；单任务，跨任务验证受上表所述的结构限制。`;
+function draw(){c1();c2();c3();}
+draw();
+document.getElementById("tt").addEventListener("click",()=>{
+  const r=document.documentElement;
+  r.setAttribute("data-theme",r.getAttribute("data-theme")==="dark"?"light":"dark");draw();});
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(draw,150);});
+</script>
+</body>
+</html>

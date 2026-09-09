@@ -1,0 +1,312 @@
+{
+  "bundle": "moe-early-window-0906",
+  "checks_that_must_hold": {
+    "ctrl_const_elapsed_auc": "exactly 0.5 with variance exactly 0 in every stratum; asserted at run time in information_map.py",
+    "delong_se_vs_permutation_sd": "median ratio 0.970 over 97 probed cells",
+    "leak_full_length_auc": "median 1.0 (definitional leak), see estimator_checks.csv",
+    "leak_full_length_recall_at_budget": "1.0 in all four suites, see reachability_checks.json; recovers the brief's statement that any sub-cap length threshold catches every failure by construction",
+    "within_episode_constant_channels": "excluded from the candidate set, see within_episode_verdict.json"
+  },
+  "code": [
+    {
+      "bytes": 4628,
+      "path": "experiments/within_episode_audit.py",
+      "sha256_first_1GiB": "79a310e7555abd7016014ee44147bf7feff54a10c7bc8c25abf117dfd3214e02"
+    },
+    {
+      "bytes": 11791,
+      "path": "experiments/information_map.py",
+      "sha256_first_1GiB": "b7a51b13740b8fb80c2c9d8674ec6cd947731bd72386ce1baa8d137f39843dc5"
+    },
+    {
+      "bytes": 15757,
+      "path": "experiments/reachability.py",
+      "sha256_first_1GiB": "eb47aa145809cea10f47b89c6d5218d5446db041e4bcc0b2d61c650c7a8facd9"
+    },
+    {
+      "bytes": 14071,
+      "path": "experiments/upper_bound.py",
+      "sha256_first_1GiB": "039a7e88163f7aec7c15c34a63dc561d3aee6aabf230e4199c4adb229d76a1fe"
+    },
+    {
+      "bytes": 7659,
+      "path": "experiments/frontier.py",
+      "sha256_first_1GiB": "4bc7b45af5f5f4d6d58a936f0d0f1cb059fc9aeac0c7f6964cd53c202110b21e"
+    },
+    {
+      "bytes": 7367,
+      "path": "experiments/budget_allocation.py",
+      "sha256_first_1GiB": "d9d035e9a496cc2032ed33c46000094c3241f2f7b9bb2a9c687f3da6971457b8"
+    },
+    {
+      "bytes": 9162,
+      "path": "experiments/summarise.py",
+      "sha256_first_1GiB": "a99e7b51befe45fa7d63525262f13c3c104c5186ee68692094921e385fc1c96b"
+    },
+    {
+      "bytes": 3297,
+      "path": "experiments/make_figure.py",
+      "sha256_first_1GiB": "1a6215296a313808db4866e1f29589ae166b7adc10f804344cf60d7b585fe7cf"
+    },
+    {
+      "bytes": 16348,
+      "path": "experiments/common.py",
+      "sha256_first_1GiB": "ebbc35e68d4fde330cc6f8f81becf5d7010ca4c26e8b3fbad6b180e7bec36a6f"
+    }
+  ],
+  "cohorts": {
+    "development_main": "14800 episodes, 487 risks, 37 tasks",
+    "external_8b": "15600 episodes, 564 risks, 39 tasks",
+    "legacy_main16x32": "2560 episodes, 307 risks, 5 tasks; carried through the information map but produces zero admissible cells because no suite in it has 4 tasks, so it supports no task-stratified verdict and is excluded from every headline"
+  },
+  "definitions": {
+    "admissible_cell": "at least 4 contributing tasks and at least 5000 pairs",
+    "phase": "(q + 1) / episode_length; risk episodes have length == cap",
+    "risk": "original_failure, i.e. did not finish before the original horizon cap",
+    "timely_fpr": "false alarms / non-risk episodes, matching the frozen protocol",
+    "window": "phase <= 0.65, i.e. chunk <= {'libero_goal': 18, 'libero_long': 32, 'libero_object': 17, 'libero_spatial': 13}"
+  },
+  "inputs_read_only": [
+    {
+      "bytes": 5902623,
+      "path": "moe-v4-0904/results/layerwise_mobility/main_reference.npz",
+      "sha256_first_1GiB": "42f41a3ebf28a79070d958bdf3acb4c1af832047a7b7904a7f7368d89ab42fdc"
+    },
+    {
+      "bytes": 6623964,
+      "path": "moe-v4-0904/results/layerwise_mobility/external_8b.npz",
+      "sha256_first_1GiB": "851729f60a33c69b623afde2e8ee6e2d5f56905d36b8d0cbe66172113b789d01"
+    },
+    {
+      "bytes": 1391651,
+      "path": "moe-v4-0904/results/cache16x32_v4/layerwise_mobility.npz",
+      "sha256_first_1GiB": "bfd62d7c346fe2b9643a852d49cedb788f30f7f0f0b0e541a4cb6c395824c915"
+    },
+    {
+      "bytes": 272275,
+      "path": "moe-v4-0904/results/cache16x32_v4/episode_alarms.csv",
+      "sha256_first_1GiB": "7ef0e1bcff3c45ee329c08f7e55497024e70d4faa27f788e3341109e10288783"
+    },
+    {
+      "bytes": 71053375,
+      "path": "moe-hb-front-back-0905/results/layer_graphs/development_main.npz",
+      "sha256_first_1GiB": "bd2d3bc29f16e28ddf37d3a38c07c5a544f5dfc5b82810e92de30b6a48c0c8af"
+    },
+    {
+      "bytes": 79478631,
+      "path": "moe-hb-front-back-0905/results/layer_graphs/external_8b.npz",
+      "sha256_first_1GiB": "170809cf35081d1911410b86cf02597b706aded865a965456d7601f56ab0e177"
+    },
+    {
+      "bytes": 16389580,
+      "path": "moe-hb-front-back-0905/results/layer_graphs/legacy_main16x32.npz",
+      "sha256_first_1GiB": "bdc2e25eb01c2f08e94d0c8b9b1b6cc3de696b98b03748e5feae20dbbaac4cc4"
+    },
+    {
+      "bytes": 20881,
+      "path": "moe-unused-channels-0906/results/channels/development_main_index.npz",
+      "sha256_first_1GiB": "00d58b5d8b00f6a6a88f44e73228de8da098927d0a6e800b51cab9175468bdf4"
+    },
+    {
+      "bytes": 197017728,
+      "path": "moe-unused-channels-0906/results/channels/development_main_quantities.npy",
+      "sha256_first_1GiB": "386e2ac09270f75fb28f3b38ccbc25ef4e531d9b8da3c24f533fe353fc28184d"
+    },
+    {
+      "bytes": 22655,
+      "path": "moe-unused-channels-0906/results/channels/external_8b_index.npz",
+      "sha256_first_1GiB": "685f92e8374478afd532c2e630123bd7c1810d95a2b9e262a26207a48b2f0a17"
+    },
+    {
+      "bytes": 207667328,
+      "path": "moe-unused-channels-0906/results/channels/external_8b_quantities.npy",
+      "sha256_first_1GiB": "fa614916a9e4704b01d96f233fbd63008c5fcf285594a5f19d72ff533426f2da"
+    },
+    {
+      "bytes": 20916,
+      "path": "moe-flow-semantics-0906/results/step_profiles/development_main_index.npz",
+      "sha256_first_1GiB": "ccbc4d875881d854c84c5b089343cc7d25475feafea3d1a8bf1b6019fbcb591a"
+    },
+    {
+      "bytes": 1970176128,
+      "path": "moe-flow-semantics-0906/results/step_profiles/development_main_metrics.npy",
+      "sha256_first_1GiB": "cbfb874a2d2f1028f8102d65263fab4b4020b9e6784fb96774c946bf21b921c8"
+    },
+    {
+      "bytes": 246272128,
+      "path": "moe-flow-semantics-0906/results/step_profiles/development_main_mobility.npy",
+      "sha256_first_1GiB": "e5992b47a7f2ba130d1e2a939ec0ae143a3e5e32aa693c1c6642cc33e2ab2ed7"
+    },
+    {
+      "bytes": 246272128,
+      "path": "moe-flow-semantics-0906/results/step_profiles/development_main_state_mobility.npy",
+      "sha256_first_1GiB": "fc7658da98d5963b4453eb55f6f42966a3cee327cf9acd20dbdef15ff3379207"
+    },
+    {
+      "bytes": 22690,
+      "path": "moe-flow-semantics-0906/results/step_profiles/external_8b_index.npz",
+      "sha256_first_1GiB": "0d60a8c976b7ee953e595dee31e939fdb3549fa49b8b6b8c5a205f1ac8dbf12c"
+    },
+    {
+      "bytes": 2076672128,
+      "path": "moe-flow-semantics-0906/results/step_profiles/external_8b_metrics.npy",
+      "sha256_first_1GiB": "63d25fd138f70914a93661b2f7531a78ce93e81c46509842ab460c93977a2048"
+    },
+    {
+      "bytes": 259584128,
+      "path": "moe-flow-semantics-0906/results/step_profiles/external_8b_mobility.npy",
+      "sha256_first_1GiB": "a56cfae74823b28082bd90f82b5074031865e2d90d5300cfb34deb52ac2f56a5"
+    },
+    {
+      "bytes": 259584128,
+      "path": "moe-flow-semantics-0906/results/step_profiles/external_8b_state_mobility.npy",
+      "sha256_first_1GiB": "6fb052c02da803c3ed2067aece6b6c48a5706109af09531417ccb2d8f39aa0c4"
+    },
+    {
+      "bytes": 9085683,
+      "path": "double-selete/trainfree/results/timeout_extension_plus10/development_main_clean_labels.csv",
+      "sha256_first_1GiB": "bbd3247ff94b249eca2602bdef158834fea991cc0445bcf3f6c958879090579b"
+    },
+    {
+      "bytes": 1675168,
+      "path": "double-selete/trainfree/results/timeout_extension_plus10/external_8b_clean_labels.csv",
+      "sha256_first_1GiB": "207603419360b4134c48481e5205a0311895640da9c7f0fc8418c30e2fcb8538"
+    },
+    {
+      "bytes": 8852083,
+      "path": "VLA_MUI_HUB/physical-failure-labels/results/episodes.csv",
+      "sha256_first_1GiB": "4a8450fcb5ae26e470402fe8bd70f1933e6ea8007d59fe41bfe6d31d6aac0365"
+    }
+  ],
+  "library_versions_numpy_scipy_pandas_sklearn_matplotlib": "2.5.1 1.17.1 3.0.1 1.8.0 3.10.8",
+  "not_modified": "no file outside moe-early-window-0906/ is written; no git command is run",
+  "outputs": [
+    {
+      "bytes": 2771,
+      "path": "results/cohort_budget_ceiling.csv",
+      "sha256_first_1GiB": "762348223abb350299f8b0f670aa4cafe7c42130a32e0598a95f583dc41a1de3"
+    },
+    {
+      "bytes": 7046,
+      "path": "results/cohort_budget_detail.csv",
+      "sha256_first_1GiB": "ce81be5680039bea176a550a6b163d48b1d397e910ac4110bc15e400aabe5ebb"
+    },
+    {
+      "bytes": 27703,
+      "path": "results/deadline_frontier.csv",
+      "sha256_first_1GiB": "d1f7ec23a41db608bc18cb877d418334e5b56e49dce3b0f5843766225eea66f4"
+    },
+    {
+      "bytes": 2263,
+      "path": "results/deadline_frontier_summary.csv",
+      "sha256_first_1GiB": "b08f5e2b38f5f562531967250e54a2f24b4759f3a60a2acfdf68db7ff0159f29"
+    },
+    {
+      "bytes": 237509,
+      "path": "results/early_window_summary.png",
+      "sha256_first_1GiB": "25857c0f3c4a82d4b07a091684bd8f16c5e366ae5b961cb662488e6b413665c0"
+    },
+    {
+      "bytes": 24330,
+      "path": "results/estimator_checks.csv",
+      "sha256_first_1GiB": "b1eb8f3cbbf29842489179f399ade2f269a0456188df6a4b1b45d4ca1ffbb75c"
+    },
+    {
+      "bytes": 5971,
+      "path": "results/failure_mode_split.csv",
+      "sha256_first_1GiB": "fe2e54c79176b07968c236fe49b827245c704bf7bc847e76e437056c15d7a974"
+    },
+    {
+      "bytes": 987,
+      "path": "results/headline_cohort_totals.csv",
+      "sha256_first_1GiB": "dee4f39be6f0e3047e436f928cd415b274251ddd30bb92c7559453f1029f1624"
+    },
+    {
+      "bytes": 8888,
+      "path": "results/headline_operating_points.csv",
+      "sha256_first_1GiB": "2a2630dd7e3513a8af9e1e82a9b3f9d2b412647dce5c45869ef96bacba5793ac"
+    },
+    {
+      "bytes": 2896989,
+      "path": "results/information_map.csv.gz",
+      "sha256_first_1GiB": "9adee640cf9a74973861869a8190689c9c09b08c70b9c651d7554f2219c7dfc8"
+    },
+    {
+      "bytes": 10577,
+      "path": "results/information_profile_by_chunk.csv",
+      "sha256_first_1GiB": "f0745933b9fea1b0593423766c29564b4105eb9b9341a61935193f1ba0d5cd67"
+    },
+    {
+      "bytes": 9681,
+      "path": "results/key_numbers.json",
+      "sha256_first_1GiB": "aeb18ec5379f97c8c3ac160cae35624b9ce4dace80ad559aa70aef8dfaedff04"
+    },
+    {
+      "bytes": 25020,
+      "path": "results/permutation_null.json",
+      "sha256_first_1GiB": "9fd8a1e6338dd1d40ad9bce0ec8327d802faafa2378ae31fc08597e778e629e9"
+    },
+    {
+      "bytes": 387,
+      "path": "results/reachability_checks.json",
+      "sha256_first_1GiB": "0a2f91fefa0b549c26f98b7dd6a344f38a921ae04631ba9015b1e7ef2a5d1eb6"
+    },
+    {
+      "bytes": 1018780,
+      "path": "results/reachability_multivariate.csv",
+      "sha256_first_1GiB": "ebd7a54ca624fccbe84a6c7e293904953ce9602a87113ea4dc2b02cc29ec508c"
+    },
+    {
+      "bytes": 5712730,
+      "path": "results/reachability_single_chunk.csv.gz",
+      "sha256_first_1GiB": "9c07d606c60a4a9950036f5a944b936f68ca40bec9cf81eacebe4eb47be424b4"
+    },
+    {
+      "bytes": 976932,
+      "path": "results/reachability_window_union.csv.gz",
+      "sha256_first_1GiB": "dfab7b6562562f807a21585e3c5f73e948ef279f8a5a8da7cd2e638cf3e1aaba"
+    },
+    {
+      "bytes": 3599888,
+      "path": "results/replicated_in_window_cells.csv",
+      "sha256_first_1GiB": "7d8f18c0e6dda2d237a35de3fcef23ccc2ebdc0cb837a3faa5e7610b28e68222"
+    },
+    {
+      "bytes": 28773,
+      "path": "results/survival_baseline.csv",
+      "sha256_first_1GiB": "fcd92565a1c5c9a404d29ac90bcdb8b95312c9528fa3e6c44327f99dabdf98ba"
+    },
+    {
+      "bytes": 1588521,
+      "path": "results/upper_bound_multivariate.csv",
+      "sha256_first_1GiB": "c55e238667de41d9b686d00813a59373bed1dcbf3b6589039165c9fa109fc686"
+    },
+    {
+      "bytes": 1783,
+      "path": "results/verdict_by_suite.csv",
+      "sha256_first_1GiB": "55ca70f80cb085908d53024c94dad7514ac21c909e9f254eb6dcc4c574e71ac3"
+    },
+    {
+      "bytes": 86940,
+      "path": "results/within_episode_information.csv",
+      "sha256_first_1GiB": "025db3ca891bc489d8011286f20747b5d38daf15e1a86a4ea0a345b6a553822d"
+    },
+    {
+      "bytes": 1151,
+      "path": "results/within_episode_verdict.json",
+      "sha256_first_1GiB": "9952e7304eaede9581513fd03af1c2575ed3a29533f05fd854e8e82f2b9ab5b8"
+    }
+  ],
+  "question": "inside the early window, conditioned on task and on elapsed time, does MoE routing carry information about eventual failure, and is 80% risk recall at alarm phase <= 0.65 reachable",
+  "run_order": [
+    "within_episode_audit.py",
+    "information_map.py",
+    "reachability.py",
+    "upper_bound.py",
+    "frontier.py",
+    "budget_allocation.py",
+    "summarise.py",
+    "make_figure.py"
+  ],
+  "seed": 20260906
+}

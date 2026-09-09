@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>一个漂亮的发现，和它怎么死的</title>
+<style>
+  :root{ --ink:#fff; --dim:#888; }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#000;color:var(--ink);}
+  body{font-family:system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","Source Han Sans SC","PingFang SC",sans-serif;
+       -webkit-font-smoothing:antialiased;}
+  .frame{max-width:1300px;margin:0 auto;padding:28px 18px 56px}
+  canvas{display:block;width:100%;height:auto;background:#0a0a0a;border-radius:4px}
+  .rail{display:flex;align-items:center;gap:14px;margin-top:16px}
+  button{font:inherit;font-size:13px;color:#bbb;background:none;border:1px solid #333;
+         border-radius:6px;padding:6px 16px;cursor:pointer}
+  button:hover{color:#fff;border-color:#666}
+  input[type=range]{flex:1;accent-color:#58C4DD;height:3px}
+  .t{color:#555;font-size:12px;font-variant-numeric:tabular-nums;min-width:74px}
+  .src{margin-top:26px;color:#4a4a4a;font-size:12.5px;line-height:1.8}
+  .src a{color:#666}
+  .chap{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+  .chap button{font-size:11.5px;padding:4px 9px;color:#777}
+  .chap button.on{color:#000;background:#ddd;border-color:#ddd}
+</style>
+</head>
+<body>
+<div class="frame">
+  <canvas id="c" width="2560" height="1440" style="aspect-ratio:1280/720"></canvas>
+  <div class="rail">
+    <button id="p">▶</button>
+    <input type="range" id="s" min="0" max="1000" value="0">
+    <span class="t" id="t"></span>
+  </div>
+  <div class="chap" id="ch"></div>
+  <p class="src">
+    全部为 LIBERO-Long <code>KITCHEN_SCENE8</code> 的记录数据，初始状态 0，32 条 rollout。
+    完整统计、置信区间与对照组构造见
+    <a href="himoe-moe-signal-explainer.html">signal-explainer</a> ·
+    <a href="himoe-moe-sticky-core.html">sticky-core</a> ·
+    <a href="himoe-moe-trap-animation.html">trap-animation</a>。
+  </p>
+</div>
+
+<script>
+const D = {"scene":0,"common":36,"window":10,"n":32,"n_success":14,"experts":32,"topk":4,"layer":15,"curves":{"occ_stasis":[null,null,null,null,null,null,null,null,null,0.4903,0.4949,0.4912,0.4687,0.4621,0.4618,0.4564,0.4639,0.4688,0.4639,0.4631,0.4599,0.4557,0.4557,0.4483,0.4467,0.4572,0.4703,0.4807,0.4818,0.4874,0.5003,0.5288,0.5739,0.615,0.6633,0.7064,0.7485],"occ_success":[null,null,null,null,null,null,null,null,null,0.4927,0.4955,0.4904,0.4757,0.4736,0.4682,0.452,0.4589,0.4589,0.4525,0.4437,0.4464,0.4532,0.4566,0.4534,0.4552,0.4664,0.4766,0.4859,0.4884,0.4898,0.4854,0.4754,0.4682,0.4714,0.4763,0.4775,0.4771],"inp_stasis":[null,null,null,null,null,null,null,null,null,0.8748,0.8868,0.8516,0.8015,0.7828,0.7854,0.784,0.7844,0.7604,0.7212,0.6991,0.7191,0.7614,0.7792,0.7786,0.7814,0.789,0.8098,0.8448,0.8751,0.8904,0.8956,0.8934,0.8948,0.8964,0.8988,0.9009,0.905],"inp_success":[null,null,null,null,null,null,null,null,null,0.8758,0.8898,0.8569,0.8109,0.7871,0.7856,0.7844,0.7847,0.7557,0.7064,0.6873,0.7081,0.7468,0.7699,0.7755,0.777,0.7836,0.8104,0.8508,0.858,0.8461,0.8285,0.816,0.8082,0.8019,0.7915,0.7853,0.7831]},"exemplars":{"success":{"episode":22,"onset":-1,"tokens":[[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0],[0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1,1,0,0,0,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,1,0,0,0,0],[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],[1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,0,1,1,1,0,1,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,0],[1,1,1,0,1,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0],[1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1],[0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0],[0,0,0,0,0,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0],[0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0,0],[0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0],[0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0],[0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,1,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,1,1,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[1,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,1,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]},"stasis":{"episode":3,"onset":30,"tokens":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0],[0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0],[0,1,0,1,1,0,0,0,0,0,0,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0],[0,0,1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,1,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],[0,0,0,0,0,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0],[1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,1,0,0,0,0,0,0],[0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0],[1,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1]]}},"numbers":{"occ_auc":0.9345238095238095,"occ_success":0.47714285714285715,"occ_stasis":0.7484722222222221,"corr":0.934,"residual_auc":0.419,"sim_raw":[0.879,0.917,0.039],"sim_rich":[0.924,0.929,0.005],"runtime":[0.853,0.918,0.063],"runtime_attack":0.002,"onset_median":19,"onset_p90":30}};
+const W=1280,H=720,CX=W/2;
+const K={bg:"#0a0a0a",ink:"#ffffff",dim:"#888888",faint:"#3a3a3a",
+         ok:"#58C4DD",bad:"#FC6255",hot:"#F0DC5A",gone:"#5a5a5a"};
+const F='system-ui,-apple-system,"Segoe UI","Noto Sans CJK SC","PingFang SC",sans-serif';
+const c=document.getElementById("c"),g=c.getContext("2d");
+g.scale(2,2);
+if(typeof g.roundRect!=="function") g.roundRect=function(x,y,w,h){this.rect(x,y,w,h);return this};
+
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lp=(a,b,t)=>a+(b-a)*t;
+const ei=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;         // smooth both ends
+const eo=t=>1-Math.pow(1-t,3);                            // decelerate
+const sg=(t,a,b)=>cl((t-a)/(b-a),0,1);
+
+/* ---------- primitives ---------- */
+function txt(s,x,y,{size=26,col=K.ink,al="center",w=400,a=1,ls=0}={}){
+  if(a<=0)return; g.save(); g.globalAlpha=a; g.fillStyle=col; g.textAlign=al;
+  g.font=`${w} ${size}px ${F}`; g.letterSpacing=ls+"px";
+  g.fillText(s,x,y); g.letterSpacing="0px"; g.restore();
+}
+/* reveal text left-to-right, the way a line is written */
+function writeOn(s,x,y,p,o={}){
+  if(p<=0)return; g.save();
+  const size=o.size||26; g.font=`${o.w||400} ${size}px ${F}`;
+  const wd=g.measureText(s).width, al=o.al||"center";
+  const x0 = al==="center"? x-wd/2 : al==="right"? x-wd : x;
+  g.beginPath(); g.rect(x0-4,y-size*1.1,wd*ei(cl(p,0,1))+8,size*1.6); g.clip();
+  txt(s,x0,y,{...o,al:"left"}); g.restore();
+}
+function dot(x,y,r,col,a=1){
+  if(a<=0||r<=0)return; g.save(); g.globalAlpha=a; g.fillStyle=col;
+  g.beginPath(); g.arc(x,y,r,0,7); g.fill(); g.restore();
+}
+function bar(x,y,w,h,col,a=1,r=3){
+  if(a<=0||w<=0)return; g.save(); g.globalAlpha=a; g.fillStyle=col;
+  g.beginPath(); g.roundRect(x,y,Math.max(w,.5),h,r); g.fill(); g.restore();
+}
+function stroke(pts,col,lw,a=1,glow=0){
+  if(a<=0||pts.length<2)return; g.save(); g.globalAlpha=a; g.strokeStyle=col;
+  g.lineWidth=lw; g.lineJoin="round"; g.lineCap="round";
+  if(glow){g.shadowColor=col;g.shadowBlur=glow;}
+  g.beginPath(); pts.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));
+  g.stroke(); g.restore();
+}
+
+/* ---------- data prep ---------- */
+const T=D.common, NE=D.experts;
+const EX={ok:D.exemplars.success, bad:D.exemplars.stasis};
+function runsOf(tok){
+  const out=[];
+  tok.forEach((row,e)=>{ let s=-1;
+    for(let t=0;t<=T+1;t++){ const on=t<=T&&row[t]>0;
+      if(on&&s<0)s=t; else if(!on&&s>=0){out.push({e,s,t:t-1,len:t-s});s=-1;} }});
+  return out;
+}
+const RUNS={ok:runsOf(EX.ok.tokens), bad:runsOf(EX.bad.tokens)};
+/* normalised stasis-minus-success gaps: the shapes are what must be compared,
+   the raw scales differ (occupancy gap peaks at 0.27, input gap at 0.12) */
+function gapCurve(a,b){
+  const v=[]; for(let t=0;t<=T;t++){
+    const x=D.curves[a][t], y=D.curves[b][t];
+    v.push(x==null||y==null?null:x-y);
+  }
+  const mx=Math.max(...v.filter(q=>q!=null));
+  return v.map(q=>q==null?null:q/mx);
+}
+const GAP={occ:gapCurve("occ_stasis","occ_success"), inp:gapCurve("inp_stasis","inp_success")};
+const N=D.numbers;
+
+/* ---------- scenes ---------- */
+const SC=[
+  {n:"专家",   d:7.5},
+  {n:"展开",   d:8},
+  {n:"两条",   d:11},
+  {n:"等一下", d:12},
+  {n:"换问法", d:8.5},
+  {n:"又等一下",d:9},
+  {n:"剩下的", d:10},
+  {n:"边界",   d:8}
+];
+const DUR=SC.reduce((a,b)=>a+b.d,0);
+const AT=SC.reduce((a,x)=>(a.push(a[a.length-1]+x.d),a),[0]);
+
+/* grid position of expert e in the opening tableau */
+function home(e){ const col=e%8, row=(e-col)/8;
+  return [CX-3.5*66+col*66, 250+row*66]; }
+
+/* S1 — 32 experts, four of them lit */
+function s1(p){
+  const app=sg(p,0,.3);
+  for(let e=0;e<NE;e++){
+    const [x,y]=home(e), a=sg(p,e*.006,e*.006+.25);
+    dot(x,y,10,K.faint,a);
+  }
+  const lit=[];
+  for(let e=0;e<NE;e++) if(EX.bad.tokens[e][0]>0) lit.push(e);
+  const sel=sg(p,.34,.52);
+  lit.forEach((e,i)=>{ const [x,y]=home(e);
+    const a=sg(p,.34+i*.03,.34+i*.03+.18);
+    dot(x,y,lp(10,17,ei(a)),K.hot,a); });
+  writeOn("32 位专家",CX,150,sg(p,.08,.28),{size:38,w:600,ls:2});
+  writeOn("每个控制步，路由器只选 4 位",CX,560,sg(p,.55,.78),{size:26,col:K.dim});
+  if(sel>.9) txt("Top-4",CX,610,{size:20,col:K.hot,a:sg(p,.8,.95)});
+}
+
+/* S2 — the column becomes a ribbon: same 32 rows, time unrolls to the right */
+function s2(p){
+  const morph=ei(sg(p,.08,.62));
+  const X0=200, X1=1080, RH=11;
+  const yTop=180;
+  for(let e=0;e<NE;e++){
+    const [hx,hy]=home(e);
+    const y=lp(hy,yTop+e*RH,morph);
+    const x=lp(hx,X0,morph);
+    dot(x,y,lp(10,3.2,morph),K.faint,1);
+  }
+  const grown=sg(p,.5,.95);
+  if(grown>0){
+    const cur=Math.round(ei(grown)*T);
+    RUNS.bad.forEach(r=>{
+      if(r.s>cur)return;
+      const y=yTop+r.e*RH+1.6;
+      const x1=X0+r.s/T*(X1-X0), x2=X0+Math.min(r.t,cur)/T*(X1-X0);
+      stroke([[x1,y],[Math.max(x2,x1+1),y]],K.bad,3,.75*morph);
+    });
+  }
+  writeOn("让它跑 36 步",CX,110,sg(p,.12,.34),{size:34,w:600,ls:1});
+  writeOn("每一横道是一位专家，被选中时点亮",CX,640,sg(p,.62,.85),{size:21,col:K.dim});
+}
+
+/* S3 — two trajectories; the stasis one grows unbroken runs */
+function s3(p){
+  const X0=210,X1=1070,RH=8.4;
+  const rows=[{k:"ok", y:150, c:K.ok,  lab:"成功"},
+              {k:"bad",y:390, c:K.bad, lab:"停滞陷入"}];
+  const cur=Math.round(ei(sg(p,.05,.55))*T);
+  const hot=sg(p,.55,.78);
+  rows.forEach(r=>{
+    writeOn(r.lab,X0-24,r.y+14,sg(p,.02,.18),{size:22,col:r.c,al:"right",w:600});
+    RUNS[r.k].forEach(q=>{
+      if(q.s>cur)return;
+      const y=r.y+q.e*RH+2, sticky=q.len>=4;
+      const x1=X0+q.s/T*(X1-X0), x2=X0+Math.min(q.t,cur)/T*(X1-X0);
+      const col = sticky? (r.k==="bad"? lpCol(r.c,K.hot,hot) : r.c) : r.c;
+      stroke([[x1,y],[Math.max(x2,x1+1),y]],col,sticky?4.2:2.4,
+             sticky?.95:.4, sticky&&r.k==="bad"?10*hot:0);
+    });
+  });
+  if(hot>.35)
+    writeOn("有几位专家，再也没被换掉",CX,652,sg(p,.6,.82),{size:26,col:K.hot});
+  const big=sg(p,.82,1);
+  if(big>0){
+    txt("AUC",CX-108,610,{size:22,col:K.dim,a:big});
+    txt(N.occ_auc.toFixed(2),CX-6,616,{size:56,col:K.hot,a:big,w:600,al:"left"});
+  }
+}
+function lpCol(a,b,t){
+  const p=x=>[parseInt(x.slice(1,3),16),parseInt(x.slice(3,5),16),parseInt(x.slice(5,7),16)];
+  const A=p(a),B=p(b);
+  return `rgb(${A.map((v,i)=>Math.round(lp(v,B[i],t)).toString()).join(",")})`;
+}
+
+/* S4 — the reversal: input persistence rises in lockstep */
+function s4(p){
+  const X0=230,X1=1050,Y0=520,Y1=200;
+  const Xp=t=>X0+t/T*(X1-X0), Yp=v=>lp(Y0,Y1,cl(v,-.15,1.05));
+  txt("等一下",CX,110,{size:40,w:600,a:sg(p,.02,.16),col:K.hot});
+  stroke([[X0,Y0],[X1,Y0]],K.faint,1,sg(p,.1,.22));
+  const drawA=ei(sg(p,.14,.44)), drawB=ei(sg(p,.46,.74));
+  const build=(arr,upto)=>{const o=[];for(let t=0;t<=T;t++){
+    if(arr[t]==null)continue; if(t/T>upto)break; o.push([Xp(t),Yp(arr[t])]);} return o;};
+  stroke(build(GAP.occ,drawA),K.hot,3.4,1,8);
+  if(drawA>.95) txt("路由粘滞",Xp(T)+12,Yp(GAP.occ[T]),{size:19,col:K.hot,al:"left",a:sg(p,.4,.5)});
+  stroke(build(GAP.inp,drawB),K.ok,3.4,1,8);
+  if(drawB>.9) txt("路由器输入自己不动了",Xp(T)+12,Yp(GAP.inp[T])+26,
+    {size:19,col:K.ok,al:"left",a:sg(p,.7,.8)});
+  writeOn("两条差值曲线各自归一化后，同步抬起",CX,606,sg(p,.62,.82),{size:22,col:K.dim});
+  const rev=sg(p,.8,.96);
+  if(rev>0){
+    txt("跨 rollout 相关   r = "+N.corr,CX,652,{size:24,col:K.ink,a:rev,w:600});
+    txt("把输入回归掉之后， AUC "+N.occ_auc.toFixed(2)+" → "+N.residual_auc.toFixed(2),
+        CX,690,{size:22,col:K.bad,a:sg(p,.88,1)});
+  }
+}
+
+/* S5/S6 — the second finding and its collapse */
+function bars(items,p,title,sub,note){
+  const BX=CX-330,BW=660,Y0=250,BH=46,GAP2=76;
+  writeOn(title,CX,120,sg(p,.04,.24),{size:32,w:600,ls:1});
+  const mx=.95, base=.80;
+  items.forEach((it,i)=>{
+    const y=Y0+i*GAP2, a=sg(p,.16+i*.1,.16+i*.1+.22);
+    const v=typeof it.v==="function"? it.v(p) : it.v;
+    const w=(v-base)/(mx-base)*BW;
+    bar(BX,y,w*ei(a),BH,it.c,.9);
+    txt(it.lab,BX-18,y+31,{size:20,col:K.dim,al:"right",a});
+    txt(v.toFixed(3),BX+w*ei(a)+14,y+31,{size:22,col:K.ink,al:"left",a,w:600});
+  });
+  if(sub) writeOn(sub,CX,Y0+items.length*GAP2+56,sg(p,.55,.75),{size:24,col:K.dim});
+  if(note) txt(note[0],CX,Y0+items.length*GAP2+112,
+    {size:40,col:note[1],a:sg(p,.72,.9),w:600});
+}
+function s5(p){
+  bars([{lab:"模拟器真值",v:N.sim_raw[0],c:K.dim},
+        {lab:"＋ MoE",   v:N.sim_raw[1],c:K.ok}],
+       p,"那换个问法：MoE 知道物理状态不知道的事吗？",
+       "同一批 rollout，同一套折，只换喂进去的特征",
+       ["+"+N.sim_raw[2].toFixed(3),K.ok]);
+}
+function s6(p){
+  const grow=ei(sg(p,.28,.62));
+  bars([{lab:"模拟器真值 ＋ 相对几何",v:()=>lp(N.sim_raw[0],N.sim_rich[0],grow),c:K.hot},
+        {lab:"＋ MoE",              v:N.sim_rich[1],c:K.ok}],
+       p,"又等一下：线性读出器算不出「夹爪到壶多远」",
+       "把 17 个相对几何量直接喂给对照组",
+       ["+"+N.sim_rich[2].toFixed(3),K.bad]);
+  if(grow>.8) writeOn("增量没了",CX,660,sg(p,.76,.92),{size:26,col:K.bad,w:600});
+}
+
+/* S7 — what survives */
+function s7(p){
+  bars([{lab:"非特权（本体感受＋指令）",v:N.runtime[0],c:K.dim},
+        {lab:"＋ 针对性「原地打转」特征",v:N.runtime[0]+N.runtime_attack,c:K.hot},
+        {lab:"＋ MoE",                  v:N.runtime[1],c:K.ok}],
+       p,"策略本来就拿不到物体位姿",
+       "同样的攻击方式，这次只贡献 +"+N.runtime_attack.toFixed(3),
+       ["+"+N.runtime[2].toFixed(3),K.ok]);
+}
+
+/* S8 — the boundary */
+function s8(p){
+  const X0=240,X1=1040,Y=330;
+  const Xp=t=>X0+t/40*(X1-X0);
+  stroke([[X0,Y],[X1,Y]],K.faint,2,sg(p,.04,.2));
+  writeOn("但它在陷入之后才出现",CX,140,sg(p,.02,.22),{size:34,w:600,ls:1});
+  const marks=[[N.onset_median,"陷入起点中位",K.bad],[N.onset_p90,"九成已陷入",K.bad],
+               [34,"合并窗口末端",K.ok]];
+  marks.forEach((m,i)=>{
+    const a=sg(p,.24+i*.14,.24+i*.14+.2), x=Xp(m[0]);
+    stroke([[x,Y-26],[x,Y+26]],m[2],3,a);
+    txt("t"+m[0],x,Y+54,{size:20,col:m[2],a,w:600});
+    // t30 and t34 sit close together; lift the middle label clear of its neighbour
+    txt(m[1],x,Y+(i===1?-76:-46),{size:17,col:K.dim,a});
+  });
+  writeOn("是「卡住了」的读数，不是预警",CX,480,sg(p,.66,.86),{size:26,col:K.dim});
+  // 单点检验只有 13 个簇，功效很低；合并 t20-t34 才是有效的读法
+  txt("+0.043　t20–t34 合并",CX,566,{size:30,col:K.ok,a:sg(p,.8,.95),w:600});
+  txt("p=0.012 · 单个时刻各自功效不足 · 陷入之前为 0",CX,614,
+      {size:19,col:K.gone,a:sg(p,.86,1)});
+}
+
+const FN=[s1,s2,s3,s4,s5,s6,s7,s8];
+
+/* ---------- driver ---------- */
+let clock=0,playing=false,last=0;
+function frame(){
+  g.fillStyle=K.bg; g.fillRect(0,0,W,H);
+  let i=0; for(let k=0;k<SC.length;k++) if(clock>=AT[k]) i=k;
+  const p=cl((clock-AT[i])/SC[i].d,0,1);
+  const fade = Math.min(sg(p,0,.06), 1-sg(p,.94,1));
+  g.save(); g.globalAlpha=i===0&&p<.06?1:cl(fade*8+.2,0,1);
+  FN[i](p); g.restore();
+  document.getElementById("s").value=Math.round(clock/DUR*1000);
+  document.getElementById("t").textContent=clock.toFixed(1)+" / "+DUR.toFixed(0)+"s";
+  document.querySelectorAll("#ch button").forEach((b,k)=>b.classList.toggle("on",k===i));
+}
+function loop(ts){
+  if(playing){ if(last) clock=Math.min(DUR,clock+(ts-last)/1000); last=ts;
+    if(clock>=DUR){playing=false;document.getElementById("p").textContent="▶";}
+    frame(); } else last=0;
+  requestAnimationFrame(loop);
+}
+document.getElementById("p").addEventListener("click",e=>{
+  playing=!playing; if(clock>=DUR)clock=0; last=0; e.target.textContent=playing?"❚❚":"▶";});
+document.getElementById("s").addEventListener("input",e=>{
+  playing=false; document.getElementById("p").textContent="▶";
+  clock=e.target.value/1000*DUR; frame();});
+document.getElementById("ch").innerHTML=SC.map((s,i)=>
+  `<button data-i="${i}">${i+1} ${s.n}</button>`).join("");
+document.querySelectorAll("#ch button").forEach(b=>b.addEventListener("click",()=>{
+  playing=false; document.getElementById("p").textContent="▶";
+  clock=AT[+b.dataset.i]+.02; frame();}));
+clock=1.6; frame(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VLA 里的神经元,看见了 token 看不见的物理状态</title>
+<meta name="description" content="一台会做饭的机器人反复卡死。它的模型每一步都在写一份没人读的日志——读出来,失败看得见,还来得及救回来。">
+<style>
+:root{--bg:#0b0f14;--panel:#0e141b;--line:#1d2833;--tick:#38495a;
+  --ink:#e8eef3;--dim:#98a6b3;--faint:#5d6d7b;
+  --ok:#5aa9e6;--bad:#e08c4a;--gold:#e8c56a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:17px/1.95 -apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+a{color:var(--ok);text-decoration:none}
+a:hover{text-decoration:underline}
+b,strong{font-weight:650;color:var(--ink)}
+.prose{max-width:72ch;margin:0 auto;padding:72px 24px 96px}
+.lang{text-align:right;font-size:13.5px;color:var(--faint);margin-bottom:34px}
+h1{font-size:clamp(27px,5vw,40px);line-height:1.32;font-weight:700;margin:0 0 14px;letter-spacing:.01em}
+.meta{color:var(--faint);font-size:14px;margin:0 0 10px}
+.blurb{color:var(--dim);font-size:18.5px;line-height:1.8;margin:0 0 40px;
+  font-family:Georgia,"Songti SC",serif;font-style:italic}
+h2{font-size:22.5px;font-weight:700;margin:60px 0 16px;line-height:1.4}
+p{margin:0 0 22px;color:var(--dim)}
+p.em{color:var(--ink)}
+blockquote{margin:34px 0;padding:4px 0 4px 22px;border-left:3px solid var(--tick);
+  color:var(--ink);font-family:Georgia,"Songti SC",serif;font-style:italic;font-size:18px;line-height:1.85}
+figure{margin:36px -8px}
+figure img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+figcaption{margin:12px 6px 0;font-size:13.6px;color:var(--faint);line-height:1.75}
+.figtag{display:inline-block;margin-right:.6em;padding:1px 8px;border:1px solid var(--tick);
+  border-radius:4px;font-size:11.5px;letter-spacing:.06em;vertical-align:1px}
+.vids{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:36px -8px}
+@media(max-width:640px){.vids{grid-template-columns:1fr}}
+.vids figure{margin:0}
+.vids video{width:100%;border-radius:10px;border:1px solid var(--line);background:#000;display:block}
+.vids figcaption{margin:10px 4px 0}
+.tag-ok{color:var(--ok);font-weight:650}.tag-bad{color:var(--bad);font-weight:650}
+ul{margin:0 0 22px;padding-left:1.3em;color:var(--dim)}
+li{margin-bottom:10px}
+li::marker{color:var(--faint)}
+code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.9em;color:var(--gold);
+  background:rgba(232,197,106,.08);padding:1px 6px;border-radius:4px}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:30px 0}
+.nums div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px 11px}
+.nums b{display:block;font-size:23px;font-variant-numeric:tabular-nums}
+.nums span{font-size:12.5px;color:var(--faint);line-height:1.5;display:block;margin-top:3px}
+.film{margin:36px -8px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#000}
+.film iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
+hr{border:0;border-top:1px solid var(--line);margin:56px 0}
+.foot{color:var(--faint);font-size:14px}
+</style>
+</head>
+<body>
+<article class="prose">
+  <div class="lang"><a href="en.html">EN</a> · 中文</div>
+
+  <h1>VLA 里的神经元,看见了 token 看不见的物理状态</h1>
+  <p class="meta">2026-08-30 · HiMoE-VLA · LIBERO「把两个摩卡壶放上灶台」</p>
+  <p class="blurb">先在语言模型里看见的一件事 —— 神经元的内部状态,装着 token 里读不出的信息 ——
+    搬到一台会做饭的机器人身上,长出了完整的下文:失败看得见,还救得回。</p>
+
+  <p>这个故事要从另一类模型讲起。</p>
+
+  <p>过去我们在推理大模型上做过一件事,叫 <b>NAD</b>(Neuron Activation Distribution):
+    模型答题时,把几万个神经元的激活分布存下来 —— 不看它写了什么,只看这些内部状态。
+    结果是:同一道题采样出的一堆回答,<b>光凭神经元的活动就能挑出更可能对的那条</b>。
+    把握与犹豫没有写进 token,但内部状态里有。</p>
+
+  <p>当时留了一个问题:这是语言模型的特产,还是所有大模型的通性?</p>
+
+  <p>于是我们把同一双眼睛,搬到一台会做饭的机器人身上。它的"话"不是文字,
+    是每秒二十个关节动作;它也会"想错" —— 不是答错题,而是手臂卡在半空,
+    或在两个壶之间来回打转,直到超时。下面两条 rollout,从<b>逐位相同的模拟器状态</b>出发,
+    模型也一样,唯一的差别是采样用的一条噪声流。左边 19 秒把两个壶都放上了灶台;
+    右边折腾满 26 秒,超时,失败。</p>
+
+  <div class="vids">
+    <figure><video src="video/success.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-ok">成功</span> —— 38 步,两个壶先后上灶。</figcaption></figure>
+    <figure><video src="video/failure.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-bad">失败</span> —— 52 步跑满,壶没放稳,反复重来直到超时。</figcaption></figure>
+  </div>
+
+  <p class="em">分开这两条 rollout 的那件事,从头到尾没有出现在任何 token 里。
+    动作序列照常输出,轨迹照常延伸,画面看着都在"干活"。要在它们还在跑的时候分出谁会失败,
+    看输出是看不出来的 —— 得看模型内部。</p>
+
+  <h2>一、物理世界里的 trap,长什么样</h2>
+
+  <p>先把失败本身看清楚。我们从同一个初始状态采了 32 条 rollout(还是只差噪声),
+    14 条成功、18 条失败,上限 52 个控制步。失败不是散乱的,它有形状,主要是两种:</p>
+
+  <ul>
+    <li><b>停滞</b> —— 手臂悬在半空,几乎一动不动,像被按了暂停。观测帧几乎逐帧相同。</li>
+    <li><b>loop</b> —— 手臂在两个壶之间来回穿梭,一次次回到同一个位置,路径走了很多,进度是零。</li>
+  </ul>
+
+  <p>剩下的是各种"还在动、但把事做岔了"的杂类:壶拿起来又掉、放下去又挪走。
+    我们把这批轨迹连同深层路由做过一个<a href="viz-trap.html">逐帧动画</a>,
+    trap 的样子在那里看得最直观。</p>
+
+  <p>而站在 token 这一侧,你有三条绕不过去的局限:</p>
+
+  <ul>
+    <li><b>动作流不会告诉你。</b>卡住的模型每一步照样输出一整块动作 —— 十个数、格式正确、幅度正常。
+      没有报错,没有沉默,失败以"完全正常的输出"的形式发生。</li>
+    <li><b>长度分不出两种解释。</b>一条跑得久的轨迹,可能是问题难,也可能是已经卡死。
+      两种情况该做的事相反 —— 前者该等,后者该停 —— 但轨迹只显示同一个症状:长。</li>
+    <li><b>判决要等到终点。</b>成功谓词在 episode 结束那一刻才盖章。
+      等你"确认"失败时,26 秒已经花完了,什么都来不及做。</li>
+  </ul>
+
+  <h2>二、神经元早就知道了</h2>
+
+  <p>这台 VLA 是 MoE 结构:在若干层里,各有一小组神经元充当"调度员"(路由器),
+    每个控制步给 32 个专家打分,点亮得分最高的 4 个,让它们来处理这一步。
+    <b>哪 4 个亮着 —— 我们把这份名单叫 pattern。</b></p>
+
+  <p class="em">手臂在干活时,观测每步都变,pattern 跟着一步一换人;
+    手臂一卡住,观测冻结,pattern 也冻住了 —— 同样那 4 个神经元通路,一亮亮到超时。</p>
+
+  <p>于是检测器可以笨到只有一句话:数 pattern 每步换了多少,除以这条 rollout
+    <b>自己开头</b>的换人速度,得到一个无量纲的比值 <code>r(t)</code>;
+    连续三步跌破 <code>θ = 0.95</code>,就报警。没有学习,没有标定,四个常数,全部提前冻结。</p>
+
+  <figure>
+    <img src="assets/fig_fan.png" loading="lazy"
+      alt="352 条 r(t) 曲线,蓝为成功、橙为失败;每条分支报警那一步画点,红点密集于失败一侧。">
+    <figcaption><span class="figtag">图 1</span>352 条分支(22 个状态 × 16 条噪声)的 r(t)。
+      橙 = 失败(235),蓝 = 成功(117);点 = 各自报警的那一步。
+      报警集中在 q18–q36,中位 q28 —— 全程 52 步的一半刚过。</figcaption>
+  </figure>
+
+  <div class="nums">
+    <div><b>80.1%</b><span>语料 A 判对(352 条,全猜多数类 66.8%)</span></div>
+    <div><b>82.0%</b><span>语料 B 判对(512 条,全猜多数类 57.8%)</span></div>
+    <div><b>一个 θ</b><span>两批语料误报逐档差 0–2 个点 —— 阈值直接搬</span></div>
+    <div><b>19 / 203</b><span>误报数 —— 它们全是"卡过又爬出来"的慢成功</span></div>
+  </div>
+
+  <p>两批语料是独立采的(一批 352 条、一批 512 条),阈值只定一次。
+    误报也值得看一眼:19 条报了警却最终成功的,长度中位 48 步(成功整体 39 步)——
+    它们<b>确实卡住过</b>,只是自己走了出来。所以这枚警报的语义是
+    「<b>这条现在卡住了</b>」,而不是「这条死定了」。这个区别到第三节会变得重要。</p>
+
+  <h2>三、说老实话:它为什么灵</h2>
+
+  <p>第一次看到深层 pattern 冻结时,我们也激动过 —— 直到补上对照,发现成因平凡得让人清醒:</p>
+
+  <blockquote>机器人卡住 → 观测不变 → 路由器输入不变 → 专家当然不换。
+    路由的粘滞与输入自身的稳定度相关 r = +0.93;把输入回归掉,路由指标就塌回随机。</blockquote>
+
+  <p class="em">神经元不是先知。它是一枚<b>免费的状态传感器</b>:
+    忠实地把"物理世界停住了"这件事,写进了一份反正都要生成的日志里。</p>
+
+  <p>平凡,恰恰是它可靠的原因 —— 不依赖玄学,就不会玄学地失效。而"免费"是真金白银的:
+    路由选择是 MoE 前向传播的副产品,模型不做这个选择就没法运行,读它不加一次推理、不加一个探针。
+    还有一个反直觉的细节:pattern 里<b>具体是哪几个</b>神经元,几乎不携带成败信息 ——
+    静态的专家名单能以近乎 100% 的准确率认出"这是哪个初始场景",却对结局几乎无用。
+    <b>身份是场景的指纹,变化才是状态。</b>我们的比值对专家重新编号完全不变,拿的正是后者。</p>
+
+  <h2>One more thinking:能不能在线救回来?</h2>
+
+  <p>警报如果只能用来记账,那它就是个没人看的仪表盘。所以最后一个实验把它当扳机:
+    一条新的 rollout 在线跑(阈值等一切常数事先冻结),第 32 步报警 ——
+    <b>就在那一步</b>,存下完整的模拟器状态,换 8 条新的噪声流分别续跑。</p>
+
+  <div class="vids">
+    <figure><video src="video/rescue_trunk.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-bad">原噪声继续</span> —— 26.0 秒(52 步)跑满,失败。</figcaption></figure>
+    <figure><video src="video/rescue_ok.mp4" controls muted loop playsinline preload="metadata"></video>
+      <figcaption><span class="tag-ok">报警步重采样</span> —— 同一状态换条噪声,3.9 秒(8 步)完成。</figcaption></figure>
+  </div>
+
+  <figure>
+    <img src="assets/fig_rescue.png" loading="lazy"
+      alt="一条 rollout 的 r(t):第 32 步报警后分叉,原噪声一路走低跑满 52 步失败,重采样那条回升并在第 40 步完成。">
+    <figcaption><span class="figtag">图 2</span>那次救援的读数。白线是共享历史,红圈是报警;
+      橙线(原噪声)跑满 52 步失败,蓝线(重采样)8 步完成。三条曲线都是实测,
+      蓝线取自服务端的路由日志。</figcaption>
+  </figure>
+
+  <p>8 条重采样里 3 条成功。原本必败的一条 rollout,在警报指着的那一步换了条噪声,8 步做完了任务。
+    <b>检测第一次闭环成了干预。</b></p>
+
+  <p>边界同样是测出来的,一条不藏:</p>
+
+  <ul>
+    <li><b>不是每个状态都救得回。</b>另一个初始状态,同一套流程,0/8。警报读数分不出这两种。</li>
+    <li><b>时刻本身并不特殊。</b>对照组在报警前随机挑一步分叉,同样 3/8。
+      警报的价值是"知道该出手了",不是"挑中了最佳瞬间"。</li>
+    <li><b>pattern 选不出该执行哪条。</b>8 条候选里挑"路由变化最大"的那条,失败了;
+      救回的恰是变化最小的一条(n=1,方向与直觉相反)。</li>
+    <li><b>没有预警。</b>警报中位落在全程 54% 处;在那之前,单步读数与掷硬币无异。
+      它是"已经卡了"的读数,不是"要出事了"的预言。</li>
+  </ul>
+
+  <figure>
+    <img src="assets/fig_candidates.png" loading="lazy"
+      alt="报警那一步 8 个候选的路由变化条形图:全部高于卡住的主干,但变化最大的失败、被执行救回的是最小的。">
+    <figcaption><span class="figtag">图 3</span>报警那一步的 8 个候选:换任何一条噪声,
+      pattern 都比卡住的主干(0.42)动得多 —— 这印证了检测机制;
+      但幅度选不出赢家。</figcaption>
+  </figure>
+
+  <h2>收尾</h2>
+
+  <p class="em">轨迹是模型做过的事,pattern 是它当时的状态。
+    前者要等到终点才盖章,后者在半路就把话说完了 —— 而那份日志,模型每一步都在写,
+    只是从来没人去读。仪表一直亮着,我们只是第一次看了它一眼。</p>
+
+  <hr>
+  <p class="foot">50 秒动画版:<a href="live.html">pattern —— 一部关于路由的短片</a> ·
+    本文全部曲线为实测(图 1–3 由 352/512 条语料与服务端路由日志重绘),
+    数据与脚本见 <code>analysis_online_2026-08-29/</code> 与 <code>analysis_triggered_fork/</code> ·
+    <a href="en.html">English version</a></p>
+</article>
+</body>
+</html>

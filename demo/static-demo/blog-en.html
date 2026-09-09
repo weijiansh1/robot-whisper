@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The state the tokens never showed — HiMoE</title><link rel="stylesheet" href="fonts.css">
+<meta name="description" content="Something first seen in language models — a neuron's internal state holds information the tokens never show — carried over to a cooking robot, and grew a full sequel: the failure becomes visible, and rescuable.">
+<style>
+/* ===================================================================
+   Scientific Broadsheet — same design tokens as cckfdu-site.
+   Light = warm ivory broadsheet (default/day) · Dark = luminous night.
+   Display: Fraunces · Body: Hanken Grotesk · Data/labels: IBM Plex Mono
+   =================================================================== */
+:root{
+  --bg:#0A0E15; --bg2:#0C1119; --panel:#10151F; --panel2:#121826;
+  --ink:#E9E3D4; --gray:#9A9486; --faint:#8F897A;
+  --line:rgba(222,212,182,.13); --line-strong:rgba(222,212,182,.26);
+  --teal:#2FE0C8; --gold:#FFC95B; --green:#49E39B; --red:#FF6E78;
+  --shadow:0 22px 55px -26px rgba(0,0,0,.72);
+  --grain-blend:soft-light; --grain-op:.05;
+  --maxw:1140px; --rad:5px;
+  --serif:"Fraunces","Noto Serif SC",Georgia,serif;
+  --sans:"Hanken Grotesk",system-ui,-apple-system,Segoe UI,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+[data-theme="light"]{
+  --bg:#F1EBDD; --bg2:#EAE2D0; --panel:#FBF7EE; --panel2:#F5F0E3;
+  --ink:#1D1A14; --gray:#5B5448; --faint:#6E6757;
+  --line:rgba(29,26,20,.15); --line-strong:rgba(29,26,20,.32);
+  --teal:#0C6E61; --gold:#8C5E0E; --green:#1B7A44; --red:#AC372B;
+  --shadow:0 22px 48px -30px rgba(60,48,22,.40);
+  --grain-blend:multiply; --grain-op:.055;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-weight:400;line-height:1.6;
+  font-size:clamp(15.5px,.34vw + 14.6px,17px);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:2;pointer-events:none;
+  opacity:var(--grain-op);mix-blend-mode:var(--grain-blend);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+::selection{background:var(--teal);color:var(--bg)}
+
+.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:1em;padding-block:12px}
+.brand{font-family:var(--mono);font-weight:600;font-size:.86rem;letter-spacing:.05em}
+.brand i{font-style:normal;color:var(--teal)}
+.top nav{margin-left:auto;display:flex;gap:1.2em;font-family:var(--mono);font-size:.78rem;color:var(--gray)}
+.top nav a:hover{color:var(--ink)}
+.tool{border:1px solid var(--line-strong);background:none;border-radius:99px;width:30px;height:30px;
+  color:var(--ink);cursor:pointer;font-size:.9rem;font-family:var(--mono);display:grid;place-items:center}
+
+.wrap{max-width:var(--maxw);margin-inline:auto;padding-inline:clamp(22px,5vw,48px)}
+.section{padding-block:clamp(56px,9vh,110px);position:relative}
+
+.post-header{max-width:70ch;margin:0 auto clamp(28px,5vw,46px)}
+.post-header time{font-family:var(--mono);color:var(--gold);font-size:.84rem;letter-spacing:.04em}
+.post-header h1{font-family:var(--serif);font-weight:500;font-size:clamp(2rem,4.5vw,3.1rem);
+  line-height:1.08;letter-spacing:-.012em;margin:.5rem 0 0}
+
+figcaption{font-family:var(--mono);font-size:.8rem;color:var(--gray);margin-top:1rem;
+  line-height:1.65;letter-spacing:.01em}
+.figtag{color:var(--gold);font-weight:600;margin-right:.7em;white-space:nowrap}
+.figwide{margin:clamp(32px,5vw,52px) 0;text-align:center}
+.figwide figcaption{max-width:84ch;margin-inline:auto;text-align:left}
+.figwide img,.figwide video{background:#FBFAF6;padding:15px;border-radius:4px;margin-inline:auto;
+  border:1px solid rgba(40,34,20,.16);box-shadow:var(--shadow);width:100%}
+[data-theme="dark"] .figwide img,[data-theme="dark"] .figwide video{border-color:rgba(255,255,255,.10);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 26px 60px -28px rgba(0,0,0,.85)}
+.post-fig{max-width:70ch;margin-inline:auto}
+.post-fig figcaption{max-width:none}
+.vidpair{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:70ch;margin:clamp(28px,4vw,40px) auto}
+@media(max-width:640px){.vidpair{grid-template-columns:1fr}}
+.vidpair figure{margin:0;text-align:center}
+.vidpair figcaption{text-align:left;margin-top:.7rem}
+
+/* ---- 视频对:一键同播 ---- */
+.vidpair{position:relative}
+.vidpair video{pointer-events:none}
+.pairplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
+  width:64px;height:64px;border-radius:50%;border:1px solid rgba(255,255,255,.35);
+  background:rgba(10,14,21,.55);backdrop-filter:blur(3px);color:#fff;cursor:pointer;
+  font-size:22px;display:grid;place-items:center;transition:opacity .25s,transform .15s}
+.pairplay:hover{transform:translate(-50%,-50%) scale(1.06)}
+.vidpair.playing .pairplay{opacity:0}
+.vidpair.playing:hover .pairplay{opacity:1}
+
+.tag-ok{color:var(--green);font-weight:600}.tag-bad{color:var(--red);font-weight:600}
+
+.prose{max-width:70ch;margin-inline:auto;font-size:1.06rem}
+.prose>*{margin-block:0}
+.prose>*+*{margin-top:1.2rem}
+.prose p{color:var(--ink);line-height:1.78}
+.prose h2{font-family:var(--serif);font-weight:500;font-size:1.7rem;margin:2.2rem 0 .4rem}
+.prose a{color:var(--teal);border-bottom:1px solid var(--line)}
+.prose a:hover{color:var(--ink)}
+.prose code{font-family:var(--mono);font-size:.9em;background:var(--panel2);padding:.12em .4em;border-radius:3px}
+.prose blockquote{border-left:3px solid var(--teal);margin-inline:0;padding-left:1.2em;
+  font-family:var(--serif);font-style:italic;color:var(--gray)}
+.prose ul{padding-left:1.3em;color:var(--ink)}
+.prose li{margin:.4rem 0;line-height:1.7}
+.prose b,.prose strong{font-weight:650}
+.foot{max-width:70ch;margin:clamp(40px,6vw,64px) auto 0;padding-top:22px;
+  border-top:1px solid var(--line-strong);font-family:var(--mono);font-size:.8rem;
+  color:var(--gray);line-height:1.8}
+.foot a{color:var(--teal);border-bottom:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="blog-en.html"><i>◆</i>&nbsp;HiMoE-VLA</a>
+  <nav>
+    <a href="viz-trap.html">trap&nbsp;animation</a>
+    <a href="live.html?lang=en">film</a>
+    <a href="blog-zh.html">中文</a>
+  </nav>
+  <button class="tool" id="theme" aria-label="toggle theme">◐</button>
+</div></header>
+
+<article class="section">
+  <div class="wrap">
+    <header class="post-header">
+      <time datetime="2026-08-30">2026-08-30</time>
+      <h1>The state the tokens never showed</h1>
+    </header>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_rescue.png" loading="eager"
+        alt="Routing-change ratio of one robot rollout. A white line carries the shared history; a red ring marks the alarm at control step 32. After it the orange line, continuing on the original sampling noise, sinks and fails at the 52-step horizon, while the blue line, resampled at the alarm from the same saved state, climbs back above the criterion and finishes at step 40. A dashed line marks the threshold 0.95.">
+      <figcaption><span class="figtag">Fig. 1 · HiMoE-VLA</span>The whole story in one plot:
+        a rollout runs online, the routing alarm fires at step 32, and the run forks right
+        there. Original noise — 52 steps, failure. One fresh noise stream from the same
+        state — done in 8. All three curves are measured.</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>This story starts with a different kind of model.</p>
+
+      <p>On reasoning LLMs we built a thing called <b>NAD</b> (Neuron Activation
+        Distribution): while the model answers, record the activation distribution of tens
+        of thousands of neurons — never reading what it wrote, only these internal states.
+        The result: among many sampled answers to the same question, <b>the neuron activity
+        alone picks out the one more likely to be right</b>. Confidence and hesitation are
+        not written into the tokens, but the internal state carries them.</p>
+
+      <p>It left one question open: is this a quirk of language models, or a property of
+        large models in general?</p>
+
+      <p>Carry the same idea into embodied AI: would the inside of a VLA model hold a
+        similar signal? We took a cooking robot to find out. Its "words" are not text but
+        twenty joint actions per second; it too can "think wrong" — not a wrong answer,
+        but an arm frozen mid-air, or shuttling between two pots until time runs out. The two rollouts below start from a <b>bit-identical simulator state</b>, run
+        the same model, and differ in exactly one thing: the noise stream used for
+        sampling. The left one puts both pots on the stove in 19 seconds. The right one
+        struggles for the full 26, times out, and fails.</p>
+    </div>
+
+    <div class="vidpair figwide">
+      <figure><video src="video/success.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-ok">Success</span> — 38 control steps, both pots placed.</figcaption></figure>
+      <figure><video src="video/failure.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-bad">Failure</span> — all 52 steps spent; retry after
+        retry until the horizon.</figcaption></figure>
+    </div>
+
+    <div class="prose">
+      <p>Whatever separates these two runs never appears in any token. The action stream
+        keeps flowing, the trajectory keeps extending, every frame looks like work being
+        done. To tell them apart <em>while they are still running</em>, the output is the
+        wrong place to look.</p>
+
+      <h2>Part one — what a trap looks like in the physical world</h2>
+
+      <p>First, the failure itself. Sample 32 rollouts from one initial state — again, only
+        the noise differs — and 14 succeed while 18 fall into a trap, on a 52-step budget.</p>
+
+      <p>We call this whole family of failures a <b>trap</b>: the rollout keeps running,
+        but its progress is already dead. It wears two main faces — an arm hanging mid-air,
+        nearly motionless, consecutive frames identical; or an arm shuttling between the two
+        pots, returning to the same spot again and again, plenty of path and zero progress.
+        <b>Two looks, one condition: caught in a trap.</b></p>
+
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_trap.png" loading="lazy"
+        alt="Distance-to-goal curves for 32 rollouts from one initial state: 14 blue lines descend through the 5-centimetre goal radius; 18 orange lines flatten halfway down and stay there for all 52 steps.">
+      <figcaption><span class="figtag">Fig. 2</span>The physical definition of a trap, in
+        one look: 32 rollouts from the same initial state, differing only in noise, each
+        drawn as distance to the goal pose. 14 blue lines descend through the 5 cm goal
+        radius; the 18 trapped runs' orange lines <b>flatten halfway down</b> — the robot keeps moving, but
+        never gets closer. The criterion uses simulator poses only; no MoE involved.</figcaption>
+    </figure>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_heat.png" loading="lazy"
+        alt="Four heatmaps: control step on x, the 32 experts on y, brightness counting how many of the layer's 10 action tokens picked each expert. The top row (shallow L4) flickers on both sides; in the bottom row (deep L14) the success keeps flickering while the trap develops horizontal stripes after its onset.">
+      <figcaption><span class="figtag">Fig. 3</span>What the router is choosing, moment by
+        moment. Each cell counts how many of the layer's 10 action tokens picked that expert
+        (top-4 of 32); top row shallow L4, bottom row deep L14; left a success, right a trap.
+        Watch the bottom-right: after the onset (red dashes) it develops <b>horizontal
+        stripes</b> — the same few experts picked step after step, never swapped. The success
+        keeps flickering, and both shallow panels keep churning.</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>The rest is a grab-bag of <em>still moving, but doing the wrong thing</em>: pots
+        lifted and dropped, placed and then dragged away
+        (all 32 trajectories, <a href="viz-trap.html">frame by frame against the deep-layer
+        routing</a>).</p>
+
+      <p>From the token side, three limits you cannot get around:</p>
+
+      <ul>
+        <li><b>The action stream won't tell you.</b> A stuck model still emits a full,
+          well-formed action chunk every step — ten numbers, right format, normal
+          magnitudes. No error, no silence. The failure happens in the form of perfectly
+          normal output.</li>
+        <li><b>Length has two readings.</b> A long trajectory might mean the problem is
+          hard, or that the run is already stuck. The two call for opposite responses —
+          wait it out versus cut it off — but the trace shows one symptom: long.</li>
+        <li><b>The verdict comes at the finish line.</b> The success predicate stamps only
+          when the episode ends. By the time failure is "confirmed", the 26 seconds are
+          spent.</li>
+      </ul>
+
+      <h2>Part two — the neurons knew all along</h2>
+
+      <p>This VLA is a Mixture-of-Experts model: inside certain layers, a small group of
+        neurons acts as a dispatcher, scoring 32 experts at every control step and lighting
+        up the top 4 to handle that step. Which four are lit — call that roster the
+        <b>pattern</b>.</p>
+
+      <p>While the arm is working, the pattern reshuffles step after step. The moment the
+        arm stalls, the pattern freezes: the same four pathways stay lit until the clock
+        runs out. <b>The trap is written right there, inside the neurons</b> — while the
+        action stream shows nothing at all.</p>
+
+      <p>So the detector can afford to be one sentence long: count how much the pattern
+        changes per step, divide by this rollout's <b>own opening rate</b> to get a
+        dimensionless ratio <code>r(t)</code>, and fire when it spends <b>three consecutive
+        steps below θ = 0.95</b>. No learning, no calibration, four constants, all frozen
+        in advance.</p>
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_fan.png" loading="lazy"
+        alt="A fan of 352 routing-ratio curves, blue for success and orange for failure; a dot marks each branch's alarm step, red dots crowding the failure side.">
+      <figcaption><span class="figtag">Fig. 4</span>r(t) for 352 branches (22 saved states
+        × 16 noise streams). Orange = failure (235), blue = success (117); each dot is that
+        branch's alarm. Alarms land at steps 18–36, median 28 — just past halfway.</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>On that corpus the rule calls <b>80.1%</b> of rollouts correctly against a 66.8%
+        majority-guess baseline. On a second, independently collected corpus of 512
+        rollouts it calls <b>82.0%</b> against 57.8% — <b>with the same threshold</b>.
+        Because the ratio divides by the rollout's own opening, θ is a dimensionless
+        number, and the false-alarm rates the two corpora produce at any given θ agree
+        within two points, bracket by bracket.</p>
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_transfer.png" loading="lazy"
+        alt="False-alarm rate versus one shared threshold; the two corpora's curves nearly coincide across five brackets.">
+      <figcaption><span class="figtag">Fig. 5</span>One θ, two corpora: the false-alarm
+        rates line up (gaps 0–2 points). Continuous probability distances fail this test;
+        the counting ratio's discrete grid pins the scale down.</figcaption>
+    </figure>
+
+    <div class="prose">
+      <p>The false alarms deserve their own sentence. Of 203 alarms, 19 land on runs that
+        ultimately succeed — and those 19 are the <em>slow</em> successes, median length 48
+        steps against 39 overall. They really did stall, then walked out of it. So the
+        alarm's semantics are <b>"this run is stuck right now"</b>, not "this run is
+        doomed". That distinction pays off below.</p>
+
+      <h2>Part three — an honest word about why it works</h2>
+
+      <p>The first time the deep-layer pattern froze on screen, it looked like magic —
+        until the control experiment made it soberingly plain:</p>
+
+      <blockquote>Robot stuck → observation unchanged → router input unchanged → of course
+        the experts don't change. The routing's stickiness correlates with the input's own
+        stability at r = +0.93; regress the input out, and the routing metric collapses to
+        chance.</blockquote>
+
+      <p>The neurons are not an oracle. They are a <b>free state sensor</b>: they
+        faithfully write "the physical world has stopped moving" into a log the model
+        produces anyway. Mundane is precisely why it is dependable — nothing mystical, so
+        nothing fails mystically. And <em>free</em> is meant literally: expert selection is
+        a by-product of the MoE forward pass, so reading it adds no inference and no
+        probe.</p>
+
+      <p>One counter-intuitive detail. <em>Which</em> neurons are lit carries almost no
+        outcome information — the static roster identifies the initial scene at nearly
+        100% accuracy yet is nearly useless about success once scenes are held out.
+        <b>Identity is a fingerprint of the scene; change is the state.</b> The ratio above
+        is invariant to renumbering the experts, so it takes only the latter.</p>
+
+      <h2>One more thinking — can it be rescued, live?</h2>
+
+      <p>An alarm that only keeps score is a dashboard nobody reads. So the last experiment
+        used it as a trigger: a fresh rollout runs online — threshold and all constants
+        frozen beforehand — and the alarm fires at step 32. <b>At that exact step</b> the
+        full simulator state is saved, and eight fresh noise streams are run out of it.</p>
+    </div>
+
+    <div class="vidpair figwide">
+      <figure><video src="video/rescue_trunk.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-bad">Original noise, continued</span> — 26.0 s,
+        52 steps, fails at the horizon.</figcaption></figure>
+      <figure><video src="video/rescue_ok.mp4" muted playsinline preload="metadata"></video>
+        <figcaption><span class="tag-ok">Resampled at the alarm</span> — same state, one
+        new noise stream, done in 3.9 s.</figcaption></figure>
+    </div>
+
+    <div class="prose">
+      <p>Three of the eight resamples succeed. A rollout headed for certain failure swapped
+        its noise at the step the alarm pointed to, and finished in eight.
+        <b>Detection closed into intervention.</b></p>
+
+      <p>The limits were measured the same way, and none are hidden:</p>
+
+      <ul>
+        <li><b>Not every state is rescuable.</b> Another initial state, same procedure:
+          0 of 8. Nothing in the alarm reading tells the two apart.</li>
+        <li><b>The moment is not special.</b> A control arm forked at a random earlier step
+          also rescued 3 of 8. The alarm's value is knowing <em>that</em> it is time to act
+          — not having found the perfect instant.</li>
+        <li><b>The pattern cannot pick the winner.</b> Among the eight candidates, the one
+          with the largest routing change failed; the rescue happened to be the smallest
+          (n = 1, and the direction ran against intuition).</li>
+        <li><b>No early warning.</b> The median alarm lands at 54% of the horizon; before
+          that, single-step readings are coin flips. It reads <em>already stuck</em>, it
+          does not prophesy <em>about to be</em>.</li>
+      </ul>
+    </div>
+
+    <figure class="figwide post-fig">
+      <img src="assets/fig_candidates.png" loading="lazy"
+        alt="Bar chart of routing change for the eight candidates sampled at the alarm: all above the stuck trunk, yet the largest change failed and the executed rescue was the smallest.">
+      <figcaption><span class="figtag">Fig. 6</span>The eight candidates at the alarm step:
+        any fresh noise moves the pattern more than the stuck trunk (0.42) — corroborating
+        the mechanism — but magnitude does not pick winners.</figcaption>
+    </figure>
+
+    <div class="prose">
+      <h2>The takeaway</h2>
+
+      <p>A trajectory is what the model did. The pattern is what state it was in. The first
+        gets stamped only at the finish line; the second says its piece halfway through —
+        in a log the model writes at every step, that nobody had read. The gauge was on the
+        whole time. We just finally looked at it.</p>
+    </div>
+
+    <p class="foot">The 50-second animated version:
+      <a href="live.html?lang=en">pattern — a short film about routing</a> ·
+      frame-by-frame traps: <a href="viz-trap.html">the routing-freeze animation</a> ·
+      every curve in this post is measured; data and scripts live in
+      <code>analysis_online_2026-08-29/</code> and <code>analysis_triggered_fork/</code> ·
+      <a href="blog-zh.html">中文版</a></p>
+  </div>
+</article>
+
+<script>
+const root=document.documentElement;
+const saved=localStorage.getItem('theme');
+root.dataset.theme=saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+document.getElementById('theme').addEventListener('click',()=>{
+  root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+  localStorage.setItem('theme',root.dataset.theme);
+});
+
+/* 视频对:点一次,两段一起从头播;再点一起暂停。
+   单独的原生控制条藏掉(pointer-events:none),避免两段被分别拖开。 */
+document.querySelectorAll('.vidpair').forEach(pair=>{
+  const vids=[...pair.querySelectorAll('video')];
+  vids.forEach(v=>v.removeAttribute('controls'));
+  const btn=document.createElement('button');
+  btn.className='pairplay'; btn.textContent='▶'; btn.setAttribute('aria-label','一起播放');
+  pair.appendChild(btn);
+  let playing=false;
+  const sync=()=>{
+    if(playing){ vids.forEach(v=>v.pause()); playing=false; btn.textContent='▶'; }
+    else{
+      vids.forEach(v=>{ v.currentTime=0; v.play(); });
+      playing=true; btn.textContent='❚❚';
+    }
+    pair.classList.toggle('playing',playing);
+  };
+  btn.addEventListener('click',sync);
+  pair.addEventListener('click',e=>{ if(e.target!==btn) sync(); });
+  // 两段都放完后归位(短的那段结束后停在末帧,等长的)
+  let ended=0;
+  vids.forEach(v=>v.addEventListener('ended',()=>{
+    ended++;
+    if(ended>=vids.length){ ended=0; playing=false; btn.textContent='↺';
+      pair.classList.remove('playing'); }
+  }));
+});
+</script>
+</body>
+</html>

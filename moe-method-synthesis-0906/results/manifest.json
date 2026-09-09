@@ -1,0 +1,272 @@
+{
+  "schema": "himoe.method_synthesis.manifest.v1",
+  "bundle": "moe-method-synthesis-0906",
+  "generated_utc": "2026-09-06T06:38:04.676627+00:00",
+  "purpose": "Accounting and structure analysis over already-computed alarm vectors.  No detector was built, no feature was re-derived and no threshold was re-fitted; every first-alarm vector is read exactly as its bundle published it.",
+  "conventions": {
+    "risk": "original_failure - did not finish before the original horizon cap",
+    "caps": {
+      "libero_goal": 30,
+      "libero_long": 52,
+      "libero_object": 28,
+      "libero_spatial": 22
+    },
+    "in_window": "first alarm chunk < 0.65 x suite cap",
+    "false_positive": "in-window alarm on a non-risk episode",
+    "fpr": "FP / number of non-risk episodes",
+    "lift_basis": "per-task survival prior; the suite-matched basis is also recorded in detector_census.csv but is known to be anti-conservative and is not used for any claim",
+    "ties": "no feature threshold is re-fitted here, so the strict-> versus >= tie rule does not bind; every count threshold used (vote k, budget B, family cut) is inclusive",
+    "length": "negative control only.  Risk is defined as failing to finish before the cap, so a length-at-cap alarm recalls 100% by construction; is_baseline=False in the census and it is excluded from every ranking",
+    "selection": "detector families, family representatives and greedy orders are all chosen on development_main; external_8b is scored once",
+    "in_sample_arms": "anything tagged ORACLE_* or *_IN_SAMPLE selects on external outcomes and is an upper bound only",
+    "nulls": "every clustering, overlap and complementarity statistic carries a rate-matched random arm with per-suite firing rates preserved"
+  },
+  "cohorts": {
+    "external_8b": {
+      "episodes": 15600,
+      "risks": 564,
+      "run_id": "right-50x8b-20260903"
+    },
+    "development_main": {
+      "episodes": 14800,
+      "risks": 487,
+      "run_id": "right-50x8-20260903"
+    }
+  },
+  "inputs": {
+    "moe-prior-correction-0906/experiments/recompute_task_matched_lift.py": {
+      "exists": true,
+      "sha256": "b1abf495223bb3b3bedc5a832f9076cc91624048a7f40a644bf49558d945bd15"
+    },
+    "moe-v7-0905/experiments/evaluate_intrinsic_guard_v7.py": {
+      "exists": true,
+      "sha256": "804e8ef8c15f96d4081e2cde6694293b3675978b0a49486f4dcc9ff0b60f6e0d"
+    },
+    "moe-v7-0905/experiments/loso_folds.py": {
+      "exists": true,
+      "sha256": "2b23efabaacbf7a3e5eb23af131397efa9a48acd640e0eee1cb060249c44917c"
+    },
+    "moe-v7-0905/results/intrinsic_guard_v7/sealed_first_alarms.npz": {
+      "exists": true,
+      "sha256": "cfe102ef21b3a9c6dc1935359cdb448efe821108bd16d5ddd963cc2ffe5d9345"
+    },
+    "moe-v7-0905/results/intrinsic_guard_v7/sealed_manifest.json": {
+      "exists": true,
+      "sha256": "26578f9e7ad7ea9f918a1a937f29edf778dd36117564c1debd6731334e92e119"
+    },
+    "VLA_MUI_HUB/physical-failure-labels/results/episodes.csv": {
+      "exists": true,
+      "sha256": "4a8450fcb5ae26e470402fe8bd70f1933e6ea8007d59fe41bfe6d31d6aac0365"
+    },
+    "moe-circuit-analogy-0906/results/detectors/external_first_alarms.npz": {
+      "exists": true,
+      "sha256": "19f006e1f763783af76055cbdab83f3881cc4ec375a40838de88de8f81e2ac39"
+    },
+    "moe-flow-semantics-0906/results/step_alarm/external_first_alarms.npz": {
+      "exists": true,
+      "sha256": "2729f32d61cad229d5bf409a87ec1e3e6623c56adfa9f167cf74cefaa33fbd81"
+    },
+    "moe-state-channel-0906/results/detectors/external_first_alarms.npz": {
+      "exists": true,
+      "sha256": "029313c20ac9002d4e8482404c7a6135f0722bf08cb37aacf2446de053aed2cb"
+    },
+    "moe-token-geometry-0906/results/detection/external_first_alarms.npz": {
+      "exists": true,
+      "sha256": "44490c730f8df9cdbe031951b17cd35e7db902297800c278cc1e21e711050c08"
+    },
+    "moe-two-tier-0906/results/external_first_alarms.npz": {
+      "exists": true,
+      "sha256": "92627b80a9657c74b7f1f5ca2352e51e946c5fbd89cd03f8ef9c39862bd71a91"
+    },
+    "moe-two-tier-0906/results/development_first_alarms.npz": {
+      "exists": true,
+      "sha256": "872023c50f0304b7aa4043f95358fe8752070b124712f7cca19f93457e66cb38"
+    },
+    "moe-failure-modes-0906/results/first_alarms_external.npz": {
+      "exists": true,
+      "sha256": "63c2761b443b1e75f2cc5a9d05da3ed8f54a0b88112085105286de6cdfa29fb8"
+    },
+    "moe-failure-modes-0906/results/first_alarms_development.npz": {
+      "exists": true,
+      "sha256": "2d94bf01ba13fcf7aa242a93dbc5df535a3edf6fd1296f33729e4f18a8494d51"
+    },
+    "moe-combination-rules-0906/results/alarms/external_8b_alarms.npz": {
+      "exists": true,
+      "sha256": "78afdcc642c145e52f03feac5a8c423938d1a0ecf0c853e511a8894a90627bad"
+    },
+    "moe-combination-rules-0906/results/alarms/development_main_alarms.npz": {
+      "exists": true,
+      "sha256": "4d04cfb57d872fce0662ee126818f728ab89634b159fbbf12e3fb5ade17fc7aa"
+    },
+    "moe-v4-0904/results/layerwise_mobility/external_8b.npz": {
+      "exists": true,
+      "sha256": "851729f60a33c69b623afde2e8ee6e2d5f56905d36b8d0cbe66172113b789d01"
+    },
+    "moe-v4-0904/results/layerwise_mobility/main_reference.npz": {
+      "exists": true,
+      "sha256": "42f41a3ebf28a79070d958bdf3acb4c1af832047a7b7904a7f7368d89ab42fdc"
+    }
+  },
+  "outputs": {
+    "alarm_overlap.csv": {
+      "bytes": 74351,
+      "sha256": "e900e2c0823415a546d8642e3f114d2807555df33232a0649b4a7abc078c2ec4"
+    },
+    "blindspot.json": {
+      "bytes": 5665,
+      "sha256": "e4aa840053623ba9641fba12143fd07295b76cdb5b84686dd955b12f17024651"
+    },
+    "blindspot_matrix.csv": {
+      "bytes": 140890,
+      "sha256": "d3cdf5162e756ec9a457d6f41b1f8c3b9574581003872ead54e890eb601631aa"
+    },
+    "census.json": {
+      "bytes": 1776,
+      "sha256": "664f83bc6697671ea483a8fe94d7b38f2e7ec1ef5bc2e60e6c122792d22fee4c"
+    },
+    "combination_frontier.csv": {
+      "bytes": 47571,
+      "sha256": "19f04a2ff6b1ccac0dd64244590f1d46bf27b998b495939d05cefa47ee9ccc72"
+    },
+    "combination_null.csv": {
+      "bytes": 1236,
+      "sha256": "80728bf6b7097ee5e3f889ea463f9ed9ebc08f0edc84ead2ccc3131d4d3d09ea"
+    },
+    "complementarity.json": {
+      "bytes": 302,
+      "sha256": "17d74addf69024e69204eddbad17e0479a2479d864b8c7c17e276ff340f629c2"
+    },
+    "coverage.json": {
+      "bytes": 526,
+      "sha256": "ab98c144feb5f41a050703ef4df9e2f6d7cc13dbacc764d43c309601269122cc"
+    },
+    "coverage_ledger.csv": {
+      "bytes": 14532,
+      "sha256": "35f52982f5c07ba2c28b3a00f5f211435d44a27c3e34b61b6affcd8fc397b3c3"
+    },
+    "detector_census.csv": {
+      "bytes": 432042,
+      "sha256": "42209e7d1592d62d5cbf9592bb6072271bd7aea9ef3793ad280c76e82e4cb17f"
+    },
+    "duplicate_groups.csv": {
+      "bytes": 138384,
+      "sha256": "61cd31aede19beee01de9d903b72fc28914ae8a89a5ee4a78b970e1a3ae56ded"
+    },
+    "episode_ledger_development_main.csv.gz": {
+      "bytes": 100346,
+      "sha256": "32f85e1de6634603437985c1c8220d6282865957fc26ffefc1e33ae9266bed5b"
+    },
+    "episode_ledger_external_8b.csv.gz": {
+      "bytes": 106110,
+      "sha256": "c5198fcbe7d1fa8e0cada23d97ab41a86f8a85d4f9c4e2ad93a187d66c2e60ef"
+    },
+    "families.csv": {
+      "bytes": 100391,
+      "sha256": "373c807a61f9cc5ab84628b27aecf375080f033aab8210b1e98feb34713193ac"
+    },
+    "families.json": {
+      "bytes": 4133,
+      "sha256": "991e85dcf0d45d7040e30b1daeeea5c15a80b7f5b7e8e3b5035c16d0c3789093"
+    },
+    "family_cut_profile.csv": {
+      "bytes": 13397,
+      "sha256": "32d54e7c43d436b0086c58857a0978cfa79066d238209602e57abb6763222b3c"
+    },
+    "family_labels.npz": {
+      "bytes": 11265,
+      "sha256": "d4a19a8745b4df5951a763122dd1683558b9df9e7b6dfdf0bf428c84bc959f49"
+    },
+    "family_pair_complementarity.csv": {
+      "bytes": 32872,
+      "sha256": "6e2f77a80bf6e34efb12ebb1404d2a9c2832d8d7fdff7dc45d8bfcd275cb984b"
+    },
+    "family_representatives.csv": {
+      "bytes": 8413,
+      "sha256": "10dd42c10e36b82d4c9b7895a1153cc97bcad95267bf30ab49a9e67a513a529b"
+    },
+    "fp_ledger.json": {
+      "bytes": 14293,
+      "sha256": "3f5dfab0ccff0d93f1a913d069b98a95219b6b70f99f6f52b233ddfae3f25fb2"
+    },
+    "fp_profile.csv": {
+      "bytes": 61771,
+      "sha256": "ff26a11becdb20d9a229bb539a84153b91bdee6e9bd95119bc34399ce15282e7"
+    },
+    "headroom.json": {
+      "bytes": 343,
+      "sha256": "3d16e37c52b1578c8fb0a46550b96c01af73ab8e7a29bc6d6b274d3e403fa308"
+    },
+    "headroom_ceiling.csv": {
+      "bytes": 17004,
+      "sha256": "30b4b14c72a273cd3d31117c1d5b73d6acec021b5d93e11687f97b84906f6aa7"
+    },
+    "headroom_null.csv": {
+      "bytes": 841,
+      "sha256": "465cfcdf09510838c369cbe77c70984ee295d67abf7a7f9c9416afad0d994192"
+    },
+    "heavy_fp_by_task.csv": {
+      "bytes": 23668,
+      "sha256": "dd1191378d8f33f0841e0267e179ca4ceb5b67cd41957733c7774493a15795c5"
+    },
+    "honest_operating_points.csv": {
+      "bytes": 9326,
+      "sha256": "2d70cdb5a08bed38cbe0b243d6a53f0414233057894907f0b705515278025f98"
+    },
+    "honesty_gap.csv": {
+      "bytes": 1589,
+      "sha256": "1661e09fec6b4b7c5d575b0c4fdae40d6ddcdde21c1b3cefe2f0c7f072aa70aa"
+    },
+    "irreducible_fp.json": {
+      "bytes": 179,
+      "sha256": "ad44c5cf09aa5f6f5dbce2e20d9da44c12a00000ee7ca0b882c033daac625cd5"
+    },
+    "irreducible_fp_tests.csv": {
+      "bytes": 1783,
+      "sha256": "f8a6b3952dfd4646290cb9d8020185e75fa0cf8edf03e90185692ef11e48141b"
+    },
+    "key_numbers.json": {
+      "bytes": 107497,
+      "sha256": "102a70f5de5b3fa0adda1a5ea786c780dff94b9359449fd329321836ac3d4790"
+    },
+    "saturation_curve.csv": {
+      "bytes": 23555,
+      "sha256": "58fe4d9dc85cd77f5404304c83d240db552e75d1cb0b1c96cd00976d24420a11"
+    },
+    "sole_catcher.csv": {
+      "bytes": 10597,
+      "sha256": "2e727f8a96f074b735d06152980a5d14ca9a4d0f75867445de8fb9416e3255e0"
+    },
+    "synthesis_overview.png": {
+      "bytes": 187303,
+      "sha256": "319abc20dee582244c5d8f5eeda3cf73363722f2c63643f7b423046472fe3b4c"
+    },
+    "uncaught_profile.csv": {
+      "bytes": 95879,
+      "sha256": "85461aa07083e4fb6ec1e098579c309f2e190564c636dbe6c4563b9816485561"
+    },
+    "uncaught_routing_contrast.csv": {
+      "bytes": 8737,
+      "sha256": "38288d278fbe24f102f935afb125a7fdfeea6113da302ac669ee2da487f18975"
+    },
+    "vote_decomposition.csv": {
+      "bytes": 146664,
+      "sha256": "0439bb3895a4e6b6bd53d31ff1767c2cf32e6a2adb3d0e3573229ce4d1fe934d"
+    }
+  },
+  "experiments": [
+    "synth_core.py - loading, alignment, physical-mode join, nulls",
+    "ledger_core.py - development-only family representative selection",
+    "census.py - per-detector scoring and duplicate detection",
+    "families.py - clustering by alarm set, three similarities, null arm",
+    "coverage_ledger.py - part 1, coverage ledger and saturation",
+    "fp_ledger.py - part 2, false alarm ledger and vote decomposition",
+    "blindspot.py - part 4, family x physical failure mode",
+    "complementarity.py - part 5, combination frontiers and null",
+    "irreducible_fp.py - stratified tests on multi-vote false alarms",
+    "headroom.py - matched-external-FP ceiling versus honest arms",
+    "summarise.py - assembles results/key_numbers.json"
+  ],
+  "not_touched": [
+    "moe-unified-detector-0906 (concurrent work, never read or written)"
+  ]
+}

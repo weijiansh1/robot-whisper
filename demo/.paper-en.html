@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>When the arm gets stuck, does the model know? — Online detection & rescue from MoE routing</title>
+<meta name="description" content="A MoE VLA writes a routing log for free at every control step. One self-normalised ratio reads it: failure becomes visible mid-rollout (80.1%/82.0% correct on two independent corpora at a single shared threshold), and firing the alarm buys a rescue — a rollout that ran 52 steps and failed finishes in 8 after resampling the noise at the alarm step.">
+<style>
+:root{
+  --bg:#0b0f14; --panel:#0e141b; --panel2:#101820; --line:#1d2833; --tick:#38495a;
+  --ink:#e8eef3; --dim:#8b9aa7; --faint:#5d6d7b;
+  --ok:#5aa9e6; --bad:#e08c4a; --alarm:#f0644a; --gold:#e8c56a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.8 -apple-system,"Segoe UI",Inter,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:var(--ok);text-decoration:none}
+a:hover{text-decoration:underline}
+b,strong{font-weight:650;color:var(--ink)}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px}
+.serif{font-family:Georgia,"Times New Roman",serif}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+.hero{min-height:92vh;display:grid;place-items:center;position:relative;
+  background:
+    radial-gradient(1100px 520px at 78% -10%,rgba(90,169,230,.10),transparent 60%),
+    radial-gradient(900px 480px at 12% 108%,rgba(224,140,74,.08),transparent 60%),
+    var(--bg)}
+.hero__in{max-width:880px;padding:96px 24px;text-align:left}
+.eyebrow{font-size:13px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;margin:0 0 18px}
+h1{margin:0;font-size:clamp(30px,5.4vw,52px);line-height:1.18;font-weight:700;letter-spacing:.01em}
+h1 .hl{color:var(--ok)}
+.hero__sub{margin:22px 0 0;font-size:clamp(15px,2vw,18px);color:var(--dim);max-width:46em}
+.chip{display:inline-flex;align-items:center;gap:10px;margin-top:26px;padding:9px 16px;
+  border:1px solid var(--line);border-radius:999px;background:var(--panel);font-size:13.5px;color:var(--dim)}
+.chip__dot{width:8px;height:8px;border-radius:50%;background:var(--alarm);box-shadow:0 0 10px var(--alarm)}
+.poem{margin:30px 0 0;font-style:italic;color:var(--faint);font-size:15px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
+.btn{display:inline-block;padding:11px 22px;border:1px solid var(--tick);border-radius:8px;
+  color:var(--ink);font-size:14.5px;transition:border-color .2s,background .2s}
+.btn:hover{border-color:var(--ok);text-decoration:none;background:rgba(90,169,230,.06)}
+.btn--primary{background:var(--ok);border-color:var(--ok);color:#06131d;font-weight:650}
+.btn--primary:hover{background:#7ebbee}
+.lang{position:absolute;top:22px;right:26px;font-size:13.5px;color:var(--faint)}
+.scrolldn{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);color:var(--faint);font-size:12px;letter-spacing:.2em}
+.section{padding:96px 0}
+.section--alt{background:var(--panel)}
+.kicker{font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:0 0 14px}
+.kicker b{color:var(--gold);font-weight:700}
+h2{margin:0 0 18px;font-size:clamp(23px,3.4vw,32px);line-height:1.3;font-weight:700}
+.lede{font-size:17px;color:var(--dim);max-width:46em;margin:0 0 34px}
+.lede b{color:var(--ink)}
+figure{margin:38px 0}
+figure img{width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+figcaption{margin-top:12px;font-size:13.8px;color:var(--dim);line-height:1.7}
+.figtag{display:inline-block;margin-right:.7em;padding:1px 8px;border:1px solid var(--tick);
+  border-radius:4px;font-size:11.5px;color:var(--faint);letter-spacing:.06em;vertical-align:1px}
+.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:34px}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px}
+.card__num{font-size:12px;color:var(--faint);letter-spacing:.15em}
+.card h3{margin:8px 0 8px;font-size:16.5px}
+.card p{margin:0;font-size:14.3px;color:var(--dim);line-height:1.75}
+.steps{list-style:none;margin:34px 0 0;padding:0;display:grid;gap:14px}
+.steps li{display:grid;grid-template-columns:74px 1fr;gap:18px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+.steps__k{font-family:ui-monospace,SFMono-Regular,monospace;font-size:13px;color:var(--gold);padding-top:3px}
+.steps h3{margin:0 0 6px;font-size:16px}
+.steps p{margin:0;font-size:14.3px;color:var(--dim)}
+.note{margin-top:26px;padding:16px 20px;border-left:3px solid var(--tick);background:var(--panel2);
+  border-radius:0 10px 10px 0;font-size:14.3px;color:var(--dim)}
+.qdx{list-style:none;margin:34px 0 0;padding:0;display:grid;gap:10px}
+.qdx a{display:grid;grid-template-columns:70px 1fr;gap:16px;align-items:baseline;
+  padding:16px 20px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);
+  color:var(--ink);transition:border-color .2s}
+.qdx a:hover{border-color:var(--ok);text-decoration:none}
+.qdx__n{font-size:12.5px;letter-spacing:.14em;color:var(--gold);text-transform:uppercase}
+.qdx__q{font-size:16px;font-weight:650}
+.qdx__a{grid-column:2;font-size:13.8px;color:var(--dim);margin-top:2px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:34px 0 0}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:18px 18px 14px}
+.stat b{display:block;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{display:block;margin-top:4px;font-size:12.8px;color:var(--dim);line-height:1.6}
+.vids{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:38px 0}
+@media(max-width:720px){.vids{grid-template-columns:1fr}}
+.vid{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.vid video{width:100%;border-radius:8px;background:#000;display:block}
+.vid figcaption{margin-top:10px}
+.vid .tag{font-weight:700;font-size:13.5px}
+.tag--ok{color:var(--ok)} .tag--bad{color:var(--bad)}
+.live{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:34px;background:#000}
+.live iframe{display:block;width:100%;height:640px;border:0}
+table{width:100%;border-collapse:collapse;margin:30px 0 0;font-size:14.3px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--faint);font-weight:600;font-size:12.8px;letter-spacing:.06em;text-transform:uppercase}
+td{color:var(--dim)} td b{font-variant-numeric:tabular-nums}
+.footer{padding:70px 0 90px;color:var(--faint);font-size:13.8px}
+.footer a{color:var(--dim)}
+hr.sep{border:0;border-top:1px solid var(--line);margin:0}
+code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.92em;color:var(--gold);
+  background:rgba(232,197,106,.07);padding:1px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <div class="lang">EN · <a href="index.html">中文</a></div>
+  <div class="hero__in">
+    <p class="eyebrow reveal">HiMoE-VLA · KITCHEN_SCENE8 · put both moka pots on the stove</p>
+    <h1 class="reveal">When the arm gets stuck,<br><span class="hl">does the model know?</span></h1>
+    <p class="hero__sub reveal">A VLA keeps failing in simulation: the arm freezes mid-air, or circles
+      between the two pots until time runs out. Its MoE router writes a log at every control step
+      that nobody reads. We read it — and the failure turns out to be <b>visible</b> in that log,
+      early enough that <b>something can still be done about it</b>.</p>
+    <div class="chip reveal"><span class="chip__dot"></span>
+      <b>routing alarm&nbsp;→&nbsp;resample in place&nbsp;→&nbsp;rescue</b></div>
+    <p class="poem serif reveal">A trajectory is what the model did. The routing is what state it was in.</p>
+    <div class="cta reveal">
+      <a class="btn btn--primary" href="#acts">Watch the rescue</a>
+      <a class="btn" href="live.html?lang=en">Watch the 50-second film</a>
+      <a class="btn" href="#q">The five questions</a>
+    </div>
+  </div>
+  <span class="scrolldn">SCROLL</span>
+</header>
+
+<!-- ============================ IDEA ============================ -->
+<section class="section" id="idea">
+  <div class="wrap">
+    <p class="kicker reveal">The one idea</p>
+    <h2 class="reveal">Failure is not a behaviour. It is a state — and the state is in the routing.</h2>
+    <p class="lede reveal">At every control step of this π0-style VLA, a router names a top-4 out of
+      32 experts. While the arm is working, that roster keeps turning over with the observation;
+      <b>the moment the arm stalls, the observation freezes — and so does the roster</b>.
+      So there is no need to watch pixels or add sensors. Count how much of this step's roster
+      overlaps with the last step's, and the failure shows itself.</p>
+
+    <figure class="reveal">
+      <img src="assets/fig_rescue.png" loading="lazy"
+        alt="Routing-change ratio of one rollout. A white line carries the shared history; a red ring marks the alarm at step 32; after it the orange line (original noise) sinks and fails at the 52-step horizon while the blue line (resampled) climbs back and finishes at step 40. The dashed line is the criterion at 0.95.">
+      <figcaption><span class="figtag">Fig. 1</span>
+        The whole story in one plot. A rollout runs online; <b>the routing alarm fires at step 32</b>
+        (red ring). The simulator state is saved at that exact step and one fresh flow-noise stream
+        is executed — the blue line <b>finishes the task in 8 steps</b>. The original noise carries on —
+        the orange line runs the full 52 steps and fails. <b>All three curves are measured routing</b>;
+        the blue one is pulled from the server's route store (episode 170002002). Nothing here is a sketch.</figcaption>
+    </figure>
+
+    <div class="pillars">
+      <article class="card reveal"><span class="card__num">01</span>
+        <h3>The log is free</h3>
+        <p>Expert selection is a by-product of the MoE forward pass — the model cannot run without
+        making the choice. Reading it adds no inference, no probe, no instrumentation.</p></article>
+      <article class="card reveal"><span class="card__num">02</span>
+        <h3>One ratio is enough</h3>
+        <p>Routing change over the last 4 steps ÷ the rollout's own first 8. Dimensionless — so a
+        single fixed threshold works across scenes and across corpora, with no per-group calibration.</p></article>
+      <article class="card reveal"><span class="card__num">03</span>
+        <h3>The alarm cashes out</h3>
+        <p>The alarm step is not a verdict, it is a trigger: save state, resample, and a doomed
+        rollout comes back. Detection closes into intervention for the first time.</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ METHOD ============================ -->
+<section class="section section--alt" id="method">
+  <div class="wrap">
+    <p class="kicker reveal">How the log is read</p>
+    <h2 class="reveal">Three steps: set overlap → self-normalise → persistence.</h2>
+    <p class="lede reveal">The readout is kept deliberately dumb — no learning, no calibration,
+      four free parameters in total. Each step has a graveyard behind it: every smarter variant
+      we tried lost to it.</p>
+
+    <ol class="steps">
+      <li class="reveal"><span class="steps__k">top-4</span><div>
+        <h3>Count set overlap, ignore expert identity</h3>
+        <p>Between adjacent control steps, each (layer × token) site compares its two top-4 rosters:
+        <code>1 − |∩| / |∪|</code>, averaged over HB layers 12–15 × 10 action tokens. Renumber all
+        32 experts and <b>not one digit changes</b> — the score asks "is it still the same crew",
+        never "which crew". That is not hygiene: the static identity recovers the initial scene at
+        99.6–100% accuracy, yet is worth only +2.2 points on outcome once groups are held out strictly.
+        <b>Identity is a scene fingerprint. Change is state.</b></p></div></li>
+      <li class="reveal"><span class="steps__k">r(t)</span><div>
+        <h3>Divide by the rollout's own opening</h3>
+        <p><code>r(t) = mean of the last 4 distances ÷ mean of the own first 8</code>. The denominator
+        comes from the same rollout, so r is dimensionless — the threshold needs no per-scene tuning.
+        This one step is the entire reason the threshold transfers across corpora (Question Two).</p></div></li>
+      <li class="reveal"><span class="steps__k">K=3</span><div>
+        <h3>Three consecutive steps or nothing</h3>
+        <p>r(t) jitters ±10% around 1.0; even successful rollouts spend 9% of their steps below θ.
+        A single crossing means nothing. <b>Three consecutive steps below θ = 0.95</b> fire the alarm —
+        turning a nominal 25% crossing rate into an observed 5–16% false-alarm rate.</p></div></li>
+    </ol>
+
+    <p class="note reveal">Full configuration: <code>HB 12–15 · denoise 9 · action tokens · top-4 ·
+      W=4 · W₀=8 · K=3 · θ=0.95</code>. These constants were frozen on two corpora; every experiment
+      below — including the rescue — ran with them untouched.</p>
+  </div>
+</section>
+
+<!-- ===================== THE FIVE QUESTIONS ===================== -->
+<section class="section" id="q">
+  <div class="wrap">
+    <p class="kicker reveal">In the order you would ask them</p>
+    <h2 class="reveal">A readout has to clear five bars, in order.</h2>
+    <p class="lede reveal">A readout that sees nothing is a decoration; one you cannot obtain never
+      ships; an alarm that changes no decision is a dashboard nobody reads; and a result that will
+      not state its own limits should not be believed even when it clears the rest.</p>
+    <ol class="qdx">
+      <li class="reveal"><a href="#sees"><span class="qdx__n">One</span><span class="qdx__q">Does it see failure?</span>
+        <span class="qdx__a">Two independent corpora, 352 + 512 rollouts: 80.1% / 82.0% correct (baselines 66.8% / 57.8%).</span></a></li>
+      <li class="reveal"><a href="#free"><span class="qdx__n">Two</span><span class="qdx__q">Is the reading really free?</span>
+        <span class="qdx__a">The log exists natively — and one shared threshold lands within 2 points of the same false-alarm rate on both corpora.</span></a></li>
+      <li class="reveal"><a href="#acts"><span class="qdx__n">Three</span><span class="qdx__q">What can be done at the alarm?</span>
+        <span class="qdx__a">Save state, swap the noise: 3 of 8 resamples rescue; live, a 52-step failure becomes an 8-step success.</span></a></li>
+      <li class="reveal"><a href="#marks"><span class="qdx__n">Four</span><span class="qdx__q">What does it actually mark?</span>
+        <span class="qdx__a">Stalled — not doomed. 19 of 203 alarms later recovered on their own, and they really had stalled.</span></a></li>
+      <li class="reveal"><a href="#limits"><span class="qdx__n">Five</span><span class="qdx__q">What is it not?</span>
+        <span class="qdx__a">No early warning; cannot tell rescuable from hopeless; cannot pick which candidate to run. Each nailed by an experiment.</span></a></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ======================= ONE ======================= -->
+<section class="section section--alt" id="sees">
+  <div class="wrap">
+    <p class="kicker reveal"><b>One</b> · does it see failure</p>
+    <h2 class="reveal">Draw all 352 branches at once and the split is visible to the eye.</h2>
+    <p class="lede reveal">Corpus A is a deliberately awkward construction: 22 saved simulator states,
+      each fanned into 16 branches that differ <em>only</em> in their flow-noise stream.
+      <b>Same start, same task, only the noise changes — 117 succeed, 235 fail</b> —
+      and the routing pulls the two crowds apart.</p>
+
+    <figure class="reveal">
+      <img src="assets/fig_fan.png" loading="lazy"
+        alt="A fan of 352 r(t) curves, blue for success and orange for failure; a dot marks each branch's alarm step — red dots crowd the failure side, blue dots are sparse.">
+      <figcaption><span class="figtag">Fig. 2</span>
+        r(t) for all 352 branches. Orange = failure (235), blue = success (117);
+        <b>each dot is that branch's alarm step</b>: 184 red (failures caught), 19 blue (false alarms).
+        Alarms land at q18–q36, median q28 — 54% of the 52-step horizon.</figcaption>
+    </figure>
+
+    <div class="stats">
+      <div class="stat reveal"><b>80.1%</b><span>corpus A correct (352 rollouts, baseline 66.8%)</span></div>
+      <div class="stat reveal"><b>82.0%</b><span>corpus B correct (512 rollouts, baseline 57.8%)</span></div>
+      <div class="stat reveal"><b>78.3% / 16.2%</b><span>A: recall / false alarms</span></div>
+      <div class="stat reveal"><b>81.5% / 17.6%</b><span>B: recall / false alarms</span></div>
+    </div>
+
+    <p class="note reveal">The decision window sits inside the equal-opportunity interval where
+      every branch is still alive (A: τ&lt;37, B: t&lt;35) — each branch gets exactly the same
+      number of chances to trip. Open the window to the horizon and the same detector inflates
+      to 98%: those extra points are the free bit "it has not ended yet", not routing.
+      Every number on this page stays inside the clean window.</p>
+  </div>
+</section>
+
+<!-- ======================= TWO ======================= -->
+<section class="section" id="free">
+  <div class="wrap">
+    <p class="kicker reveal"><b>Two</b> · is the reading really free</p>
+    <h2 class="reveal">The log is free — and so is the threshold: one θ, two corpora.</h2>
+    <p class="lede reveal">"Free" has two layers. The shallow one: expert selection is a by-product of
+      the forward pass, so recording it costs nothing. The deep one: <b>because r(t) divides by the
+      rollout's own opening, the threshold is a dimensionless number</b> — set θ on corpus A,
+      carry it unchanged to corpus B, and the false-alarm rates line up bracket by bracket.
+      That is the kind of free that deploys.</p>
+
+    <figure class="reveal" style="max-width:640px">
+      <img src="assets/fig_transfer.png" loading="lazy"
+        alt="False-alarm rate versus one shared threshold theta; the corpus A and corpus B curves nearly coincide across five brackets from 0.875 to 0.975.">
+      <figcaption><span class="figtag">Fig. 3</span>
+        False-alarm rate produced by the same θ on two independently collected corpora — aligned
+        bracket by bracket (gaps 0–2 points, mean 1.4). Continuous probability distances (Hellinger and
+        friends) fail this test: even after self-normalising, their dispersion drifts with the corpus
+        and a transported θ scatters. <b>The counting ratio's discrete grid pins the scale down.</b></figcaption>
+    </figure>
+
+    <p class="lede reveal" style="margin-top:26px">One more question belongs here: the top-4 roster
+      contains expert numbers — is identity being smuggled in? We split the matched Hellinger
+      distance in two to check: <b>shape only</b> (sorted profile, no identity at all) scores 78.1%,
+      <b>identity permutation only</b> scores 74.4%, together 80.1%. The signal is mostly
+      "how concentrated the routing became"; identity is worth about two points — and the set-overlap
+      score, invariant to renumbering, takes the former.</p>
+  </div>
+</section>
+
+<!-- ======================= THREE ======================= -->
+<section class="section section--alt" id="acts">
+  <div class="wrap">
+    <p class="kicker reveal"><b>Three</b> · what can be done at the alarm</p>
+    <h2 class="reveal">A 52-step failure and an 8-step success — same state, different noise.</h2>
+    <p class="lede reveal">The detector is not a dashboard; it is a trigger. One rollout runs online
+      and fires at step 32. <b>At that exact step</b> the full simulator state is saved and eight
+      fresh flow-noise streams are run out of it. Left: the original noise's ending.
+      Right: one of the resamples. Both clips start from the same physical state.</p>
+
+    <div class="vids">
+      <figure class="vid reveal">
+        <video src="video/rescue_trunk.mp4" controls muted loop playsinline preload="metadata"></video>
+        <figcaption><span class="tag tag--bad">Original noise</span> — the arm probes back and forth
+        for 26.0 s (52 steps), runs out the horizon, task failed.</figcaption>
+      </figure>
+      <figure class="vid reveal">
+        <video src="video/rescue_ok.mp4" controls muted loop playsinline preload="metadata"></video>
+        <figcaption><span class="tag tag--ok">Resampled at the alarm</span> — same state, one new
+        noise stream, task done in 3.9 s (8 steps).</figcaption>
+      </figure>
+    </div>
+
+    <div class="stats">
+      <div class="stat reveal"><b>3 / 8</b><span>rescues among resamples at the alarm (init 7; the trunk itself fails)</span></div>
+      <div class="stat reveal"><b>q32 → q40</b><span>alarm at 62% of the horizon; the rescue finishes 8 steps later</span></div>
+      <div class="stat reveal"><b>26.0s → 3.9s</b><span>failure vs. rescue from the same state</span></div>
+      <div class="stat reveal"><b>θ untouched</b><span>detector constants frozen on two corpora; nothing tuned on this rollout</span></div>
+    </div>
+
+    <p class="note reveal">The point is <em>knowing when</em>. Without the detector you either fan
+      out eight branches at every step (compute explodes) or you let it die. The alarm compresses
+      the cost of intervening to a single moment. <b>The live run is n = 1</b>; the 8-way resample
+      from the same state (3/8) is its distributional backdrop.</p>
+  </div>
+</section>
+
+<!-- ======================= FOUR ======================= -->
+<section class="section" id="marks">
+  <div class="wrap">
+    <p class="kicker reveal"><b>Four</b> · what it actually marks</p>
+    <h2 class="reveal">Stalled — not doomed. The false alarms are evidence of that, not a flaw in it.</h2>
+    <p class="lede reveal">Of 203 alarms, 19 land on rollouts that ultimately succeed. Chase them down
+      and they are the <b>slow successes</b>: median length 48 steps against 39 overall. They
+      <b>really did stall</b> — they just walked out of it later. The detector read "this one has
+      stopped", and that sentence was true of them too.</p>
+    <p class="lede reveal">We tried to push the false alarms down: longer persistence, deeper
+      thresholds, monotonicity, cross-slice conjunctions inside the tensor (front block, other
+      denoise rounds, the state token all collapsing at once). <b>Every point of false alarms costs
+      two to four points of recall</b>, and no constraint beats plain "three consecutive steps" on
+      overall accuracy. Not because the constraints were badly designed: under a change-rate reading
+      the routing tensor has roughly one degree of freedom, so there is no second independent signal
+      to conjoin — and the "false alarms" being suppressed are genuine stalls.</p>
+    <p class="note reveal">From the intervention side this is the right semantics anyway: acting on
+      a struggling-but-eventually-successful rollout does no harm — those 19 also rescue under
+      resampling. <b>The alarm means: intervene now. It does not mean: already dead.</b></p>
+  </div>
+</section>
+
+<!-- ======================= FIVE ======================= -->
+<section class="section section--alt" id="limits">
+  <div class="wrap">
+    <p class="kicker reveal"><b>Five</b> · what it is not</p>
+    <h2 class="reveal">Three negatives, each nailed by an experiment.</h2>
+    <p class="lede reveal">This section is not a disclaimer. The limits were measured the same way
+      the claims were.</p>
+
+    <figure class="reveal" style="max-width:640px">
+      <img src="assets/fig_candidates.png" loading="lazy"
+        alt="Bar chart of routing change for the eight candidate chunks sampled at the alarm, all above the stuck trunk's 0.42; the largest-change candidate failed, and the executed rescue was the smallest.">
+      <figcaption><span class="figtag">Fig. 4</span>
+        The eight candidates at the alarm step: <b>any fresh noise moves the routing more than the
+        stuck trunk (0.42)</b> — which corroborates the detection mechanism. But the largest change
+        (c5) failed and the rescue (c1) was the smallest. <b>Magnitude does not pick winners.</b></figcaption>
+    </figure>
+
+    <table class="reveal">
+      <tr><th>Negative</th><th>Experiment</th><th>Numbers</th></tr>
+      <tr><td><b>No early warning</b></td><td>alarm-time distribution; per-step accuracy</td>
+        <td>earliest q18, median q28; before q28, single-step accuracy ≈ baseline. Footnote: the
+        first 16 steps are a warm-up blind spot — one genuine deep dip at q12–q17 was missed by construction</td></tr>
+      <tr><td><b>Cannot tell rescuable from hopeless</b></td><td>same procedure, two init states</td>
+        <td>init 7: 3/8 rescued; init 0: <b>0/8</b>. Nothing in the alarm reading predicts which</td></tr>
+      <tr><td><b>The moment is not special</b></td><td>control arm forking at a random earlier step</td>
+        <td>alarm step 3/8; random step (q19) also 3/8 — the detector's value is knowing <em>that</em>
+        an intervention is due, not having found the best instant</td></tr>
+      <tr><td><b>Cannot pick the candidate</b></td><td>execute max / random / min routing-change arms</td>
+        <td>max (0.704) failed; min (0.606) succeeded; n = 1, and the direction ran against intuition</td></tr>
+    </table>
+
+    <p class="note reveal">One more boundary, reported as data: replaying the same fork revealed
+      non-reproducibility in the continuations (the simulator snapshot likely misses some internal
+      state), so same-state comparisons cite the archived first run.</p>
+  </div>
+</section>
+
+<!-- ======================= LIVE ======================= -->
+<section class="section" id="live">
+  <div class="wrap">
+    <p class="kicker reveal">A film in five beats</p>
+    <h2 class="reveal">pattern — 50 seconds, from the reshuffle to the rescue.</h2>
+    <p class="lede reveal">It plays itself: ① what a pattern is; ② arm working vs arm stuck — reshuffling vs frozen;
+      ③ r(t) drawn, three consecutive dips, alarm; ④ the blue and orange crowds and the two headline scores;
+      ⑤ the fork — an 8-step success against a 52-step failure. Curves are schematic;
+      the numbers (80.1% · 82.0% · 8 steps · 52 steps · 26.0 s → 3.9 s) are all measured.</p>
+    <div class="live reveal"><iframe src="live.html?lang=en" title="pattern — the film" loading="lazy"></iframe></div>
+    <p style="margin-top:14px;font-size:13.5px;color:var(--faint)">
+      Too small embedded? <a href="live.html?lang=en">Watch full-screen ↗</a></p>
+  </div>
+</section>
+
+<!-- ======================= FOOTER ======================= -->
+<hr class="sep">
+<footer class="footer">
+  <div class="wrap">
+    <p><b style="color:var(--dim)">Data &amp; artifacts</b> —
+      Corpus A: rolling-star, 352 branches (22 states × 16 noise streams). Corpus B: HUB SCENE8,
+      512 episodes (16 init states × 32 seeds). The live intervention run:
+      <code>analysis_triggered_fork/</code> (manifests, per-step routing, all clips).
+      Detection protocol and every table: <code>analysis_online_2026-08-29/</code>
+      (FINDINGS / CORRECTIONS / 7 CSVs, regenerable in one command).</p>
+    <p>Every curve on this page is measured: the fan comes from the 352 branches' per-step routing,
+      and the rescue figure's three lines come from the collection run and the server's route store —
+      the server-side recomputation matches the client's online values digit for digit.
+      No sketched lines anywhere.</p>
+    <p><a href="index.html">中文版</a> · <a href="live.html?lang=en">the film</a></p>
+  </div>
+</footer>
+
+<script>
+const io=new IntersectionObserver(es=>{for(const e of es) if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
