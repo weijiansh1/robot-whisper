@@ -642,10 +642,12 @@ class RepairSession:
         return obs, steps
 
     # ------------------------------------------------------------------ feedback regulator v3
-    def _regulator_context(self, current, features, config, obs, alpha=None):
+    def _regulator_context(self, current, features, config, obs, alpha=None, z_offset=None):
         """Target (nearest unsatisfied object to the end effector), law and goal geometry; re-resolved every chunk."""
         if alpha is not None:
             config = dict(config, alpha=alpha)
+        if z_offset is not None:
+            config = dict(config, z_offset_m=z_offset)
         target = nearest_unsatisfied_target(self.env, eef_position(obs))
         name = target["name"]
         if name is None:
@@ -681,7 +683,7 @@ class RepairSession:
     def run_regulated(self, arm, physics, obs, steps, replicate, directory, branch, q0, monitor, writer):
         """VLA every chunk; the regulator edits each executed env step.  Twin: new_noise until the first edit."""
         features, config = REGULATOR_ARMS[arm]["features"], self.args.control["regulator"]
-        alpha = REGULATOR_ARMS[arm].get("alpha")
+        alpha, z_offset = REGULATOR_ARMS[arm].get("alpha"), REGULATOR_ARMS[arm].get("z_offset_m")
         fork_steps, context = int(steps), {}
         self._regulator_engaged = True
         branch.update(twin="new_noise", first_extra_intervention_query=None, features=list(features), handback_step=0,
@@ -690,7 +692,7 @@ class RepairSession:
         while not branch["success"] and branch["action_steps"] < WINDOW_STEPS:
             index = branch["queries"]
             q = q0 + index
-            context = self._regulator_context(context, features, config, obs, alpha)
+            context = self._regulator_context(context, features, config, obs, alpha, z_offset)
             request, response, inference = self.query(obs, noise_for(self.args.main_id, replicate, index, 0))
             branch["deployment_model_queries"] += 1
             alarm = monitor.update(response[PROBS_KEY])
@@ -732,10 +734,12 @@ class RepairSession:
         spec = self.args.control
         config, main_rows = spec["regulator"], list(records(self.parent / "main"))
         self.report["episodes"] = []
-        self.report["c0"] = dict(status="running", kind="episodes", compared_queries=0, parent_main_id=self.args.main_id,
-                                 parent_commit_sha256=self.task["parent_commit_sha256"])
+        self.report["c0"] = dict(status="running" if "vla" in spec["arms"] else "passed", kind="episodes", compared_queries=0,
+                                 parent_main_id=self.args.main_id, parent_commit_sha256=self.task["parent_commit_sha256"],
+                                 fidelity_anchor="vla" in spec["arms"])
         for arm in spec["arms"]:
             features, engage, alpha = EPISODE_ARMS[arm]["features"], EPISODE_ARMS[arm]["engage"], EPISODE_ARMS[arm].get("alpha")
+            z_offset = EPISODE_ARMS[arm].get("z_offset_m")
             for replicate in range(int(spec["replicates"])):
                 directory = self.args.output / "episodes" / arm / ("repeat%d" % replicate)
                 directory.mkdir(parents=True, exist_ok=False)
@@ -755,7 +759,7 @@ class RepairSession:
                     while not success and steps < HORIZON_STEPS:
                         index = episode["queries"]
                         if features:
-                            context = self._regulator_context(context, features, config, obs, alpha)
+                            context = self._regulator_context(context, features, config, obs, alpha, z_offset)
                             if context["regulator"] is not None:
                                 context["regulator"].engaged = self._regulator_engaged
                         noise = self.rng.standard_normal((10, 24)).astype(np.float32) if replicate == 0 else noise_for(self.args.main_id, replicate, index, 0)

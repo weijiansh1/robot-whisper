@@ -202,12 +202,14 @@ REGULATOR_ARMS = {
     "shared_approach": dict(features=["close_gate", "shared"]),
     "shared_full": dict(features=["close_gate", "shared", "carry", "release_gate"]),
     "shared_full_alpha1": dict(features=["close_gate", "shared", "carry", "release_gate"], alpha=1.0),
+    "shared_full_z10": dict(features=["close_gate", "shared", "carry", "release_gate"], z_offset_m=0.10),
 }
 EPISODE_ARMS = {
     "vla": dict(features=[], engage="never"),
     "shared_full": dict(features=["close_gate", "shared", "carry", "release_gate"], engage="always"),
     "shared_full_alarmed": dict(features=["close_gate", "shared", "carry", "release_gate"], engage="knn_alarm"),
     "shared_full_alpha1": dict(features=["close_gate", "shared", "carry", "release_gate"], alpha=1.0, engage="always"),
+    "shared_full_z10": dict(features=["close_gate", "shared", "carry", "release_gate"], z_offset_m=0.10, engage="always"),
 }
 CONTRACT_V3 = dict(CONTRACT,
     repair="no switching: the VLA runs every chunk; a shared-control law edits each executed env step: "

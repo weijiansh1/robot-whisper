@@ -120,9 +120,10 @@ def run(args):
         for a in plan["episode_arms"]:
             if a == "vla":
                 continue
-            wins = sum(1 for v in by.values() if v.get(a) and not v.get("vla"))
-            losses = sum(1 for v in by.values() if v.get("vla") and not v.get(a))
-            pairs[a] = dict(pairs=len(by), wins=wins, losses=losses)
+            both = [v for v in by.values() if a in v and "vla" in v]
+            wins = sum(1 for v in both if v[a] and not v["vla"])
+            losses = sum(1 for v in both if v["vla"] and not v[a])
+            pairs[a] = dict(pairs=len(both), wins=wins, losses=losses)
         summary["episodes_paired_vs_vla_" + label] = pairs
     per_parent = defaultdict(lambda: defaultdict(list))
     for r in ef:
