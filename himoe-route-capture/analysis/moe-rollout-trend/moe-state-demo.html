@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HiMoE-VLA · MoE computation-state atlas</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101315;
+      --ink: #edf2ef;
+      --muted: #8f9c96;
+      --line: #34413c;
+      --green: #56d6a6;
+      --red: #ff6b60;
+      --gold: #f2bf5b;
+      --blue: #62a9ff;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); }
+    body {
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+    }
+    button, select, input { font: inherit; letter-spacing: 0; }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 2px;
+    }
+
+    .topbar {
+      position: relative;
+      z-index: 20;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #14191a;
+    }
+    .brand { flex: 0 0 145px; }
+    .brand strong { display: block; font-size: 14px; line-height: 1.2; }
+    .brand span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .task-control { flex: 1 1 320px; min-width: 220px; }
+    .selection-controls { display: flex; flex: 0 1 465px; gap: 8px; min-width: 330px; }
+    .scene-control { flex: 0 1 178px; min-width: 130px; }
+    .route-control { flex: 1 1 279px; min-width: 190px; }
+    .task-control, .scene-control, .route-control { position: relative; }
+    .control-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    select {
+      width: 100%;
+      height: 38px;
+      padding: 7px 32px 7px 10px;
+      color: var(--ink);
+      border: 1px solid #47534f;
+      border-radius: 4px;
+      background: #1b2221;
+    }
+    .metric-control {
+      flex: 0 0 150px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+      border: 1px solid #47534f;
+      border-radius: 4px;
+    }
+    .metric-control button {
+      height: 36px;
+      padding: 0 8px;
+      color: var(--muted);
+      border: 0;
+      border-right: 1px solid #47534f;
+      background: #1b2221;
+      cursor: pointer;
+      font-size: 10px;
+    }
+    .metric-control button:last-child { border-right: 0; }
+    .metric-control button.active { color: #111614; background: #dce7e2; font-weight: 700; }
+    .transport { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      color: var(--ink);
+      border: 1px solid #47534f;
+      border-radius: 4px;
+      background: #1b2221;
+      cursor: pointer;
+    }
+    .icon-button:hover { background: #25302c; }
+    .icon-button.primary { color: #111614; border-color: var(--gold); background: var(--gold); }
+    .view-links { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+    .view-link { color: #b9c5c0; text-decoration: none; font-size: 10px; white-space: nowrap; }
+    .view-link:hover { color: #fff; }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      height: calc(100dvh - 66px);
+      min-height: 590px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    #state-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .story {
+      position: absolute;
+      z-index: 5;
+      top: 25px;
+      left: 28px;
+      width: min(520px, 42vw);
+      pointer-events: none;
+    }
+    .chapter-line { display: flex; align-items: center; gap: 10px; color: var(--gold); font-size: 11px; font-weight: 700; }
+    .chapter-line::after { content: ""; width: 62px; height: 1px; background: var(--gold); }
+    .story h1 { margin: 9px 0 6px; font-size: 25px; line-height: 1.18; font-weight: 680; }
+    .story p { max-width: 500px; margin: 0; color: #acb8b2; font-size: 12px; line-height: 1.55; }
+    .equation {
+      position: absolute;
+      z-index: 5;
+      top: 38px;
+      left: 54%;
+      color: #dce8e2;
+      font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
+      font-size: 21px;
+      pointer-events: none;
+    }
+    .equation .accent { color: var(--gold); }
+
+    .readout {
+      position: absolute;
+      z-index: 6;
+      top: 126px;
+      right: 24px;
+      width: 300px;
+      padding-left: 16px;
+      border-left: 2px solid #41504a;
+      pointer-events: none;
+    }
+    .readout-k { color: var(--gold); font-family: "Cambria Math", serif; font-size: 29px; line-height: 1; }
+    .readout dl { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; margin: 15px 0 12px; }
+    .readout dt { color: var(--muted); font-size: 10px; }
+    .readout dd { margin: 0; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .readout dd.active { color: var(--blue); }
+    .readout dd.distance { color: var(--red); }
+    .readout dd.dynamics { color: var(--green); }
+    .readout dd.contribution { color: var(--gold); }
+    .readout p { margin: 0; padding-top: 10px; color: #b4c0ba; border-top: 1px solid var(--line); font-size: 10px; line-height: 1.5; }
+
+    .microscope {
+      position: absolute;
+      z-index: 6;
+      right: 24px;
+      bottom: 124px;
+      width: 300px;
+      pointer-events: none;
+    }
+    .microscope header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+    .microscope strong { color: #dce6e1; font-size: 10px; }
+    .microscope span { color: var(--muted); font-size: 9px; }
+    #denoise-canvas { width: 300px; height: 142px; display: block; }
+    .micro-note { margin: 5px 0 0; color: #718079; font-size: 8px; line-height: 1.4; }
+
+    .legend {
+      position: absolute;
+      z-index: 5;
+      left: 28px;
+      bottom: 112px;
+      display: flex;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 9px;
+      pointer-events: none;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 8px; height: 8px; border-radius: 50%; }
+    .legend .success { background: var(--green); }
+    .legend .failure { background: var(--red); }
+    .legend .focus { border: 2px solid var(--gold); background: transparent; }
+    .legend .band { width: 13px; border-radius: 1px; background: rgba(86, 214, 166, 0.2); }
+
+    .timeline {
+      position: absolute;
+      z-index: 8;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 96px;
+      padding: 15px 28px 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(16, 19, 21, 0.97);
+    }
+    .timeline-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .timeline-label { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .timeline-label strong { color: #dbe4e0; font-size: 11px; }
+    #chunk-range { width: min(850px, 68vw); accent-color: var(--gold); cursor: pointer; }
+    .nodes { position: relative; width: min(850px, 68vw); height: 30px; margin: 5px auto 0; }
+    .node {
+      position: absolute;
+      top: 0;
+      height: 28px;
+      padding: 6px 0 0;
+      color: #67746e;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      font-size: 10px;
+      transform: translateX(-50%);
+    }
+    .node.edge-start { transform: none; }
+    .node.edge-end { transform: translateX(-100%); }
+    .node::before {
+      content: "";
+      position: absolute;
+      top: -3px;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #53605b;
+      transform: translateX(-50%);
+    }
+    .node.past { color: #9aa7a1; }
+    .node.past::before { background: #99aaa2; }
+    .node.active { color: var(--gold); font-weight: 700; }
+    .node.active::before { width: 9px; height: 9px; top: -5px; background: var(--gold); }
+
+    .state-tooltip {
+      position: absolute;
+      z-index: 15;
+      min-width: 170px;
+      padding: 8px 10px;
+      color: #eef4f1;
+      border: 1px solid #52615b;
+      border-radius: 4px;
+      background: rgba(18, 23, 22, 0.97);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(10px, -110%);
+      font-size: 10px;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+    }
+    .state-tooltip.show { opacity: 1; }
+    .state-tooltip strong { display: block; font-size: 11px; }
+    .state-tooltip .ok { color: var(--green); }
+    .state-tooltip .bad { color: var(--red); }
+    .error { display: none; max-width: 620px; margin: 80px auto; padding: 20px; color: #fff; border-left: 3px solid var(--red); }
+
+    @media (max-width: 1040px) {
+      .brand { flex-basis: 120px; }
+      .brand span { display: none; }
+      .task-control { min-width: 180px; }
+      .selection-controls { min-width: 260px; }
+      .metric-control { flex-basis: 126px; }
+      .view-links { display: none; }
+      .readout, .microscope { width: 250px; right: 15px; }
+      #denoise-canvas { width: 250px; }
+    }
+
+    @media (max-width: 620px) {
+      .topbar {
+        height: 154px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: 34px 42px 42px;
+        padding: 9px 12px;
+      }
+      .brand { grid-column: 1; grid-row: 1; }
+      .transport { grid-column: 2; grid-row: 1; }
+      .task-control { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
+      .selection-controls {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr);
+        min-width: 0;
+      }
+      .scene-control, .route-control { min-width: 0; }
+      .metric-control {
+        position: absolute;
+        z-index: 10;
+        top: 274px;
+        right: 12px;
+        width: 116px;
+        height: 30px;
+      }
+      .metric-control button { height: 28px; font-size: 8px; }
+      .view-links { display: none; }
+      .stage { height: calc(100dvh - 154px); min-height: 560px; }
+      .story { top: 14px; left: 14px; width: calc(100% - 28px); }
+      .chapter-line { font-size: 9px; }
+      .story h1 { margin-top: 6px; font-size: 19px; }
+      .story p { display: none; }
+      .equation { top: 88px; left: 14px; font-size: 15px; }
+      .readout {
+        top: auto;
+        right: 12px;
+        bottom: 190px;
+        left: 12px;
+        width: auto;
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        align-items: center;
+        gap: 7px 10px;
+        padding: 8px 0 0;
+        border-top: 1px solid var(--line);
+        border-left: 0;
+      }
+      .readout-k { grid-row: 1; font-size: 22px; }
+      .readout dl { grid-column: 2; grid-row: 1; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: auto auto; gap: 2px 5px; margin: 0; }
+      .readout dt { overflow: hidden; font-size: 6px; white-space: nowrap; text-overflow: ellipsis; }
+      .readout dd { font-size: 8px; white-space: nowrap; }
+      .readout dt:nth-of-type(1) { grid-column: 1; grid-row: 1; }
+      .readout dd:nth-of-type(1) { grid-column: 1; grid-row: 2; }
+      .readout dt:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+      .readout dd:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+      .readout dt:nth-of-type(3) { grid-column: 3; grid-row: 1; }
+      .readout dd:nth-of-type(3) { grid-column: 3; grid-row: 2; }
+      .readout dt:nth-of-type(4) { grid-column: 4; grid-row: 1; }
+      .readout dd:nth-of-type(4) { grid-column: 4; grid-row: 2; }
+      .readout p { display: none; }
+      .microscope { right: 12px; bottom: 105px; left: 12px; width: auto; height: 76px; }
+      .microscope header { margin-bottom: 3px; }
+      #denoise-canvas { width: 100%; height: 54px; }
+      .micro-note { display: none; }
+      .legend { display: none; }
+      .timeline { height: 102px; padding: 13px 12px 8px; }
+      .timeline-label { display: none; }
+      #chunk-range, .nodes { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><strong>HiMoE-VLA</strong><span>MoE computation-state atlas</span></div>
+    <label class="task-control">
+      <span class="control-label">任务</span>
+      <select id="task-select" aria-label="选择任务"></select>
+    </label>
+    <div class="selection-controls">
+      <label class="scene-control">
+        <span class="control-label">初始状态</span>
+        <select id="scene-select" aria-label="选择初始状态"></select>
+      </label>
+      <label class="route-control">
+        <span class="control-label">焦点 rollout</span>
+        <select id="route-select" aria-label="选择焦点 rollout"></select>
+      </label>
+    </div>
+    <div class="metric-control" id="metric-control" aria-label="纵轴指标">
+      <button class="active" type="button" data-metric="churn">churn</button>
+      <button type="button" data-metric="revision">d0→d9</button>
+    </div>
+    <div class="transport">
+      <button class="icon-button" id="replay" type="button" title="重新播放" aria-label="重新播放">&#8634;</button>
+      <button class="icon-button primary" id="play" type="button" title="暂停" aria-label="暂停">&#10074;&#10074;</button>
+    </div>
+    <nav class="view-links" aria-label="相关视图">
+      <a class="view-link" href="./trajectory-demo.html">物理路线 &#8599;</a>
+      <a class="view-link" href="./demo.html">统计 &#8599;</a>
+    </nav>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="state-canvas" role="img" aria-label="成功与失败 rollout 的 MoE computation-state 相图"></canvas>
+
+    <section class="story" aria-live="polite">
+      <div class="chapter-line"><span id="chapter-number">01</span><span id="chapter-label">SAME OBSERVATION, DIFFERENT COMPUTATION</span></div>
+      <h1 id="chapter-title">相同起点，MoE 已产生不同内部路线</h1>
+      <p id="chapter-copy">每个点是一条 active rollout 在当前单个 action chunk 内的 HB routing 状态，不使用前后 chunk 的内部特征。</p>
+    </section>
+
+    <div class="equation" id="equation">R<sub>k,0:9</sub> <span class="accent">&#8594;</span> (D<sub>safe</sub>, C<sub>denoise</sub>)</div>
+
+    <aside class="readout">
+      <div class="readout-k" id="readout-k">k0</div>
+      <dl>
+        <dt>active risk set</dt><dd class="active" id="active-count">0S / 0F</dd>
+        <dt>safe-distance gap</dt><dd class="distance" id="distance-gap">n/a</dd>
+        <dt id="dynamic-gap-label">churn gap</dt><dd class="dynamics" id="dynamic-gap">n/a</dd>
+        <dt>routed contribution</dt><dd class="contribution" id="contribution-gap">n/a</dd>
+      </dl>
+      <p id="reading">横轴是距同期成功 routing 质心的百分位；纵轴是当前 chunk 内 10 次去噪的 routing churn 百分位。</p>
+    </aside>
+
+    <aside class="microscope">
+      <header><strong>HB routed-output RMS gap</strong><span id="micro-label">k0 · failure − success</span></header>
+      <canvas id="denoise-canvas" role="img" aria-label="四个 HB 层十次去噪的 routed output RMS 成功失败差异"></canvas>
+      <p class="micro-note">任务级 mixed-state 均值 · 行：L2 / L5 / L12 / L15 · 列：d0–d9 · 仅 k0–k8</p>
+    </aside>
+
+    <div class="legend">
+      <span><i class="success"></i>最终成功</span>
+      <span><i class="failure"></i>最终失败</span>
+      <span><i class="focus"></i>焦点 rollout</span>
+      <span><i class="band"></i>active success IQR</span>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-top">
+        <span class="timeline-label"><strong>closed-loop chunk k</strong> · 点只使用当前 chunk 的 MoE routing</span>
+        <input id="chunk-range" type="range" min="0" max="8" step="0.01" value="0" aria-label="chunk 播放位置">
+        <span class="timeline-label" id="time-label">k0.00 / k8</span>
+      </div>
+      <div class="nodes" id="nodes"></div>
+    </div>
+
+    <div class="state-tooltip" id="state-tooltip"></div>
+  </main>
+
+  <section class="error" id="error"><h2>MoE 状态数据未加载</h2><p>请确认页面与 <code>demo-data.js</code> 位于同一目录。</p></section>
+
+  <script src="./demo-data.js"></script>
+  <script src="./moe-state-demo.js"></script>
+</body>
+</html>

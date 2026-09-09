@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HiMoE-VLA · Same-state rollout routes</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101315;
+      --ink: #edf2ef;
+      --muted: #8f9c96;
+      --grid: #27302d;
+      --green: #56d6a6;
+      --red: #ff6b60;
+      --gold: #f2bf5b;
+      --blue: #62a9ff;
+      --line: #34413c;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); }
+    body {
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+    }
+    button, select, input { font: inherit; letter-spacing: 0; }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 2px;
+    }
+
+    .topbar {
+      position: relative;
+      z-index: 20;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #14191a;
+    }
+    .brand { flex: 0 0 auto; min-width: 146px; }
+    .brand strong { display: block; font-size: 14px; line-height: 1.2; }
+    .brand span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .task-control { min-width: 245px; flex: 1 1 350px; }
+    .selection-controls { display: flex; flex: 0 1 470px; gap: 8px; min-width: 330px; }
+    .scene-control { flex: 0 1 175px; min-width: 125px; }
+    .rollout-control { flex: 1 1 275px; min-width: 190px; }
+    .task-control, .scene-control, .rollout-control { position: relative; }
+    .control-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    select {
+      width: 100%;
+      height: 38px;
+      padding: 7px 34px 7px 10px;
+      color: var(--ink);
+      border: 1px solid #47534f;
+      border-radius: 4px;
+      background: #1b2221;
+    }
+    .transport { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      color: var(--ink);
+      border: 1px solid #47534f;
+      border-radius: 4px;
+      background: #1b2221;
+      cursor: pointer;
+    }
+    .icon-button:hover { background: #25302c; }
+    .icon-button.primary { color: #111614; border-color: var(--gold); background: var(--gold); }
+    .speed-control {
+      display: grid;
+      grid-template-columns: repeat(3, 38px);
+      overflow: hidden;
+      margin-left: 6px;
+      border: 1px solid #47534f;
+      border-radius: 4px;
+    }
+    .speed-control button {
+      height: 36px;
+      padding: 0;
+      color: var(--muted);
+      border: 0;
+      border-right: 1px solid #47534f;
+      background: #1b2221;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .speed-control button:last-child { border-right: 0; }
+    .speed-control button.active { color: #111614; background: #dce7e2; font-weight: 700; }
+    .page-links { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; }
+    .appendix-link {
+      flex: 0 0 auto;
+      color: #b9c5c0;
+      text-decoration: none;
+      font-size: 11px;
+    }
+    .appendix-link:hover { color: #fff; }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      height: calc(100dvh - 66px);
+      min-height: 560px;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    #route-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+    .story {
+      position: absolute;
+      z-index: 5;
+      top: 28px;
+      left: 28px;
+      width: min(490px, 40vw);
+      pointer-events: none;
+    }
+    .chapter-line { display: flex; align-items: center; gap: 10px; color: var(--gold); font-size: 11px; font-weight: 700; }
+    .chapter-line::after { content: ""; width: 62px; height: 1px; background: var(--gold); }
+    .story h1 { margin: 9px 0 6px; font-size: 26px; line-height: 1.18; font-weight: 680; }
+    .story p { max-width: 460px; margin: 0; color: #acb8b2; font-size: 13px; line-height: 1.55; }
+
+    .equation {
+      position: absolute;
+      z-index: 5;
+      top: 37px;
+      left: 53%;
+      color: #dce8e2;
+      font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
+      font-size: 23px;
+      pointer-events: none;
+    }
+    .equation .accent { color: var(--gold); }
+
+    .readout {
+      position: absolute;
+      z-index: 5;
+      top: 132px;
+      right: 26px;
+      width: 292px;
+      padding-left: 17px;
+      border-left: 2px solid #41504a;
+      pointer-events: none;
+    }
+    .readout-k { color: var(--gold); font-family: "Cambria Math", serif; font-size: 29px; line-height: 1; }
+    .readout dl { display: grid; grid-template-columns: 1fr auto; gap: 9px 16px; margin: 17px 0 13px; }
+    .readout dt { color: var(--muted); font-size: 11px; }
+    .readout dd { margin: 0; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .readout dd.physical { color: var(--blue); }
+    .readout dd.signal { color: var(--red); }
+    .readout dd.cohort { color: var(--gold); }
+    .readout p { margin: 0; padding-top: 12px; color: #b4c0ba; border-top: 1px solid #34413c; font-size: 11px; line-height: 1.5; }
+
+    .scene-meta {
+      position: absolute;
+      z-index: 5;
+      right: 26px;
+      bottom: 126px;
+      width: 292px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.55;
+      text-align: right;
+      pointer-events: none;
+    }
+    .scene-meta strong { display: block; color: #d5dfda; font-size: 11px; }
+
+    .legend {
+      position: absolute;
+      z-index: 5;
+      left: 28px;
+      bottom: 119px;
+      display: flex;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 10px;
+      pointer-events: none;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 9px; height: 9px; border-radius: 50%; }
+    .legend .success { background: var(--green); }
+    .legend .failure { background: var(--red); }
+    .legend .halo { border: 2px solid var(--gold); background: transparent; }
+
+    .timeline {
+      position: absolute;
+      z-index: 8;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 96px;
+      padding: 15px 28px 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(16, 19, 21, 0.96);
+    }
+    .timeline-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .timeline-label { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .timeline-label strong { color: #dbe4e0; font-size: 11px; }
+    #route-range { width: min(850px, 68vw); accent-color: var(--gold); cursor: pointer; }
+    .nodes { position: relative; width: min(850px, 68vw); height: 30px; margin: 5px auto 0; }
+    .node {
+      position: absolute;
+      top: 0;
+      height: 28px;
+      padding: 6px 0 0;
+      color: #67746e;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      font-size: 10px;
+      transform: translateX(-50%);
+    }
+    .node.edge-start { transform: none; }
+    .node.edge-end { transform: translateX(-100%); }
+    .node::before {
+      content: "";
+      position: absolute;
+      top: -3px;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #53605b;
+      transform: translateX(-50%);
+    }
+    .node.past { color: #9aa7a1; }
+    .node.past::before { background: #99aaa2; }
+    .node.active { color: var(--gold); font-weight: 700; }
+    .node.active::before { width: 9px; height: 9px; top: -5px; background: var(--gold); }
+
+    .route-tooltip {
+      position: absolute;
+      z-index: 15;
+      min-width: 148px;
+      padding: 8px 10px;
+      color: #eef4f1;
+      border: 1px solid #52615b;
+      border-radius: 4px;
+      background: rgba(18, 23, 22, 0.96);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(10px, -110%);
+      font-size: 10px;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+    }
+    .route-tooltip.show { opacity: 1; }
+    .route-tooltip strong { display: block; font-size: 11px; }
+    .route-tooltip .ok { color: var(--green); }
+    .route-tooltip .bad { color: var(--red); }
+
+    .error {
+      display: none;
+      max-width: 620px;
+      margin: 80px auto;
+      padding: 20px;
+      color: #fff;
+      border-left: 3px solid var(--red);
+    }
+
+    @media (max-width: 900px) {
+      .topbar { gap: 10px; }
+      .brand { min-width: 120px; }
+      .brand span { display: none; }
+      .task-control { min-width: 190px; }
+      .selection-controls { min-width: 270px; }
+      .scene-control { min-width: 105px; }
+      .rollout-control { min-width: 155px; }
+      .page-links { display: none; }
+      .story { width: 48vw; }
+      .equation { left: 51%; font-size: 19px; }
+      .readout, .scene-meta { width: 235px; right: 16px; }
+    }
+
+    @media (max-width: 620px) {
+      .topbar { height: 154px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: 34px 42px 42px; padding: 9px 12px; }
+      .brand { grid-column: 1; grid-row: 1; align-self: center; }
+      .transport { grid-column: 2; grid-row: 1; }
+      .speed-control { display: none; }
+      .task-control { grid-column: 1 / -1; grid-row: 2; min-width: 0; max-width: none; }
+      .selection-controls { grid-column: 1 / -1; grid-row: 3; display: grid; grid-template-columns: 126px minmax(0, 1fr); min-width: 0; }
+      .scene-control, .rollout-control { min-width: 0; }
+      .stage { height: calc(100dvh - 154px); min-height: 560px; }
+      .story { top: 16px; left: 14px; width: calc(100% - 28px); }
+      .chapter-line { font-size: 9px; }
+      .story h1 { margin-top: 6px; font-size: 20px; }
+      .story p { max-width: 94%; font-size: 11px; line-height: 1.45; }
+      .equation { top: 104px; left: 14px; font-size: 17px; }
+      .readout {
+        top: auto;
+        right: 12px;
+        bottom: 126px;
+        left: 12px;
+        width: auto;
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        align-items: center;
+        gap: 8px 12px;
+        padding: 9px 0 0;
+        border-top: 1px solid #34413c;
+        border-left: 0;
+      }
+      .readout-k { grid-row: 1; font-size: 23px; }
+      .story p { display: none; }
+      .readout dl { grid-column: 2; grid-row: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto auto; gap: 2px 8px; margin: 0; }
+      .readout dt { display: block; overflow: hidden; color: #75837d; font-size: 7px; white-space: nowrap; text-overflow: ellipsis; }
+      .readout dd { font-size: 9px; white-space: nowrap; }
+      .readout dt:nth-of-type(1) { grid-column: 1; grid-row: 1; }
+      .readout dd:nth-of-type(1) { grid-column: 1; grid-row: 2; }
+      .readout dt:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+      .readout dd:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+      .readout dt:nth-of-type(3) { grid-column: 3; grid-row: 1; }
+      .readout dd:nth-of-type(3) { grid-column: 3; grid-row: 2; }
+      .readout p { grid-column: 1 / -1; padding-top: 7px; font-size: 9px; }
+      .scene-meta { top: 126px; right: 12px; bottom: auto; width: 180px; font-size: 8px; }
+      .scene-meta strong { font-size: 9px; }
+      .legend { left: 12px; bottom: 202px; gap: 11px; font-size: 8px; }
+      .timeline { height: 102px; padding: 13px 12px 8px; }
+      .timeline-label { display: none; }
+      #route-range { width: 100%; }
+      .nodes { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><strong>HiMoE-VLA</strong><span>same-state rollout route atlas</span></div>
+    <label class="task-control">
+      <span class="control-label">任务</span>
+      <select id="task-select" aria-label="选择真实轨迹任务"></select>
+    </label>
+    <div class="selection-controls">
+      <label class="scene-control">
+        <span class="control-label">初始状态</span>
+        <select id="scene-select" aria-label="选择初始状态"></select>
+      </label>
+      <label class="rollout-control">
+        <span class="control-label">焦点 rollout</span>
+        <select id="route-select" aria-label="选择焦点 rollout"></select>
+      </label>
+    </div>
+    <div class="transport">
+      <button class="icon-button" id="replay" type="button" title="重新播放" aria-label="重新播放">&#8634;</button>
+      <button class="icon-button primary" id="play" type="button" title="暂停" aria-label="暂停">&#10074;&#10074;</button>
+      <div class="speed-control" id="speed-control" aria-label="播放速度">
+        <button type="button" data-speed="0.5">.5x</button>
+        <button class="active" type="button" data-speed="1">1x</button>
+        <button type="button" data-speed="2">2x</button>
+      </div>
+    </div>
+    <nav class="page-links" aria-label="相关视图">
+      <a class="appendix-link" href="./moe-state-demo.html">MoE 状态 &#8599;</a>
+      <a class="appendix-link" href="./demo.html">统计 &#8599;</a>
+    </nav>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="route-canvas" role="img" aria-label="同一初始状态下成功与失败 rollout 的真实末端执行器轨迹"></canvas>
+
+    <section class="story" aria-live="polite">
+      <div class="chapter-line"><span id="chapter-number">01</span><span id="chapter-label">SAME INITIAL STATE</span></div>
+      <h1 id="chapter-title">32 条路线，从同一个物理状态出发</h1>
+      <p id="chapter-copy">观察相同，只有 flow-noise seed 不同。颜色是事后 outcome；此刻路线尚未分叉。</p>
+    </section>
+
+    <div class="equation" id="equation">s<sub>0</sub> <span class="accent">&#8594;</span> A<sub>0</sub></div>
+
+    <aside class="readout">
+      <div class="readout-k" id="readout-k">k0</div>
+      <dl>
+        <dt>EEF 组间距</dt><dd class="physical" id="physical-gap">0.00 cm</dd>
+        <dt>HB routing gap</dt><dd class="signal" id="task-gap">+0.000</dd>
+        <dt>routed contribution</dt><dd class="cohort" id="cohort-gap">-0.025</dd>
+      </dl>
+      <p id="reading">k0 的物理状态完全一致。若此时存在可解码差异，它只能来自 seed 诱导的内部计算或 action commitment。</p>
+    </aside>
+
+    <div class="scene-meta" id="scene-meta"></div>
+
+    <div class="legend">
+      <span><i class="success"></i>最终成功</span>
+      <span><i class="failure"></i>最终失败</span>
+      <span><i class="halo"></i>HB routing-state 距成功质心更远</span>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-top">
+        <span class="timeline-label"><strong>action-chunk boundary</strong> · 路径只使用真实 EEF state</span>
+        <input id="route-range" type="range" min="0" max="8" step="0.01" value="0" aria-label="轨迹播放位置">
+        <span class="timeline-label" id="time-label">k0.00 / k8</span>
+      </div>
+      <div class="nodes" id="nodes"></div>
+    </div>
+
+    <div class="route-tooltip" id="route-tooltip"></div>
+  </main>
+
+  <section class="error" id="error"><h2>轨迹数据未加载</h2><p>请确认该页面与 <code>demo-data.js</code> 位于同一目录。</p></section>
+
+  <script src="./demo-data.js"></script>
+  <script type="text/plain" id="legacy-fixed-window-animation">
+    (() => {
+      "use strict";
+
+      const DATA = window.HIMOE_ROLLOUT_DEMO;
+      if (!DATA || !DATA.trajectory_routes) {
+        document.getElementById("stage").style.display = "none";
+        document.getElementById("error").style.display = "block";
+        return;
+      }
+
+      const $ = (id) => document.getElementById(id);
+      const TASK_NAMES = {
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": "抽屉放碗",
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": "双摩卡壶上炉",
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": "ramekin 上黑碗",
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": "炉上黑碗"
+      };
+      const DEFAULT_TASK = "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate";
+      const COLORS = {
+        success: "#56d6a6",
+        failure: "#ff6b60",
+        green: "#56d6a6",
+        red: "#ff6b60",
+        gold: "#f2bf5b"
+      };
+
+      const state = {
+        task: DEFAULT_TASK,
+        progress: 0,
+        playing: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        speed: 1,
+        startHold: 1.1,
+        endHold: 0,
+        lastFrame: performance.now(),
+        hover: null,
+        markers: []
+      };
+
+      function clamp(value, low = 0, high = 1) { return Math.max(low, Math.min(high, value)); }
+      function mix(a, b, amount) { return a + (b - a) * amount; }
+      function smooth(amount) { amount = clamp(amount); return amount * amount * (3 - 2 * amount); }
+      function currentTask() { return DATA.trajectory_routes.tasks.find((task) => task.task === state.task); }
+      function groupName(success) { return success ? "success" : "failure"; }
+      function fmt(value, digits = 3, signed = false) {
+        const prefix = signed && value > 0 ? "+" : "";
+        return prefix + Number(value).toFixed(digits);
+      }
+
+      function routePoint(route, progress) {
+        const low = Math.min(7, Math.floor(progress));
+        const amount = smooth(progress - low);
+        if (progress >= 8) return route.points[8];
+        return [
+          mix(route.points[low][0], route.points[low + 1][0], amount),
+          mix(route.points[low][1], route.points[low + 1][1], amount)
+        ];
+      }
+
+      function routeScore(route, progress) {
+        const low = Math.min(7, Math.floor(progress));
+        if (progress >= 8) return route.moe_percentile[8];
+        return mix(route.moe_percentile[low], route.moe_percentile[low + 1], smooth(progress - low));
+      }
+
+      function canvasContext() {
+        const canvas = $("route-canvas");
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const width = Math.max(1, Math.round(rect.width * dpr));
+        const height = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { canvas, ctx, width: rect.width, height: rect.height };
+      }
+
+      function stageTransform(task, width, height) {
+        const points = task.routes.flatMap((route) => route.points);
+        let minX = Math.min(...points.map((point) => point[0]));
+        let maxX = Math.max(...points.map((point) => point[0]));
+        let minY = Math.min(...points.map((point) => point[1]));
+        let maxY = Math.max(...points.map((point) => point[1]));
+        const dx = Math.max(1e-6, maxX - minX);
+        const dy = Math.max(1e-6, maxY - minY);
+        minX -= dx * 0.12; maxX += dx * 0.12;
+        minY -= dy * 0.18; maxY += dy * 0.18;
+        const mobile = width < 620;
+        const rect = mobile
+          ? { left: 25, top: 150, width: width - 50, height: Math.max(220, height - 400) }
+          : { left: 58, top: 168, width: Math.max(380, width - 420), height: Math.max(300, height - 298) };
+        const scale = Math.min(rect.width / (maxX - minX), rect.height / (maxY - minY));
+        const dataWidth = (maxX - minX) * scale;
+        const dataHeight = (maxY - minY) * scale;
+        const originX = rect.left + (rect.width - dataWidth) / 2 - minX * scale;
+        const originY = rect.top + (rect.height - dataHeight) / 2 + maxY * scale;
+        return {
+          rect,
+          point: (point) => [originX + point[0] * scale, originY - point[1] * scale]
+        };
+      }
+
+      function drawGrid(ctx, transform) {
+        const rect = transform.rect;
+        ctx.save();
+        ctx.strokeStyle = "#222a28";
+        ctx.lineWidth = 1;
+        for (let axis = 0; axis <= 8; axis += 1) {
+          const x = rect.left + rect.width * axis / 8;
+          const y = rect.top + rect.height * axis / 8;
+          ctx.beginPath(); ctx.moveTo(x, rect.top); ctx.lineTo(x, rect.top + rect.height); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(rect.left, y); ctx.lineTo(rect.left + rect.width, y); ctx.stroke();
+        }
+        ctx.strokeStyle = "#36413e";
+        ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
+        ctx.fillStyle = "#63706b";
+        ctx.font = "10px Inter, system-ui, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("PC₁ (EEF xyz)", rect.left + rect.width, rect.top + rect.height + 18);
+        ctx.save();
+        ctx.translate(rect.left - 17, rect.top + 4);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = "right";
+        ctx.fillText("PC₂", 0, 0);
+        ctx.restore();
+        ctx.restore();
+      }
+
+      function traceRoute(ctx, route, progress, transform, options = {}) {
+        const end = Math.min(8, progress);
+        const whole = Math.floor(end);
+        const fraction = end - whole;
+        ctx.beginPath();
+        const start = transform.point(route.points[0]);
+        ctx.moveTo(start[0], start[1]);
+        for (let chunk = 1; chunk <= whole; chunk += 1) {
+          const point = transform.point(route.points[chunk]);
+          ctx.lineTo(point[0], point[1]);
+        }
+        if (whole < 8 && fraction > 0) {
+          const partial = routePoint(route, end);
+          const point = transform.point(partial);
+          ctx.lineTo(point[0], point[1]);
+        }
+        ctx.strokeStyle = options.color;
+        ctx.globalAlpha = options.alpha;
+        ctx.lineWidth = options.width;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      function meanRoute(task, success) {
+        const routes = task.routes.filter((route) => route.success === success);
+        return Array.from({ length: 9 }, (_, chunk) => [
+          routes.reduce((sum, route) => sum + route.points[chunk][0], 0) / routes.length,
+          routes.reduce((sum, route) => sum + route.points[chunk][1], 0) / routes.length
+        ]);
+      }
+
+      function drawArrow(ctx, from, to, color, label) {
+        const dx = to[0] - from[0];
+        const dy = to[1] - from[1];
+        const length = Math.hypot(dx, dy);
+        if (length < 8) return;
+        const ux = dx / length;
+        const uy = dy / length;
+        const tip = [to[0] - ux * 10, to[1] - uy * 10];
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1.7;
+        ctx.beginPath(); ctx.moveTo(from[0], from[1]); ctx.lineTo(tip[0], tip[1]); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tip[0], tip[1]);
+        ctx.lineTo(tip[0] - ux * 8 + uy * 4, tip[1] - uy * 8 - ux * 4);
+        ctx.lineTo(tip[0] - ux * 8 - uy * 4, tip[1] - uy * 8 + ux * 4);
+        ctx.closePath(); ctx.fill();
+        ctx.font = "italic 13px Cambria Math, serif";
+        ctx.textAlign = "center";
+        ctx.fillText(label, (from[0] + tip[0]) / 2 - uy * 10, (from[1] + tip[1]) / 2 + ux * 10);
+        ctx.restore();
+      }
+
+      function covarianceEllipse(points) {
+        const meanX = points.reduce((sum, point) => sum + point[0], 0) / points.length;
+        const meanY = points.reduce((sum, point) => sum + point[1], 0) / points.length;
+        let xx = 0, yy = 0, xy = 0;
+        points.forEach((point) => {
+          const dx = point[0] - meanX, dy = point[1] - meanY;
+          xx += dx * dx; yy += dy * dy; xy += dx * dy;
+        });
+        xx /= points.length; yy /= points.length; xy /= points.length;
+        const angle = 0.5 * Math.atan2(2 * xy, xx - yy);
+        const trace = xx + yy;
+        const root = Math.sqrt(Math.max(0, (xx - yy) ** 2 + 4 * xy * xy));
+        return { x: meanX, y: meanY, rx: 2 * Math.sqrt(Math.max(4, (trace + root) / 2)) + 5, ry: 2 * Math.sqrt(Math.max(4, (trace - root) / 2)) + 5, angle };
+      }
+
+      function drawCluster(ctx, points, color, label, bounds) {
+        if (points.length < 2) return;
+        const ellipse = covarianceEllipse(points);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.65;
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.ellipse(ellipse.x, ellipse.y, ellipse.rx, ellipse.ry, ellipse.angle, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = "11px Inter, system-ui, sans-serif";
+        const labelOnLeft = ellipse.x + ellipse.rx + 78 > bounds.left + bounds.width;
+        ctx.textAlign = labelOnLeft ? "right" : "left";
+        ctx.fillText(label, labelOnLeft ? ellipse.x - ellipse.rx - 7 : ellipse.x + ellipse.rx + 7, ellipse.y - 3);
+        ctx.restore();
+      }
+
+      function drawCallout(ctx, task, transform, chunk, yDirection) {
+        if (state.progress < chunk - 0.05) return;
+        const route = task.routes.find((item) => item.episode === task.highlighted.failure);
+        const point = transform.point(route.points[chunk]);
+        const taskGap = DATA.by_task.find((row) => row.task === task.task && row.signal === "per_query_success_manifold_percentile" && row.chunk === chunk);
+        const aggregate = DATA.gaps.find((row) => row.signal === "per_query_success_manifold_percentile" && row.chunk === chunk);
+        const offsetX = chunk === 5 ? 52 : -58;
+        const offsetY = yDirection * (chunk === 5 ? 46 : 62);
+        const end = [point[0] + offsetX, point[1] + offsetY];
+        ctx.save();
+        ctx.strokeStyle = COLORS.gold;
+        ctx.fillStyle = COLORS.gold;
+        ctx.globalAlpha = clamp((state.progress - chunk + 0.3) / 0.5);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(point[0], point[1]); ctx.lineTo(end[0], end[1]); ctx.stroke();
+        ctx.beginPath(); ctx.arc(point[0], point[1], 4, 0, Math.PI * 2); ctx.fill();
+        ctx.textAlign = offsetX > 0 ? "left" : "right";
+        ctx.font = "700 12px Inter, system-ui, sans-serif";
+        ctx.fillText(`k${chunk}: ΔMoE_task = ${fmt(taskGap.failure_minus_success, 3, true)}`, end[0] + (offsetX > 0 ? 5 : -5), end[1] - 4);
+        ctx.fillStyle = "#9eaaa4";
+        ctx.font = "10px Inter, system-ui, sans-serif";
+        ctx.fillText(`4-task ${fmt(aggregate.failure_minus_success, 3, true)}`, end[0] + (offsetX > 0 ? 5 : -5), end[1] + 12);
+        ctx.restore();
+      }
+
+      function drawScene(now) {
+        const { canvas, ctx, width, height } = canvasContext();
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#101315";
+        ctx.fillRect(0, 0, width, height);
+        const task = currentTask();
+        const transform = stageTransform(task, width, height);
+        drawGrid(ctx, transform);
+
+        for (const success of [true, false]) {
+          const route = { points: meanRoute(task, success) };
+          traceRoute(ctx, route, state.progress, transform, {
+            color: success ? COLORS.green : COLORS.red,
+            alpha: 0.08,
+            width: 22
+          });
+        }
+
+        const ordered = [...task.routes].sort((a, b) => {
+          const aHighlight = Object.values(task.highlighted).includes(a.episode) ? 1 : 0;
+          const bHighlight = Object.values(task.highlighted).includes(b.episode) ? 1 : 0;
+          return aHighlight - bHighlight;
+        });
+        state.markers = [];
+        ordered.forEach((route) => {
+          const group = groupName(route.success);
+          const highlighted = task.highlighted[group] === route.episode;
+          const score = routeScore(route, state.progress);
+          if (highlighted) {
+            traceRoute(ctx, route, state.progress, transform, { color: route.success ? COLORS.green : COLORS.red, alpha: 0.15, width: 11 });
+          }
+          traceRoute(ctx, route, state.progress, transform, {
+            color: route.success ? COLORS.green : COLORS.red,
+            alpha: highlighted ? 0.96 : 0.25,
+            width: highlighted ? 3.1 : 1.15
+          });
+
+          if (highlighted) {
+            for (let chunk = 0; chunk <= Math.floor(state.progress); chunk += 1) {
+              const point = transform.point(route.points[chunk]);
+              const nodeScore = route.moe_percentile[chunk];
+              ctx.beginPath();
+              ctx.arc(point[0], point[1], 4 + nodeScore * 6, 0, Math.PI * 2);
+              ctx.strokeStyle = COLORS.gold;
+              ctx.globalAlpha = 0.18 + nodeScore * 0.35;
+              ctx.lineWidth = 1.2;
+              ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+          }
+
+          const raw = routePoint(route, state.progress);
+          const point = transform.point(raw);
+          ctx.beginPath();
+          ctx.arc(point[0], point[1], highlighted ? 5.5 : 2.4, 0, Math.PI * 2);
+          ctx.fillStyle = route.success ? COLORS.green : COLORS.red;
+          ctx.globalAlpha = highlighted ? 1 : 0.48;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          if (highlighted) {
+            ctx.beginPath();
+            ctx.arc(point[0], point[1], 8 + score * 7, 0, Math.PI * 2);
+            ctx.strokeStyle = COLORS.gold;
+            ctx.globalAlpha = 0.42 + score * 0.4;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+          state.markers.push({ x: point[0], y: point[1], route, score });
+        });
+
+        const start = transform.point(task.routes[0].points[0]);
+        ctx.beginPath(); ctx.arc(start[0], start[1], 6, 0, Math.PI * 2); ctx.fillStyle = "#f0f4f2"; ctx.fill();
+        ctx.font = "italic 17px Cambria Math, serif";
+        ctx.fillStyle = "#edf2ef";
+        ctx.textAlign = "left";
+        ctx.fillText("s₀", start[0] + 10, start[1] - 10);
+
+        if (state.progress > 0.15) {
+          const failure = task.routes.find((route) => route.episode === task.highlighted.failure);
+          const low = Math.min(7, Math.floor(state.progress));
+          const from = transform.point(failure.points[low]);
+          const to = transform.point(routePoint(failure, state.progress));
+          drawArrow(ctx, from, to, COLORS.gold, `A${low}`);
+        }
+
+        if (state.progress >= 6.6) {
+          const successPoints = task.routes.filter((route) => route.success).map((route) => transform.point(routePoint(route, state.progress)));
+          const failurePoints = task.routes.filter((route) => !route.success).map((route) => transform.point(routePoint(route, state.progress)));
+          drawCluster(ctx, successPoints, COLORS.green, "τ_success", transform.rect);
+          drawCluster(ctx, failurePoints, COLORS.red, "τ_failure", transform.rect);
+        }
+
+        const mobile = width < 620;
+        drawCallout(ctx, task, transform, 5, mobile ? -1 : -1);
+        drawCallout(ctx, task, transform, 8, mobile ? 1 : 1);
+        canvas._transform = transform;
+        updateNarrative();
+      }
+
+      function chapterFor(k) {
+        if (k === 0) return {
+          number: "01", label: "SAME INITIAL STATE",
+          title: "32 条路线，从同一个物理状态出发",
+          copy: "观察相同，只有 flow-noise seed 不同。颜色是事后 outcome；此刻路线尚未分叉。",
+          equation: "s<sub>0</sub> <span class=\"accent\">&#8594;</span> A<sub>0</sub>"
+        };
+        if (k <= 4) return {
+          number: "02", label: "THE WORLD REMEMBERS",
+          title: "每个 action chunk 都改写下一次起点",
+          copy: "模型会重新推理，但环境不会重置。后续 observation 已经是前序动作改变后的世界。",
+          equation: "s<sub>k+1</sub> = F(s<sub>k</sub>, A<sub>k</sub>)"
+        };
+        if (k <= 6) return {
+          number: "03", label: "SIGNAL EMERGES",
+          title: "MoE 偏离开始可见；状态已是前序动作的后代",
+          copy: "EEF 质心差仍可能很小，但 observation 已不再来自共同起点。它不能直接证明模型在更早时预见了最终 trap。",
+          equation: "&#916;<sub>MoE</sub>(k) <span class=\"accent\">&gt; 0</span>"
+        };
+        return {
+          number: "04", label: "LATE FAILURE MODE",
+          title: "强信号是累积偏离的结果，不一定是最初原因",
+          copy: "MoE 成功质心异常一致增强，但可见的 EEF 路线分叉因任务而异。晚期 detection 很强，不等于早期因果。",
+          equation: "P(T<sup>*</sup> &le; k+H | z<sub>k</sub>) <span class=\"accent\">&#8593;</span>"
+        };
+      }
+
+      function updateNarrative() {
+        const task = currentTask();
+        const k = Math.max(0, Math.min(8, Math.floor(state.progress + 0.35)));
+        const chapter = chapterFor(k);
+        $("chapter-number").textContent = chapter.number;
+        $("chapter-label").textContent = chapter.label;
+        $("chapter-title").textContent = chapter.title;
+        $("chapter-copy").textContent = chapter.copy;
+        $("equation").innerHTML = chapter.equation;
+        $("readout-k").textContent = "k" + k;
+
+        const physical = task.physical_centroid_gap_m[k] * 100;
+        const taskGap = DATA.by_task.find((row) => row.task === task.task && row.signal === "per_query_success_manifold_percentile" && row.chunk === k);
+        const cohort = DATA.gaps.find((row) => row.signal === "per_query_success_manifold_percentile" && row.chunk === k);
+        $("physical-gap").textContent = fmt(physical, 2) + " cm";
+        $("task-gap").textContent = fmt(taskGap.failure_minus_success, 3, true);
+        $("cohort-gap").textContent = `${fmt(cohort.failure_minus_success, 3, true)} [${fmt(cohort.ci_low, 3)}, ${fmt(cohort.ci_high, 3)}]`;
+        $("reading").textContent = chapter.copy;
+        $("scene-meta").innerHTML = `<strong>${TASK_NAMES[task.task]} · initial state ${task.scene}</strong>${task.success} success / ${task.failure} failure · 32 flow-noise seeds<br>EEF xyz PCA-2D retains ${(task.pca_explained_fraction * 100).toFixed(1)}% variance`;
+        $("route-range").value = state.progress;
+        $("time-label").textContent = `k${state.progress.toFixed(2)} / k8`;
+        document.querySelectorAll("[data-k]").forEach((button) => {
+          const nodeK = Number(button.dataset.k);
+          button.classList.toggle("active", nodeK === k);
+          button.classList.toggle("past", nodeK < state.progress);
+        });
+      }
+
+      function setPlaying(playing) {
+        state.playing = playing;
+        $("play").innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
+        $("play").title = playing ? "暂停" : "播放";
+        $("play").setAttribute("aria-label", playing ? "暂停" : "播放");
+      }
+
+      function replay() {
+        state.progress = 0;
+        state.startHold = 0.8;
+        state.endHold = 0;
+        setPlaying(true);
+      }
+
+      function animate(now) {
+        const elapsed = Math.min(0.08, Math.max(0, (now - state.lastFrame) / 1000));
+        state.lastFrame = now;
+        if (state.playing) {
+          if (state.startHold > 0) {
+            state.startHold -= elapsed * state.speed;
+          } else if (state.progress < 8) {
+            state.progress = Math.min(8, state.progress + elapsed * state.speed / 1.08);
+          } else {
+            state.endHold += elapsed * state.speed;
+            if (state.endHold >= 2.2) {
+              state.progress = 0;
+              state.startHold = 0.8;
+              state.endHold = 0;
+            }
+          }
+        }
+        drawScene(now);
+        window.requestAnimationFrame(animate);
+      }
+
+      function nearestMarker(clientX, clientY) {
+        const rect = $("route-canvas").getBoundingClientRect();
+        const x = clientX - rect.left, y = clientY - rect.top;
+        let best = null, distance = 14;
+        state.markers.forEach((marker) => {
+          const current = Math.hypot(marker.x - x, marker.y - y);
+          if (current < distance) { best = marker; distance = current; }
+        });
+        return best;
+      }
+
+      function showTooltip(event) {
+        const marker = nearestMarker(event.clientX, event.clientY);
+        const tooltip = $("route-tooltip");
+        if (!marker) { tooltip.classList.remove("show"); return; }
+        const outcome = marker.route.success ? "成功" : "失败";
+        tooltip.innerHTML = `<strong class="${marker.route.success ? "ok" : "bad"}">${outcome} rollout</strong>episode ${marker.route.episode} · seed ${marker.route.seed}<br>MoE distance percentile ${marker.score.toFixed(2)}`;
+        const stage = $("stage").getBoundingClientRect();
+        tooltip.style.left = `${event.clientX - stage.left}px`;
+        tooltip.style.top = `${event.clientY - stage.top}px`;
+        tooltip.classList.add("show");
+      }
+
+      function initialize() {
+        const select = $("task-select");
+        DATA.trajectory_routes.tasks.forEach((task) => {
+          const option = document.createElement("option");
+          option.value = task.task;
+          option.textContent = `${TASK_NAMES[task.task]} · state ${task.scene} · ${task.success}S/${task.failure}F`;
+          select.appendChild(option);
+        });
+        select.value = state.task;
+        $("nodes").innerHTML = Array.from({ length: 9 }, (_, k) => `<button class="node" type="button" data-k="${k}">k${k}</button>`).join("");
+
+        select.addEventListener("change", () => { state.task = select.value; replay(); });
+        $("play").addEventListener("click", () => setPlaying(!state.playing));
+        $("replay").addEventListener("click", replay);
+        $("speed-control").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-speed]");
+          if (!button) return;
+          state.speed = Number(button.dataset.speed);
+          document.querySelectorAll("[data-speed]").forEach((item) => item.classList.toggle("active", item === button));
+        });
+        $("route-range").addEventListener("input", (event) => {
+          state.progress = Number(event.target.value);
+          state.startHold = 0;
+          state.endHold = 0;
+          setPlaying(false);
+        });
+        $("nodes").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-k]");
+          if (!button) return;
+          state.progress = Number(button.dataset.k);
+          state.startHold = 0;
+          state.endHold = 0;
+          setPlaying(false);
+        });
+        $("route-canvas").addEventListener("mousemove", showTooltip);
+        $("route-canvas").addEventListener("mouseleave", () => $("route-tooltip").classList.remove("show"));
+        window.addEventListener("keydown", (event) => {
+          if (event.code === "Space" && !["INPUT", "SELECT", "BUTTON"].includes(document.activeElement.tagName)) {
+            event.preventDefault();
+            setPlaying(!state.playing);
+          }
+        });
+        document.addEventListener("visibilitychange", () => { if (document.hidden) setPlaying(false); });
+        setPlaying(state.playing);
+        updateNarrative();
+        window.requestAnimationFrame(animate);
+      }
+
+      initialize();
+    })();
+  </script>
+  <script src="./trajectory-demo.js"></script>
+</body>
+</html>

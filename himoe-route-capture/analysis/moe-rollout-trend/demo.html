@@ -1,0 +1,1707 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HiMoE-VLA 单 chunk 失败信号</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211e;
+      --muted: #66716d;
+      --line: #d7ddda;
+      --line-dark: #b9c2be;
+      --paper: #ffffff;
+      --ground: #f3f5f3;
+      --success: #147a5b;
+      --success-soft: rgba(20, 122, 91, 0.12);
+      --failure: #c4483c;
+      --failure-soft: rgba(196, 72, 60, 0.12);
+      --blue: #315f9c;
+      --amber: #9a681b;
+      --shadow: 0 1px 2px rgba(23, 33, 30, 0.05);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--ground); }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--ground);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      letter-spacing: 0;
+    }
+
+    button, select, input { font: inherit; letter-spacing: 0; }
+
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 3px solid rgba(49, 95, 156, 0.24);
+      outline-offset: 2px;
+    }
+
+    .topbar {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 10px max(20px, calc((100vw - 1420px) / 2));
+      color: #f7faf8;
+      background: #17211e;
+      border-bottom: 3px solid #d5a64a;
+    }
+
+    .brand { display: flex; align-items: baseline; gap: 11px; min-width: 0; }
+    .brand strong { font-size: 16px; font-weight: 690; white-space: nowrap; }
+    .brand span { color: #b9c5c0; font-size: 12px; white-space: nowrap; }
+
+    .snapshot-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      color: #dce5e1;
+      font-size: 12px;
+    }
+
+    .snapshot-badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #55bd91;
+      box-shadow: 0 0 0 3px rgba(85, 189, 145, 0.16);
+    }
+
+    main {
+      width: min(1420px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 28px;
+      margin-bottom: 20px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 7px; font-size: 27px; line-height: 1.2; font-weight: 720; }
+    .lede { max-width: 800px; margin-bottom: 0; color: var(--muted); font-size: 14px; }
+
+    .counts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(82px, auto));
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .count { min-height: 62px; padding: 9px 13px; background: var(--paper); }
+    .count span { display: block; color: var(--muted); font-size: 11px; }
+    .count strong { display: block; margin-top: 2px; font-size: 20px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: minmax(340px, 1fr) minmax(220px, 0.62fr) auto minmax(220px, 0.58fr);
+      gap: 16px;
+      align-items: end;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 1px solid var(--line-dark);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 4px 16px rgba(23, 33, 30, 0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .control-label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      text-transform: uppercase;
+    }
+
+    .segments {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      overflow: hidden;
+      border: 1px solid var(--line-dark);
+      border-radius: 5px;
+      background: #eef1ef;
+    }
+
+    .segments.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .segment {
+      min-height: 36px;
+      padding: 7px 9px;
+      border: 0;
+      border-right: 1px solid var(--line-dark);
+      color: #4f5b57;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .segment:last-child { border-right: 0; }
+    .segment:hover { background: #e4e9e6; }
+    .segment.active { color: #fff; background: #263a34; }
+
+    select {
+      width: 100%;
+      min-height: 38px;
+      padding: 7px 34px 7px 10px;
+      color: var(--ink);
+      border: 1px solid var(--line-dark);
+      border-radius: 5px;
+      background: #fff;
+    }
+
+    .step-controls { display: flex; align-items: center; gap: 6px; }
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      display: inline-grid;
+      place-items: center;
+      padding: 0;
+      color: var(--ink);
+      border: 1px solid var(--line-dark);
+      border-radius: 5px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .icon-button:hover { background: #eef1ef; }
+    .icon-button.primary { color: #fff; border-color: #263a34; background: #263a34; }
+
+    .range-row { display: grid; grid-template-columns: minmax(100px, 1fr) 43px; align-items: center; gap: 10px; }
+    input[type="range"] { width: 100%; accent-color: #263a34; cursor: pointer; }
+    .k-readout {
+      display: grid;
+      place-items: center;
+      height: 38px;
+      border: 1px solid var(--line-dark);
+      border-radius: 5px;
+      background: #f8faf9;
+      font-weight: 720;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .motion-panel {
+      margin-bottom: 16px;
+      overflow: hidden;
+      color: #edf5f1;
+      border: 1px solid #263a34;
+      border-radius: 6px;
+      background: #111b18;
+      box-shadow: 0 7px 24px rgba(23, 33, 30, 0.14);
+    }
+
+    .motion-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      padding: 16px 18px 14px;
+      border-bottom: 1px solid #31413b;
+    }
+
+    .motion-header h2 { margin-bottom: 3px; font-size: 17px; }
+    .motion-header p { margin: 0; color: #aab8b2; font-size: 12px; }
+    .motion-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      color: #c9d7d1;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    .motion-live::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #55bd91;
+      box-shadow: 0 0 0 4px rgba(85, 189, 145, 0.12);
+    }
+
+    .motion-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(430px, 0.75fr);
+      min-height: 440px;
+    }
+
+    .basin-stage { position: relative; min-width: 0; border-right: 1px solid #31413b; }
+    .basin-canvas-wrap { width: 100%; height: 440px; }
+    .stage-key {
+      position: absolute;
+      left: 17px;
+      bottom: 14px;
+      display: flex;
+      gap: 14px;
+      color: #aab8b2;
+      font-size: 11px;
+      pointer-events: none;
+    }
+    .stage-key span { display: inline-flex; align-items: center; gap: 6px; }
+    .stage-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .stage-dot.success { background: #45c696; }
+    .stage-dot.failure { background: #f06b5f; }
+
+    .moe-stage { min-width: 0; display: flex; flex-direction: column; background: #16221e; }
+    .moe-stage-head { padding: 14px 16px 10px; }
+    .moe-stage-head h3 { margin-bottom: 7px; font-size: 13px; }
+    .metric-segments {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: hidden;
+      border: 1px solid #43544d;
+      border-radius: 5px;
+    }
+    .metric-segment {
+      min-height: 34px;
+      padding: 6px 7px;
+      color: #b5c2bd;
+      border: 0;
+      border-right: 1px solid #43544d;
+      background: transparent;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .metric-segment:last-child { border-right: 0; }
+    .metric-segment:hover { background: #22322c; }
+    .metric-segment.active { color: #10201a; background: #dce9e3; font-weight: 680; }
+
+    .moe-canvas-wrap { width: 100%; height: 294px; padding: 0 8px; }
+    .moe-readout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: auto;
+      border-top: 1px solid #31413b;
+    }
+    .moe-value { min-width: 0; padding: 11px 13px; border-right: 1px solid #31413b; }
+    .moe-value:last-child { border-right: 0; }
+    .moe-value span { display: block; color: #91a29b; font-size: 10px; }
+    .moe-value strong { display: block; margin-top: 2px; color: #eef6f2; font-size: 16px; font-variant-numeric: tabular-nums; }
+    .moe-value.success strong { color: #66d5aa; }
+    .moe-value.failure strong { color: #ff8175; }
+
+    .motion-foot {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(290px, 0.38fr);
+      align-items: stretch;
+      border-top: 1px solid #31413b;
+    }
+    .motion-timeline { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); padding: 12px 16px; }
+    .motion-k {
+      position: relative;
+      min-height: 38px;
+      padding: 6px 3px;
+      color: #91a29b;
+      border: 0;
+      border-top: 2px solid #3b4b45;
+      background: transparent;
+      cursor: pointer;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+    .motion-k::before {
+      content: "";
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3b4b45;
+      transform: translateX(-50%);
+    }
+    .motion-k.past { color: #bbcac4; border-top-color: #61756d; }
+    .motion-k.past::before { background: #61756d; }
+    .motion-k.active { color: #fff; border-top-color: #e1ad50; font-weight: 720; }
+    .motion-k.active::before { width: 10px; height: 10px; top: -6px; background: #e1ad50; }
+    .motion-phase {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 11px 16px;
+      border-left: 1px solid #31413b;
+      background: #192722;
+    }
+    .motion-phase span { color: #91a29b; font-size: 10px; text-transform: uppercase; }
+    .motion-phase strong { margin-top: 2px; color: #f1f6f3; font-size: 12px; }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2.05fr) minmax(285px, 0.95fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 18px 10px;
+    }
+
+    .panel-header h2 { margin-bottom: 2px; font-size: 16px; line-height: 1.3; }
+    .panel-header p { margin-bottom: 0; color: var(--muted); font-size: 12px; }
+    .chart-legend { display: flex; align-items: center; gap: 15px; flex: 0 0 auto; color: var(--muted); font-size: 12px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .legend-line { width: 19px; height: 3px; border-radius: 2px; }
+    .legend-line.success { background: var(--success); }
+    .legend-line.failure { background: var(--failure); }
+
+    .chart-wrap { position: relative; width: 100%; height: 390px; padding: 0 8px 8px; }
+    .gap-wrap { position: relative; width: 100%; height: 260px; padding: 0 8px 8px; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .tooltip {
+      position: absolute;
+      z-index: 4;
+      min-width: 176px;
+      padding: 9px 10px;
+      pointer-events: none;
+      color: #eef5f2;
+      border-radius: 5px;
+      background: rgba(23, 33, 30, 0.94);
+      box-shadow: 0 5px 16px rgba(23, 33, 30, 0.16);
+      font-size: 12px;
+      opacity: 0;
+      transform: translate(-50%, -108%);
+      transition: opacity 90ms ease;
+      font-variant-numeric: tabular-nums;
+    }
+    .tooltip.show { opacity: 1; }
+    .tooltip strong { display: block; margin-bottom: 4px; color: #fff; }
+    .tooltip-row { display: flex; justify-content: space-between; gap: 18px; }
+    .tooltip .success-text { color: #83dbb8; }
+    .tooltip .failure-text { color: #ff9b91; }
+
+    .snapshot { display: flex; flex-direction: column; }
+    .snapshot-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 17px 18px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .snapshot-head h2 { margin: 0; font-size: 16px; }
+    .chunk-chip {
+      flex: 0 0 auto;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #fff;
+      background: #263a34;
+      font-weight: 720;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-bottom: 1px solid var(--line);
+    }
+    .score { padding: 15px 18px; }
+    .score:first-child { border-right: 1px solid var(--line); }
+    .score-label { display: block; color: var(--muted); font-size: 11px; }
+    .score strong { display: block; margin-top: 3px; font-size: 25px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .score.success strong { color: var(--success); }
+    .score.failure strong { color: var(--failure); }
+
+    .gap-summary { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .gap-number { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .gap-number span { color: var(--muted); font-size: 12px; }
+    .gap-number strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+    .ci-line { margin-top: 3px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 670;
+    }
+    .status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; }
+    .status.positive { color: #8f3029; background: var(--failure-soft); }
+    .status.positive::before { background: var(--failure); }
+    .status.unresolved { color: #67521f; background: #f3ead3; }
+    .status.unresolved::before { background: var(--amber); }
+    .status.inverse { color: #225f4b; background: var(--success-soft); }
+    .status.inverse::before { background: var(--success); }
+    .status.descriptive { color: #315273; background: #e6edf5; }
+    .status.descriptive::before { background: var(--blue); }
+
+    .interpretation { padding: 17px 18px; }
+    .interpretation h3 { margin-bottom: 7px; font-size: 14px; line-height: 1.35; }
+    .interpretation p { margin-bottom: 11px; color: #4f5b57; font-size: 13px; }
+    .interpretation p:last-child { margin-bottom: 0; }
+    .boundary { padding-top: 11px; border-top: 1px solid var(--line); color: var(--muted) !important; font-size: 12px !important; }
+
+    .lower-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(420px, 0.82fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .task-table-wrap { overflow-x: auto; padding: 0 18px 16px; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #e5e9e7; white-space: nowrap; }
+    th:first-child, td:first-child { padding-left: 0; text-align: left; white-space: normal; }
+    th:last-child, td:last-child { padding-right: 0; }
+    th { color: var(--muted); font-size: 11px; font-weight: 650; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .task-name strong { display: block; font-size: 12px; }
+    .task-name span { display: block; color: var(--muted); font-size: 10px; }
+    .mini-gap { display: inline-flex; align-items: center; justify-content: flex-end; gap: 7px; min-width: 72px; }
+    .mini-mark { width: 7px; height: 7px; border-radius: 50%; background: var(--line-dark); }
+    .mini-mark.pos { background: var(--failure); }
+    .mini-mark.neg { background: var(--success); }
+    .small-n { color: var(--amber); font-weight: 680; }
+
+    .audit-panel { margin-bottom: 16px; }
+    .audit-controls { padding: 0 18px 14px; }
+    .audit-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.6fr);
+      border-top: 1px solid var(--line);
+    }
+
+    .auc-bars { padding: 17px 18px 18px; border-right: 1px solid var(--line); }
+    .auc-scale { display: flex; justify-content: space-between; margin: 0 48px 8px 144px; color: var(--muted); font-size: 10px; }
+    .auc-row { display: grid; grid-template-columns: 132px minmax(140px, 1fr) 42px; align-items: center; gap: 12px; min-height: 40px; }
+    .auc-name { color: #40504a; font-size: 12px; }
+    .auc-name strong { display: block; color: var(--ink); }
+    .bar-track { position: relative; height: 12px; border-radius: 3px; background: #edf0ee; }
+    .bar-track::before { content: ""; position: absolute; left: 25%; top: -4px; bottom: -4px; width: 1px; background: #929d98; }
+    .bar-fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 3px; background: #83918b; }
+    .bar-fill.routed { background: #315f9c; }
+    .auc-value { text-align: right; font-weight: 690; }
+    .audit-reading { padding: 18px; }
+    .audit-reading h3 { margin-bottom: 8px; font-size: 14px; }
+    .audit-reading p { margin-bottom: 12px; color: #4f5b57; font-size: 13px; }
+    .audit-reading dl { display: grid; grid-template-columns: 1fr auto; gap: 7px 14px; margin: 0; padding-top: 12px; border-top: 1px solid var(--line); }
+    .audit-reading dt { color: var(--muted); font-size: 12px; }
+    .audit-reading dd { margin: 0; font-weight: 670; font-variant-numeric: tabular-nums; }
+
+    .method-band {
+      display: grid;
+      grid-template-columns: 1.15fr repeat(4, minmax(0, 1fr));
+      gap: 0;
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    .method-lead, .method-item { padding: 16px 18px; }
+    .method-lead h2 { margin-bottom: 5px; font-size: 15px; }
+    .method-lead p, .method-item p { margin: 0; color: var(--muted); font-size: 12px; }
+    .method-item { border-left: 1px solid var(--line); }
+    .method-item strong { display: block; margin-bottom: 4px; font-size: 12px; }
+
+    details.artifacts {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    details.artifacts summary { padding: 14px 18px; cursor: pointer; font-weight: 680; }
+    .artifact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 0 18px 18px; }
+    .artifact-grid figure { margin: 0; }
+    .artifact-grid img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; }
+    .artifact-grid figcaption { margin-top: 6px; color: var(--muted); font-size: 11px; }
+
+    .footnote { margin: 15px 2px 0; color: var(--muted); font-size: 11px; }
+    .error-state { display: none; margin: 60px auto; max-width: 640px; padding: 24px; border: 1px solid #e0a29c; border-radius: 6px; background: #fff; }
+
+    @media (max-width: 1120px) {
+      .intro { grid-template-columns: 1fr; }
+      .counts { width: 100%; grid-template-columns: repeat(4, 1fr); }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .motion-grid { grid-template-columns: minmax(0, 1fr) minmax(390px, 0.85fr); }
+      .dashboard-grid { grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.8fr); }
+      .lower-grid { grid-template-columns: 1fr; }
+      .method-band { grid-template-columns: repeat(2, 1fr); }
+      .method-lead { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+      .method-item:nth-child(2), .method-item:nth-child(4) { border-left: 0; }
+      .method-item:nth-child(4), .method-item:nth-child(5) { border-top: 1px solid var(--line); }
+    }
+
+    @media (max-width: 780px) {
+      .topbar { align-items: flex-start; padding: 11px 16px; }
+      .brand { display: block; }
+      .brand strong, .brand span { display: block; }
+      main { width: min(100% - 24px, 720px); padding-top: 20px; }
+      h1 { font-size: 23px; }
+      .counts { grid-template-columns: repeat(2, 1fr); }
+      .toolbar { position: static; grid-template-columns: 1fr; gap: 12px; padding: 12px; }
+      .motion-header { display: block; }
+      .motion-live { margin-top: 8px; }
+      .motion-grid { grid-template-columns: 1fr; }
+      .basin-stage { border-right: 0; border-bottom: 1px solid #31413b; }
+      .basin-canvas-wrap { height: 390px; }
+      .moe-canvas-wrap { height: 300px; }
+      .motion-foot { grid-template-columns: 1fr; }
+      .motion-phase { border-top: 1px solid #31413b; border-left: 0; }
+      .dashboard-grid, .audit-body { grid-template-columns: 1fr; }
+      .auc-bars { border-right: 0; border-bottom: 1px solid var(--line); }
+      .chart-wrap { height: 330px; }
+      .gap-wrap { height: 235px; }
+      .artifact-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 500px) {
+      .snapshot-badge span { display: none; }
+      .segments { grid-template-columns: 1fr; }
+      .segment { border-right: 0; border-bottom: 1px solid var(--line-dark); }
+      .segment:last-child { border-bottom: 0; }
+      .segments.two { grid-template-columns: repeat(2, 1fr); }
+      .segments.two .segment { border-right: 1px solid var(--line-dark); border-bottom: 0; }
+      .segments.two .segment:last-child { border-right: 0; }
+      .basin-canvas-wrap { height: 360px; }
+      .metric-segments { grid-template-columns: repeat(2, 1fr); }
+      .metric-segment:nth-child(2) { border-right: 0; }
+      .metric-segment:nth-child(-n + 2) { border-bottom: 1px solid #43544d; }
+      .motion-timeline { padding-left: 10px; padding-right: 10px; }
+      .motion-k { font-size: 10px; }
+      .panel-header { display: block; }
+      .chart-legend { margin-top: 8px; }
+      .chart-wrap { height: 300px; padding-left: 0; padding-right: 0; }
+      .gap-wrap { height: 220px; padding-left: 0; padding-right: 0; }
+      .score strong { font-size: 21px; }
+      .task-table-wrap { padding-left: 12px; padding-right: 12px; }
+      th, td { padding-left: 5px; padding-right: 5px; }
+      .auc-bars { padding-left: 12px; padding-right: 12px; }
+      .auc-scale { margin-left: 112px; margin-right: 38px; }
+      .auc-row { grid-template-columns: 100px minmax(90px, 1fr) 36px; gap: 8px; }
+      .method-band { grid-template-columns: 1fr; }
+      .method-lead, .method-item { grid-column: auto; border-left: 0; border-top: 1px solid var(--line); }
+      .method-lead { border-top: 0; }
+      .method-item:nth-child(2) { border-top: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <strong>HiMoE-VLA</strong>
+      <span>单 chunk failure-signal viewer</span>
+    </div>
+    <div class="snapshot-badge"><span>当前离线实验快照</span></div>
+  </header>
+
+  <main id="app">
+    <section class="intro">
+      <div>
+        <h1>失败 rollout 的 MoE 信号何时开始偏离？</h1>
+        <p class="lede">固定 cohort、同初始状态内比较。每个 k 的预测器只读取该 chunk 内部的 10 个去噪轮次；曲线标签是 rollout 最终成功或失败。</p>
+      </div>
+      <div class="counts" aria-label="实验规模">
+        <div class="count"><span>rollouts</span><strong id="count-rollouts">-</strong></div>
+        <div class="count"><span>失败</span><strong id="count-failure">-</strong></div>
+        <div class="count"><span>任务</span><strong id="count-tasks">-</strong></div>
+        <div class="count"><span>chunk</span><strong id="count-chunks">-</strong></div>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="图表控制">
+      <div>
+        <span class="control-label">信号定义</span>
+        <div class="segments" id="signal-controls">
+          <button class="segment" data-signal="per_query_success_manifold_percentile">成功质心异常</button>
+          <button class="segment" data-signal="per_query_risk_percentile">逐-k 风险</button>
+          <button class="segment" data-signal="frozen_k8_failure_axis">冻结 k8 轴</button>
+        </div>
+      </div>
+      <label>
+        <span class="control-label">比较范围</span>
+        <select id="task-select"><option value="aggregate">四任务等权汇总</option></select>
+      </label>
+      <div>
+        <span class="control-label">步进</span>
+        <div class="step-controls">
+          <button class="icon-button" id="prev-k" type="button" title="上一个 chunk" aria-label="上一个 chunk">&#8592;</button>
+          <button class="icon-button primary" id="play-k" type="button" title="播放 chunk" aria-label="播放 chunk">&#9654;</button>
+          <button class="icon-button" id="next-k" type="button" title="下一个 chunk" aria-label="下一个 chunk">&#8594;</button>
+        </div>
+      </div>
+      <label>
+        <span class="control-label">当前 chunk</span>
+        <span class="range-row">
+          <input id="chunk-range" type="range" min="0" max="8" step="1" value="0" aria-label="当前 chunk">
+          <output class="k-readout" id="k-readout">k0</output>
+        </span>
+      </label>
+    </section>
+
+    <section class="motion-panel" aria-label="MoE rollout 动画">
+      <div class="motion-header">
+        <div>
+          <h2>Closed-loop rollout divergence</h2>
+          <p>左侧按真实 task-level 信号播放状态分支；右侧扫描当前 chunk 内的 4 层 × 10 denoise 差异。</p>
+        </div>
+        <div class="motion-live" id="motion-live">k0 · d0 · HB-L15</div>
+      </div>
+      <div class="motion-grid">
+        <div class="basin-stage">
+          <div class="basin-canvas-wrap"><canvas id="basin-canvas" role="img" aria-label="成功和失败 rollout 在参考空间中的动态位置"></canvas></div>
+          <div class="stage-key"><span><i class="stage-dot success"></i>成功 rollout</span><span><i class="stage-dot failure"></i>失败 rollout</span></div>
+        </div>
+        <div class="moe-stage">
+          <div class="moe-stage-head">
+            <h3>Chunk 内部 MoE computation scan</h3>
+            <div class="metric-segments" id="dynamic-metric-controls">
+              <button class="metric-segment active" data-dynamic-metric="routed_rms">Routed magnitude</button>
+              <button class="metric-segment" data-dynamic-metric="cancellation">Cancellation</button>
+              <button class="metric-segment" data-dynamic-metric="shared_conflict">Shared conflict</button>
+              <button class="metric-segment" data-dynamic-metric="commitment">Commitment</button>
+            </div>
+          </div>
+          <div class="moe-canvas-wrap"><canvas id="moe-canvas" role="img" aria-label="四层十轮去噪的成功失败差异热图"></canvas></div>
+          <div class="moe-readout">
+            <div class="moe-value success"><span>成功 z</span><strong id="motion-success">-</strong></div>
+            <div class="moe-value failure"><span>失败 z</span><strong id="motion-failure">-</strong></div>
+            <div class="moe-value"><span>差值</span><strong id="motion-gap">-</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="motion-foot">
+        <div class="motion-timeline" id="motion-timeline"></div>
+        <div class="motion-phase"><span>当前解释</span><strong id="motion-phase-text">成功与失败尚未稳定分离</strong></div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 id="curve-title">成功质心异常随 rollout 推进</h2>
+            <p id="curve-subtitle">任务等权均值；阴影为 task bootstrap 95% CI</p>
+          </div>
+          <div class="chart-legend" aria-label="图例">
+            <span class="legend-item"><i class="legend-line success"></i>成功</span>
+            <span class="legend-item"><i class="legend-line failure"></i>失败</span>
+          </div>
+        </div>
+        <div class="chart-wrap" id="main-chart-wrap">
+          <canvas id="main-chart" role="img" aria-label="成功和失败 rollout 信号曲线"></canvas>
+          <div class="tooltip" id="main-tooltip"></div>
+        </div>
+      </article>
+
+      <aside class="panel snapshot">
+        <div class="snapshot-head"><h2>选中位置</h2><span class="chunk-chip" id="snapshot-k">k0</span></div>
+        <div class="score-grid">
+          <div class="score success"><span class="score-label">成功均值</span><strong id="success-score">-</strong></div>
+          <div class="score failure"><span class="score-label">失败均值</span><strong id="failure-score">-</strong></div>
+        </div>
+        <div class="gap-summary">
+          <div class="gap-number"><span>失败 - 成功</span><strong id="gap-score">-</strong></div>
+          <div class="ci-line" id="gap-ci">-</div>
+          <div class="status unresolved" id="gap-status">尚未分离</div>
+        </div>
+        <div class="interpretation">
+          <h3 id="interpretation-title">读取实验结果</h3>
+          <p id="interpretation-text"></p>
+          <p class="boundary" id="interpretation-boundary"></p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="lower-grid">
+      <article class="panel">
+        <div class="panel-header">
+          <div><h2>失败与成功的差值</h2><p>零线以上表示失败 rollout 的信号更高</p></div>
+        </div>
+        <div class="gap-wrap" id="gap-chart-wrap">
+          <canvas id="gap-chart" role="img" aria-label="失败减成功信号差值曲线"></canvas>
+          <div class="tooltip" id="gap-tooltip"></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <div><h2>四个任务的同位置对比</h2><p id="task-table-subtitle">k0 · 成功质心异常</p></div>
+        </div>
+        <div class="task-table-wrap">
+          <table>
+            <thead><tr><th>任务</th><th>失败 n</th><th>成功</th><th>失败</th><th>差值</th></tr></thead>
+            <tbody id="task-table-body"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel audit-panel">
+      <div class="panel-header">
+        <div><h2>MoE 特异性与跨状态审计</h2><p>同一 k 的 failure-decoding AUC；0.5 为随机水平</p></div>
+        <span class="chunk-chip" id="audit-k">k0</span>
+      </div>
+      <div class="audit-controls">
+        <div class="segments two" id="evaluation-controls">
+          <button class="segment active" data-evaluation="seed_heldout">同状态 seed 留出</button>
+          <button class="segment" data-evaluation="scene_loso">未见初始状态</button>
+        </div>
+      </div>
+      <div class="audit-body">
+        <div class="auc-bars">
+          <div class="auc-scale"><span>0.4</span><span>chance 0.5</span><span>0.8</span></div>
+          <div id="auc-bars"></div>
+        </div>
+        <div class="audit-reading">
+          <h3 id="audit-title">尚无 routed-specific 证据</h3>
+          <p id="audit-text"></p>
+          <dl>
+            <dt>routed-full AUC</dt><dd id="audit-routed">-</dd>
+            <dt>最强控制</dt><dd id="audit-control">-</dd>
+            <dt>routed 差值</dt><dd id="audit-delta">-</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="method-band" aria-label="实验解释边界">
+      <div class="method-lead"><h2>这张 Demo 能说明什么</h2><p>它定位可解码的时间趋势，不提供因果归因。</p></div>
+      <div class="method-item"><strong>单 chunk 输入</strong><p>每次只用当前 chunk 的 10 个 denoise rounds，不拼接前后 chunk。</p></div>
+      <div class="method-item"><strong>同状态比较</strong><p>模型在 initial-state / task 内训练与评分，减少场景难度混杂。</p></div>
+      <div class="method-item"><strong>“manifold”校正</strong><p>当前实现实际是到训练成功样本质心的 RMS 距离，不是学习流形。</p></div>
+      <div class="method-item"><strong>探索性结果</strong><p>k5 onset 为观察后描述；预注册趋势只比较 k8 与 k0。</p></div>
+    </section>
+
+    <details class="artifacts">
+      <summary>查看原始实验图</summary>
+      <div class="artifact-grid">
+        <figure><img src="moe_success_failure_curves.png" alt="三种信号的成功失败汇总曲线"><figcaption>汇总曲线：成功、失败及其差值</figcaption></figure>
+        <figure><img src="moe_success_failure_by_task.png" alt="四任务成功失败曲线"><figcaption>任务分解：结果异质性与小样本任务</figcaption></figure>
+      </div>
+    </details>
+
+    <p class="footnote" id="validation-note"></p>
+  </main>
+
+  <section class="error-state" id="error-state">
+    <h2>实验数据未加载</h2>
+    <p>请确认 <code>demo-data.js</code> 与该 HTML 位于同一目录。</p>
+  </section>
+
+  <script src="./demo-data.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const data = window.HIMOE_ROLLOUT_DEMO;
+      if (!data) {
+        document.getElementById("app").style.display = "none";
+        document.getElementById("error-state").style.display = "block";
+        return;
+      }
+
+      const SIGNALS = {
+        per_query_success_manifold_percentile: {
+          short: "成功质心异常",
+          title: "成功质心异常随 rollout 推进",
+          unit: "percentile",
+          digits: 3,
+          boundary: "该量是到每个 k 的训练成功质心的距离百分位；参考方向随 k 变化，因此只能比较群体分离趋势，不能当作一条固定物理轴。"
+        },
+        per_query_risk_percentile: {
+          short: "逐-k 风险",
+          title: "逐-k failure decoder 风险随 rollout 推进",
+          unit: "risk percentile",
+          digits: 3,
+          boundary: "每个 k 都独立交叉拟合 decoder，百分位的语义相同但判别方向不同；曲线表示该时刻的可解码性，不表示同一 latent 坐标持续增长。"
+        },
+        frozen_k8_failure_axis: {
+          short: "冻结 k8 轴",
+          title: "冻结 k8 failure 方向的前向投影",
+          unit: "projection",
+          digits: 2,
+          boundary: "方向只在 k8 训练并原样投影到 k0-k7。它能检验同一晚期方向何时出现，但 k8 本身是训练锚点，不能作为无偏性能估计。"
+        }
+      };
+
+      const TASK_LABELS = {
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": ["抽屉放碗", "LIBERO-Goal"],
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": ["双摩卡壶上炉", "LIBERO-Long"],
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": ["ramekin 上黑碗", "LIBERO-Spatial"],
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": ["炉上黑碗", "LIBERO-Spatial"]
+      };
+
+      const FAMILY_LABELS = {
+        routed_full: ["Routed full", "MoE contribution"],
+        hidden_identity: ["Hidden identity", "非 routed 控制"],
+        base: ["Base", "residual 控制"],
+        base_routed: ["Base + routed", "组合控制"]
+      };
+
+      const DYNAMIC_METRICS = {
+        routed_rms: "Routed magnitude",
+        cancellation: "Cancellation",
+        shared_conflict: "Shared conflict",
+        commitment: "Commitment"
+      };
+
+      const TASK_MARKS = ["D", "M", "R", "S"];
+      const DYNAMIC_MAX = Object.fromEntries(data.dynamics.metrics.map((metric) => {
+        const values = Object.values(data.dynamics.by_scope)
+          .flatMap((scope) => scope[metric].gap.flat(3))
+          .map((value) => Math.abs(value));
+        return [metric, Math.max(0.2, ...values)];
+      }));
+
+      const state = {
+        signal: "per_query_success_manifold_percentile",
+        task: "aggregate",
+        k: 0,
+        fromK: 0,
+        transitionStart: performance.now(),
+        evaluation: "seed_heldout",
+        dynamicMetric: "routed_rms",
+        denoise: 0,
+        playEpoch: 0,
+        timer: null,
+        lastMotionFrame: 0
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const fmt = (value, digits = 3, signed = false) => {
+        if (!Number.isFinite(value)) return "-";
+        const prefix = signed && value > 0 ? "+" : "";
+        return prefix + value.toFixed(digits);
+      };
+
+      function taskLabel(id) {
+        return TASK_LABELS[id] || [id.split("/").pop().replaceAll("_", " "), id.split("/")[0]];
+      }
+
+      function aggregateRows(signal, group) {
+        return data.curves
+          .filter((row) => row.signal === signal && row.group === group)
+          .sort((a, b) => a.chunk - b.chunk);
+      }
+
+      function taskRows(task, signal) {
+        return data.by_task
+          .filter((row) => row.task === task && row.signal === signal)
+          .sort((a, b) => a.chunk - b.chunk);
+      }
+
+      function clamp(value, low = 0, high = 1) {
+        return Math.max(low, Math.min(high, value));
+      }
+
+      function mix(a, b, amount) {
+        return a + (b - a) * amount;
+      }
+
+      function transitionAmount(now) {
+        const linear = clamp((now - state.transitionStart) / 650);
+        return 1 - ((1 - linear) ** 3);
+      }
+
+      function taskSignalAt(task, group, now) {
+        const rows = taskRows(task, state.signal);
+        const field = group === "success" ? "success" : "failure";
+        const start = rows.find((row) => row.chunk === state.fromK)[field];
+        const end = rows.find((row) => row.chunk === state.k)[field];
+        return mix(start, end, transitionAmount(now));
+      }
+
+      function signalDomain(signal) {
+        const values = data.by_task
+          .filter((row) => row.signal === signal)
+          .flatMap((row) => [row.success, row.failure]);
+        const low = Math.min(...values);
+        const high = Math.max(...values);
+        const padding = Math.max(0.04, (high - low) * 0.08);
+        return [low - padding, high + padding];
+      }
+
+      function seriesForCurrentView() {
+        if (state.task === "aggregate") {
+          return {
+            success: aggregateRows(state.signal, "success"),
+            failure: aggregateRows(state.signal, "failure"),
+            aggregate: true
+          };
+        }
+        const rows = taskRows(state.task, state.signal);
+        return {
+          success: rows.map((r) => ({ chunk: r.chunk, mean: r.success })),
+          failure: rows.map((r) => ({ chunk: r.chunk, mean: r.failure })),
+          aggregate: false
+        };
+      }
+
+      function gapRowsForCurrentView() {
+        if (state.task === "aggregate") {
+          return data.gaps
+            .filter((row) => row.signal === state.signal)
+            .sort((a, b) => a.chunk - b.chunk);
+        }
+        return taskRows(state.task, state.signal).map((row) => ({
+          chunk: row.chunk,
+          failure_minus_success: row.failure_minus_success
+        }));
+      }
+
+      function domainForMain() {
+        const values = [];
+        data.curves.filter((r) => r.signal === state.signal).forEach((r) => values.push(r.mean, r.ci_low, r.ci_high));
+        data.by_task.filter((r) => r.signal === state.signal).forEach((r) => values.push(r.success, r.failure));
+        let lo = Math.min(...values);
+        let hi = Math.max(...values);
+        if (state.signal !== "frozen_k8_failure_axis") {
+          lo = Math.max(0, Math.floor((lo - 0.04) * 10) / 10);
+          hi = Math.min(1, Math.ceil((hi + 0.04) * 10) / 10);
+        } else {
+          const pad = Math.max(0.25, (hi - lo) * 0.08);
+          lo -= pad;
+          hi += pad;
+        }
+        return [lo, hi];
+      }
+
+      function domainForGap() {
+        const values = [];
+        data.gaps.filter((r) => r.signal === state.signal).forEach((r) => values.push(r.failure_minus_success, r.ci_low, r.ci_high));
+        data.by_task.filter((r) => r.signal === state.signal).forEach((r) => values.push(r.failure_minus_success));
+        const maxAbs = Math.max(0.1, ...values.map((v) => Math.abs(v))) * 1.12;
+        return [-maxAbs, maxAbs];
+      }
+
+      function canvasContext(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const pixelWidth = Math.max(1, Math.round(rect.width * dpr));
+        const pixelHeight = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+          canvas.width = pixelWidth;
+          canvas.height = pixelHeight;
+        }
+        const ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { ctx, width: rect.width, height: rect.height };
+      }
+
+      function ticks(lo, hi, count = 5) {
+        const raw = (hi - lo) / Math.max(1, count - 1);
+        const power = 10 ** Math.floor(Math.log10(raw));
+        const ratio = raw / power;
+        const nice = (ratio <= 1 ? 1 : ratio <= 2 ? 2 : ratio <= 5 ? 5 : 10) * power;
+        const start = Math.ceil(lo / nice) * nice;
+        const out = [];
+        for (let v = start; v <= hi + nice * 0.01; v += nice) out.push(v);
+        return out;
+      }
+
+      function drawAxes(ctx, plot, yDomain, yFormat) {
+        const [lo, hi] = yDomain;
+        const y = (value) => plot.top + (hi - value) / (hi - lo) * plot.height;
+        ctx.save();
+        ctx.font = "11px Inter, system-ui, sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ticks(lo, hi).forEach((value) => {
+          const py = y(value);
+          ctx.strokeStyle = "#e4e8e6";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(plot.left, py);
+          ctx.lineTo(plot.left + plot.width, py);
+          ctx.stroke();
+          ctx.fillStyle = "#73807a";
+          ctx.fillText(yFormat(value), plot.left - 9, py);
+        });
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        for (let k = 0; k < data.meta.chunks; k += 1) {
+          const px = plot.left + k / (data.meta.chunks - 1) * plot.width;
+          ctx.fillStyle = k === state.k ? "#17211e" : "#73807a";
+          ctx.font = k === state.k ? "700 11px Inter, system-ui, sans-serif" : "11px Inter, system-ui, sans-serif";
+          ctx.fillText("k" + k, px, plot.top + plot.height + 12);
+        }
+        ctx.restore();
+        return { y };
+      }
+
+      function drawBand(ctx, rows, x, y, color) {
+        if (!rows.every((r) => Number.isFinite(r.ci_low) && Number.isFinite(r.ci_high))) return;
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        rows.forEach((row, index) => {
+          const px = x(row.chunk);
+          const py = y(row.ci_high);
+          if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        [...rows].reverse().forEach((row) => ctx.lineTo(x(row.chunk), y(row.ci_low)));
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawLine(ctx, rows, x, y, color) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        rows.forEach((row, index) => {
+          const px = x(row.chunk);
+          const py = y(row.mean);
+          if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+        rows.forEach((row) => {
+          ctx.beginPath();
+          ctx.arc(x(row.chunk), y(row.mean), row.chunk === state.k ? 4.5 : 3, 0, Math.PI * 2);
+          ctx.fillStyle = "#fff";
+          ctx.fill();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = row.chunk === state.k ? 2.5 : 1.8;
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+
+      function drawMainChart() {
+        const canvas = $("main-chart");
+        const { ctx, width, height } = canvasContext(canvas);
+        ctx.clearRect(0, 0, width, height);
+        const plot = { left: width < 520 ? 48 : 58, top: 19, width: width - (width < 520 ? 64 : 78), height: height - 65 };
+        const domain = domainForMain();
+        const x = (k) => plot.left + k / (data.meta.chunks - 1) * plot.width;
+        const yFmt = state.signal === "frozen_k8_failure_axis" ? (v) => v.toFixed(1) : (v) => v.toFixed(1);
+        const { y } = drawAxes(ctx, plot, domain, yFmt);
+        const series = seriesForCurrentView();
+
+        drawBand(ctx, series.success, x, y, "rgba(20, 122, 91, 0.12)");
+        drawBand(ctx, series.failure, x, y, "rgba(196, 72, 60, 0.12)");
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(23, 33, 30, 0.35)";
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x(state.k), plot.top);
+        ctx.lineTo(x(state.k), plot.top + plot.height);
+        ctx.stroke();
+        ctx.restore();
+
+        drawLine(ctx, series.success, x, y, "#147a5b");
+        drawLine(ctx, series.failure, x, y, "#c4483c");
+        canvas._chart = { plot, x, series };
+      }
+
+      function drawGapChart() {
+        const canvas = $("gap-chart");
+        const { ctx, width, height } = canvasContext(canvas);
+        ctx.clearRect(0, 0, width, height);
+        const plot = { left: width < 520 ? 48 : 58, top: 16, width: width - (width < 520 ? 64 : 78), height: height - 61 };
+        const domain = domainForGap();
+        const x = (k) => plot.left + k / (data.meta.chunks - 1) * plot.width;
+        const { y } = drawAxes(ctx, plot, domain, (v) => v.toFixed(state.signal === "frozen_k8_failure_axis" ? 1 : 2));
+        const rows = gapRowsForCurrentView();
+
+        if (state.task === "aggregate") {
+          const bandRows = rows.map((r) => ({ chunk: r.chunk, ci_low: r.ci_low, ci_high: r.ci_high }));
+          drawBand(ctx, bandRows, x, y, "rgba(196, 72, 60, 0.12)");
+        }
+        ctx.save();
+        ctx.strokeStyle = "#7e8984";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(plot.left, y(0));
+        ctx.lineTo(plot.left + plot.width, y(0));
+        ctx.stroke();
+        ctx.restore();
+
+        const lineRows = rows.map((r) => ({ chunk: r.chunk, mean: r.failure_minus_success }));
+        drawLine(ctx, lineRows, x, y, "#c4483c");
+        ctx.save();
+        ctx.strokeStyle = "rgba(23, 33, 30, 0.35)";
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x(state.k), plot.top);
+        ctx.lineTo(x(state.k), plot.top + plot.height);
+        ctx.stroke();
+        ctx.restore();
+        canvas._chart = { plot, x, rows };
+      }
+
+      function drawBasinStage(now) {
+        const canvas = $("basin-canvas");
+        const { ctx, width, height } = canvasContext(canvas);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#111b18";
+        ctx.fillRect(0, 0, width, height);
+
+        const compact = width < 520;
+        const cx = width * (compact ? 0.5 : 0.52);
+        const cy = height * 0.51;
+        const outer = Math.min(width * 0.40, height * 0.39);
+        const inner = Math.max(25, outer * 0.19);
+        const domain = signalDomain(state.signal);
+        const radius = (value) => inner + clamp((value - domain[0]) / (domain[1] - domain[0])) * (outer - inner);
+        const angles = [-2.35, -0.78, 0.78, 2.35];
+        const signalLabel = SIGNALS[state.signal].short;
+
+        ctx.save();
+        ctx.font = "11px Inter, system-ui, sans-serif";
+        ctx.fillStyle = "#8fa099";
+        ctx.textAlign = "left";
+        ctx.fillText(signalLabel + " · task-level same-state means", 17, 23);
+        ctx.textAlign = "right";
+        ctx.fillText(`k${state.k}`, width - 17, 23);
+
+        [0.25, 0.5, 0.75, 1].forEach((fraction, index) => {
+          const r = inner + fraction * (outer - inner);
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.strokeStyle = index === 1 ? "#52655d" : "#2c3b35";
+          ctx.lineWidth = index === 1 ? 1.2 : 1;
+          ctx.stroke();
+          if (index < 3 && !compact) {
+            const value = domain[0] + fraction * (domain[1] - domain[0]);
+            ctx.fillStyle = "#61756d";
+            ctx.textAlign = "left";
+            ctx.fillText(fmt(value, state.signal === "frozen_k8_failure_axis" ? 1 : 2), cx + r + 4, cy - 2);
+          }
+        });
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, inner * 0.84, 0, Math.PI * 2);
+        ctx.fillStyle = "#22352e";
+        ctx.fill();
+        ctx.strokeStyle = "#668076";
+        ctx.stroke();
+        ctx.fillStyle = "#d8e5df";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "700 10px Inter, system-ui, sans-serif";
+        ctx.fillText(state.signal === "per_query_success_manifold_percentile" ? "SUCCESS" : "LOW", cx, cy - 5);
+        ctx.font = "9px Inter, system-ui, sans-serif";
+        ctx.fillStyle = "#91a29b";
+        ctx.fillText("REFERENCE", cx, cy + 7);
+
+        data.meta.tasks.forEach((task, taskIndex) => {
+          const angle = angles[taskIndex];
+          const highlighted = state.task === "aggregate" || state.task === task.id;
+          ctx.globalAlpha = highlighted ? 1 : 0.18;
+          const values = {
+            success: taskSignalAt(task.id, "success", now),
+            failure: taskSignalAt(task.id, "failure", now)
+          };
+          const points = {};
+          for (const group of ["success", "failure"]) {
+            const offset = group === "success" ? -0.035 : 0.035;
+            const groupAngle = angle + offset;
+            const r = radius(values[group]);
+            points[group] = { x: cx + Math.cos(groupAngle) * r, y: cy + Math.sin(groupAngle) * r };
+
+            const rows = taskRows(task.id, state.signal);
+            ctx.beginPath();
+            rows.filter((row) => row.chunk <= state.k).forEach((row, index) => {
+              const trailR = radius(row[group]);
+              const x = cx + Math.cos(groupAngle) * trailR;
+              const y = cy + Math.sin(groupAngle) * trailR;
+              if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = group === "success" ? "rgba(69,198,150,0.34)" : "rgba(240,107,95,0.34)";
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            rows.filter((row) => row.chunk < state.k).forEach((row) => {
+              const trailR = radius(row[group]);
+              ctx.beginPath();
+              ctx.arc(cx + Math.cos(groupAngle) * trailR, cy + Math.sin(groupAngle) * trailR, 2.2, 0, Math.PI * 2);
+              ctx.fillStyle = group === "success" ? "#347b61" : "#9e4a42";
+              ctx.fill();
+            });
+          }
+
+          ctx.beginPath();
+          ctx.moveTo(points.success.x, points.success.y);
+          ctx.lineTo(points.failure.x, points.failure.y);
+          ctx.strokeStyle = "rgba(220,230,226,0.28)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          for (const group of ["success", "failure"]) {
+            const point = points[group];
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, highlighted ? 8 : 6, 0, Math.PI * 2);
+            ctx.fillStyle = group === "success" ? "#45c696" : "#f06b5f";
+            ctx.fill();
+            ctx.strokeStyle = "#f3f7f5";
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+            if (highlighted) {
+              ctx.fillStyle = "#10201a";
+              ctx.font = "700 8px Inter, system-ui, sans-serif";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(TASK_MARKS[taskIndex], point.x, point.y + 0.5);
+            }
+          }
+
+          const labelR = outer + (compact ? 14 : 19);
+          const lx = cx + Math.cos(angle) * labelR;
+          const ly = cy + Math.sin(angle) * labelR;
+          ctx.fillStyle = highlighted ? "#c8d7d1" : "#61716b";
+          ctx.font = highlighted ? "650 10px Inter, system-ui, sans-serif" : "10px Inter, system-ui, sans-serif";
+          ctx.textAlign = Math.cos(angle) > 0.25 ? "left" : Math.cos(angle) < -0.25 ? "right" : "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(taskLabel(task.id)[0], lx, ly);
+        });
+        ctx.restore();
+      }
+
+      function dynamicCell(group, denoise, layerAxis, now) {
+        const scope = data.dynamics.by_scope[state.task][state.dynamicMetric][group];
+        const start = scope[state.fromK][denoise][layerAxis];
+        const end = scope[state.k][denoise][layerAxis];
+        return mix(start, end, transitionAmount(now));
+      }
+
+      function heatColor(value, maximum) {
+        const strength = 0.16 + 0.76 * clamp(Math.abs(value) / maximum);
+        return value >= 0
+          ? `rgba(240, 107, 95, ${strength})`
+          : `rgba(69, 198, 150, ${strength})`;
+      }
+
+      function drawMoEStage(now) {
+        const canvas = $("moe-canvas");
+        const { ctx, width, height } = canvasContext(canvas);
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#16221e";
+        ctx.fillRect(0, 0, width, height);
+
+        const left = width < 430 ? 37 : 45;
+        const right = 10;
+        const top = 27;
+        const gridWidth = width - left - right;
+        const gridHeight = Math.min(170, height * 0.58);
+        const cellW = gridWidth / data.dynamics.denoise_rounds;
+        const cellH = gridHeight / data.dynamics.layers.length;
+        const maximum = DYNAMIC_MAX[state.dynamicMetric];
+        let strongest = { layer: 0, value: 0 };
+
+        ctx.save();
+        ctx.font = "9px Inter, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        for (let denoise = 0; denoise < data.dynamics.denoise_rounds; denoise += 1) {
+          ctx.fillStyle = denoise === state.denoise ? "#f0c66f" : "#74877f";
+          ctx.fillText("d" + denoise, left + (denoise + 0.5) * cellW, top - 6);
+        }
+
+        data.dynamics.layers.forEach((layer, layerAxis) => {
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = layerAxis === 3 ? "#dce7e2" : "#879991";
+          ctx.fillText("L" + layer, left - 7, top + (layerAxis + 0.5) * cellH);
+          for (let denoise = 0; denoise < data.dynamics.denoise_rounds; denoise += 1) {
+            const gap = dynamicCell("gap", denoise, layerAxis, now);
+            const x = left + denoise * cellW;
+            const y = top + layerAxis * cellH;
+            ctx.fillStyle = "#22312c";
+            ctx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+            ctx.fillStyle = heatColor(gap, maximum);
+            ctx.fillRect(x + 2, y + 2, cellW - 4, cellH - 4);
+            if (denoise === state.denoise && Math.abs(gap) > Math.abs(strongest.value)) strongest = { layer: layerAxis, value: gap };
+          }
+        });
+
+        const scanX = left + state.denoise * cellW;
+        ctx.strokeStyle = "#f0c66f";
+        ctx.lineWidth = 1.6;
+        ctx.strokeRect(scanX + 0.5, top + 0.5, cellW - 1, gridHeight - 1);
+
+        const waveTop = top + gridHeight + 35;
+        const waveHeight = Math.max(32, height - waveTop - 20);
+        ctx.strokeStyle = "#3a4b44";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(left, waveTop + waveHeight / 2);
+        ctx.lineTo(left + gridWidth, waveTop + waveHeight / 2);
+        ctx.stroke();
+        ctx.fillStyle = "#82948c";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText("layer-mean gap", left, waveTop - 7);
+
+        const waveform = Array.from({ length: data.dynamics.denoise_rounds }, (_, denoise) => {
+          return data.dynamics.layers.reduce((sum, _layer, layerAxis) => sum + dynamicCell("gap", denoise, layerAxis, now), 0) / data.dynamics.layers.length;
+        });
+        ctx.beginPath();
+        waveform.forEach((value, denoise) => {
+          const x = left + (denoise + 0.5) * cellW;
+          const y = waveTop + waveHeight / 2 - value / maximum * waveHeight * 0.46;
+          if (denoise === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = "#e0aa4d";
+        ctx.lineWidth = 2;
+        ctx.lineJoin = "round";
+        ctx.stroke();
+        waveform.forEach((value, denoise) => {
+          const x = left + (denoise + 0.5) * cellW;
+          const y = waveTop + waveHeight / 2 - value / maximum * waveHeight * 0.46;
+          ctx.beginPath();
+          ctx.arc(x, y, denoise === state.denoise ? 3.3 : 2, 0, Math.PI * 2);
+          ctx.fillStyle = denoise === state.denoise ? "#f3cb79" : "#9f7c3e";
+          ctx.fill();
+        });
+        ctx.restore();
+
+        const success = dynamicCell("success", state.denoise, strongest.layer, now);
+        const failure = dynamicCell("failure", state.denoise, strongest.layer, now);
+        $("motion-success").textContent = fmt(success, 2, true);
+        $("motion-failure").textContent = fmt(failure, 2, true);
+        $("motion-gap").textContent = fmt(failure - success, 2, true);
+        $("motion-live").textContent = `k${state.k} · d${state.denoise} · HB-L${data.dynamics.layers[strongest.layer]}`;
+      }
+
+      function updateMotionPhase() {
+        const aggregateGap = data.gaps.find((row) => row.signal === state.signal && row.chunk === state.k);
+        let text;
+        if (state.k <= 4 && aggregateGap.ci_low <= 0 && aggregateGap.ci_high >= 0) {
+          text = "成功与失败尚未稳定分离";
+        } else if (state.k <= 6) {
+          text = "偏离成功参考开始累积";
+        } else {
+          text = "晚期状态分支已经明显分离";
+        }
+        $("motion-phase-text").textContent = text;
+      }
+
+      function drawMotionFrame(now) {
+        if (state.timer) {
+          const phase = (now - state.playEpoch) % 1100;
+          state.denoise = Math.max(0, Math.min(9, Math.floor(phase / 100)));
+        }
+        if (now - state.lastMotionFrame >= 28) {
+          state.lastMotionFrame = now;
+          drawBasinStage(now);
+          drawMoEStage(now);
+        }
+        window.requestAnimationFrame(drawMotionFrame);
+      }
+
+      function bindChartTooltip(canvasId, tooltipId, type) {
+        const canvas = $(canvasId);
+        const tooltip = $(tooltipId);
+        canvas.addEventListener("mousemove", (event) => {
+          const chart = canvas._chart;
+          if (!chart) return;
+          const rect = canvas.getBoundingClientRect();
+          const localX = event.clientX - rect.left;
+          const k = Math.max(0, Math.min(data.meta.chunks - 1, Math.round((localX - chart.plot.left) / chart.plot.width * (data.meta.chunks - 1))));
+          const px = chart.x(k);
+          if (type === "main") {
+            const success = chart.series.success.find((r) => r.chunk === k);
+            const failure = chart.series.failure.find((r) => r.chunk === k);
+            tooltip.innerHTML = `<strong>k${k}</strong><div class="tooltip-row success-text"><span>成功</span><span>${fmt(success.mean, SIGNALS[state.signal].digits)}</span></div><div class="tooltip-row failure-text"><span>失败</span><span>${fmt(failure.mean, SIGNALS[state.signal].digits)}</span></div><div class="tooltip-row"><span>差值</span><span>${fmt(failure.mean - success.mean, SIGNALS[state.signal].digits, true)}</span></div>`;
+          } else {
+            const row = chart.rows.find((r) => r.chunk === k);
+            const ci = Number.isFinite(row.ci_low) ? `<div class="tooltip-row"><span>95% CI</span><span>[${fmt(row.ci_low, 3)}, ${fmt(row.ci_high, 3)}]</span></div>` : "";
+            tooltip.innerHTML = `<strong>k${k}</strong><div class="tooltip-row"><span>失败 - 成功</span><span>${fmt(row.failure_minus_success, SIGNALS[state.signal].digits, true)}</span></div>${ci}`;
+          }
+          tooltip.style.left = `${Math.max(90, Math.min(rect.width - 90, px))}px`;
+          tooltip.style.top = `${Math.max(96, event.clientY - rect.top)}px`;
+          tooltip.classList.add("show");
+        });
+        canvas.addEventListener("mouseleave", () => tooltip.classList.remove("show"));
+        canvas.addEventListener("click", (event) => {
+          const chart = canvas._chart;
+          if (!chart) return;
+          const rect = canvas.getBoundingClientRect();
+          const localX = event.clientX - rect.left;
+          setK(Math.max(0, Math.min(data.meta.chunks - 1, Math.round((localX - chart.plot.left) / chart.plot.width * (data.meta.chunks - 1)))));
+        });
+      }
+
+      function selectedValues() {
+        const series = seriesForCurrentView();
+        const success = series.success.find((r) => r.chunk === state.k);
+        const failure = series.failure.find((r) => r.chunk === state.k);
+        const gap = gapRowsForCurrentView().find((r) => r.chunk === state.k);
+        return { success, failure, gap };
+      }
+
+      function interpretation(values) {
+        const gap = values.gap.failure_minus_success;
+        const aggregate = state.task === "aggregate";
+        const supported = aggregate && values.gap.ci_low > 0;
+        const unresolved = aggregate && values.gap.ci_low <= 0 && values.gap.ci_high >= 0;
+        let title;
+        let text;
+
+        if (state.signal === "per_query_success_manifold_percentile") {
+          if (supported && state.k >= 7) {
+            title = "失败 rollout 已明显远离成功参考";
+            text = "在同一初始状态内，最终失败的 rollout 到成功质心的距离更大。物理上更像已累积的状态分支偏移或恢复空间收缩，而不是模型提前‘看见’了循环。";
+          } else if (supported) {
+            title = "候选偏离从这里开始可见";
+            text = "失败 rollout 开始比成功 rollout 更远离该时刻的成功参考。它与早期错误改变后续物理状态的解释一致，但目前尚未分解动作、场景变化与 MoE 内部机制各自贡献。";
+          } else if (aggregate && unresolved) {
+            title = "当前尚无可靠群体分离";
+            text = "成功与失败 rollout 在这个 chunk 的质心距离分布仍然重叠。数据不支持把这里解释成已形成的危险策略承诺。";
+          } else {
+            title = gap > 0 ? "该任务中失败信号描述性更高" : "该任务中未见正向偏离";
+            text = "这是单任务的描述性均值差，没有任务级置信区间；应结合失败样本量和其余任务判断。";
+          }
+        } else if (state.signal === "per_query_risk_percentile") {
+          if (supported) {
+            title = "当前 chunk 已可解码最终失败";
+            text = "只看这个 chunk 内部，交叉拟合 decoder 给失败 rollout 更高风险排名。物理上它可能读取了动作模式、环境状态或内部不稳定性，不能仅凭该结果归因为 MoE 状态。";
+          } else if (aggregate && unresolved) {
+            title = "当前 decoder 没有稳定区分两组";
+            text = "这个时刻的 MoE 特征不足以在任务汇总层面稳定排序最终成功与失败 rollout。不同 k 的 decoder 独立训练，因此局部起伏不等同于风险真正下降或反弹。";
+          } else {
+            title = gap > 0 ? "该任务出现正向风险差" : "该任务风险方向相反";
+            text = "单任务均值用于查看异质性，不应作为跨任务结论。";
+          }
+        } else {
+          if (supported && state.k < data.meta.anchor_chunk) {
+            title = "晚期 failure 方向开始提前出现";
+            text = "k8 学到的同一方向已能在更早 chunk 上区分两组，符合计算状态逐渐接近晚期失败模式的解释。";
+          } else if (state.k === data.meta.anchor_chunk) {
+            title = "锚点处出现强分离";
+            text = "该方向正是在 k8 拟合，所以这里的强差异是构造结果，不是独立验证。真正关键的是它在 k0-k7 何时开始同向分离。";
+          } else if (aggregate && unresolved) {
+            title = "同一晚期方向尚未提前出现";
+            text = "置信区间跨过零，说明 k8 的 failure 方向在当前 chunk 没有稳定投影差异。这不排除更早存在另一种策略承诺信号。";
+          } else {
+            title = gap > 0 ? "该任务投影为正" : "该任务投影未朝向晚期 failure 轴";
+            text = "单任务结果仅作轨迹形态比较。";
+          }
+        }
+        return { title, text };
+      }
+
+      function updateSnapshot() {
+        const values = selectedValues();
+        const digits = SIGNALS[state.signal].digits;
+        $("snapshot-k").textContent = `k${state.k}`;
+        $("success-score").textContent = fmt(values.success.mean, digits);
+        $("failure-score").textContent = fmt(values.failure.mean, digits);
+        $("gap-score").textContent = fmt(values.gap.failure_minus_success, digits, true);
+
+        const status = $("gap-status");
+        status.className = "status";
+        if (state.task !== "aggregate") {
+          $("gap-ci").textContent = "单任务描述性均值（无 CI）";
+          status.classList.add("descriptive");
+          status.textContent = "描述性对比";
+        } else {
+          $("gap-ci").textContent = `task bootstrap 95% CI [${fmt(values.gap.ci_low, digits)}, ${fmt(values.gap.ci_high, digits)}]`;
+          if (values.gap.ci_low > 0) {
+            status.classList.add("positive");
+            status.textContent = "失败信号更高";
+          } else if (values.gap.ci_high < 0) {
+            status.classList.add("inverse");
+            status.textContent = "方向相反";
+          } else {
+            status.classList.add("unresolved");
+            status.textContent = "尚未稳定分离";
+          }
+        }
+
+        const reading = interpretation(values);
+        $("interpretation-title").textContent = reading.title;
+        $("interpretation-text").textContent = reading.text;
+        $("interpretation-boundary").textContent = SIGNALS[state.signal].boundary;
+      }
+
+      function updateTaskTable() {
+        const rows = data.meta.tasks.map((task) => {
+          const point = data.by_task.find((r) => r.task === task.id && r.signal === state.signal && r.chunk === state.k);
+          const label = taskLabel(task.id);
+          const gapClass = point.failure_minus_success > 0 ? "pos" : "neg";
+          const failClass = task.failure < 20 ? "small-n" : "";
+          return `<tr><td class="task-name"><strong>${label[0]}</strong><span>${label[1]}</span></td><td class="${failClass}">${task.failure}</td><td>${fmt(point.success, SIGNALS[state.signal].digits)}</td><td>${fmt(point.failure, SIGNALS[state.signal].digits)}</td><td><span class="mini-gap"><i class="mini-mark ${gapClass}"></i>${fmt(point.failure_minus_success, SIGNALS[state.signal].digits, true)}</span></td></tr>`;
+        });
+        $("task-table-body").innerHTML = rows.join("");
+        $("task-table-subtitle").textContent = `k${state.k} · ${SIGNALS[state.signal].short}`;
+      }
+
+      function updateAudit() {
+        const families = ["routed_full", "hidden_identity", "base", "base_routed"];
+        const rows = families.map((family) => data.classifier_macro.find((r) => r.evaluation === state.evaluation && r.family === family && r.chunk === state.k));
+        $("auc-bars").innerHTML = rows.map((row) => {
+          const label = FAMILY_LABELS[row.family];
+          const left = Math.max(0, Math.min(100, (row.macro_auc - 0.4) / 0.4 * 100));
+          return `<div class="auc-row"><div class="auc-name"><strong>${label[0]}</strong>${label[1]}</div><div class="bar-track"><span class="bar-fill ${row.family === "routed_full" ? "routed" : ""}" style="width:${left}%"></span></div><div class="auc-value">${fmt(row.macro_auc, 3)}</div></div>`;
+        }).join("");
+
+        const routed = rows[0];
+        const controls = rows.slice(1);
+        const strongest = controls.reduce((a, b) => a.macro_auc > b.macro_auc ? a : b);
+        const delta = routed.macro_auc - strongest.macro_auc;
+        const evalName = state.evaluation === "seed_heldout" ? "同状态 seed 留出" : "未见初始状态";
+        $("audit-title").textContent = "尚无 routed-specific 证据";
+        $("audit-text").textContent = `${evalName}下，routed-full 与 hidden/base 控制表现接近，且置信区间广泛重叠。当前结果支持“内部表征可解码失败”，不支持“增长由 routed MoE 独有机制产生”。`;
+        $("audit-routed").textContent = `${fmt(routed.macro_auc, 3)} [${fmt(routed.ci_low, 3)}, ${fmt(routed.ci_high, 3)}]`;
+        $("audit-control").textContent = `${FAMILY_LABELS[strongest.family][0]} ${fmt(strongest.macro_auc, 3)}`;
+        $("audit-delta").textContent = fmt(delta, 3, true);
+        $("audit-k").textContent = `k${state.k}`;
+      }
+
+      function updateHeadings() {
+        const aggregate = state.task === "aggregate";
+        $("curve-title").textContent = SIGNALS[state.signal].title;
+        $("curve-subtitle").textContent = aggregate
+          ? "任务等权均值；阴影为 task bootstrap 95% CI"
+          : `${taskLabel(state.task)[0]}；同初始状态交叉拟合后的描述性均值`;
+      }
+
+      function render() {
+        document.querySelectorAll("[data-signal]").forEach((button) => button.classList.toggle("active", button.dataset.signal === state.signal));
+        document.querySelectorAll("[data-evaluation]").forEach((button) => button.classList.toggle("active", button.dataset.evaluation === state.evaluation));
+        $("chunk-range").value = state.k;
+        $("k-readout").textContent = `k${state.k}`;
+        document.querySelectorAll("[data-dynamic-metric]").forEach((button) => button.classList.toggle("active", button.dataset.dynamicMetric === state.dynamicMetric));
+        document.querySelectorAll("[data-motion-k]").forEach((button) => {
+          const k = Number(button.dataset.motionK);
+          button.classList.toggle("active", k === state.k);
+          button.classList.toggle("past", k < state.k);
+        });
+        updateHeadings();
+        drawMainChart();
+        drawGapChart();
+        updateSnapshot();
+        updateTaskTable();
+        updateAudit();
+        updateMotionPhase();
+      }
+
+      function setK(k) {
+        const next = Math.max(0, Math.min(data.meta.chunks - 1, Number(k)));
+        if (next !== state.k) {
+          state.fromK = state.k;
+          state.transitionStart = performance.now();
+        }
+        state.k = next;
+        render();
+      }
+
+      function stopPlayback() {
+        if (state.timer) window.clearInterval(state.timer);
+        state.timer = null;
+        $("play-k").innerHTML = "&#9654;";
+        $("play-k").title = "播放 chunk";
+        $("play-k").setAttribute("aria-label", "播放 chunk");
+      }
+
+      function togglePlayback() {
+        if (state.timer) {
+          stopPlayback();
+          return;
+        }
+        $("play-k").innerHTML = "&#10074;&#10074;";
+        $("play-k").title = "暂停";
+        $("play-k").setAttribute("aria-label", "暂停");
+        state.playEpoch = performance.now();
+        if (state.k === data.meta.chunks - 1) setK(0);
+        state.timer = window.setInterval(() => setK((state.k + 1) % data.meta.chunks), 1100);
+      }
+
+      function initialize() {
+        $("count-rollouts").textContent = data.meta.rollouts.toLocaleString("en-US");
+        $("count-failure").textContent = data.meta.failure.toLocaleString("en-US");
+        $("count-tasks").textContent = data.meta.tasks.length;
+        $("count-chunks").textContent = `k0-${data.meta.chunks - 1}`;
+
+        const taskSelect = $("task-select");
+        data.meta.tasks.forEach((task) => {
+          const option = document.createElement("option");
+          option.value = task.id;
+          option.textContent = `${taskLabel(task.id)[0]} (${task.failure} failures)`;
+          taskSelect.appendChild(option);
+        });
+        $("motion-timeline").innerHTML = Array.from({ length: data.meta.chunks }, (_, k) => `<button class="motion-k" data-motion-k="${k}" type="button">k${k}</button>`).join("");
+
+        $("signal-controls").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-signal]");
+          if (!button) return;
+          state.signal = button.dataset.signal;
+          stopPlayback();
+          render();
+        });
+        $("evaluation-controls").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-evaluation]");
+          if (!button) return;
+          state.evaluation = button.dataset.evaluation;
+          updateAudit();
+          document.querySelectorAll("[data-evaluation]").forEach((item) => item.classList.toggle("active", item.dataset.evaluation === state.evaluation));
+        });
+        $("dynamic-metric-controls").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-dynamic-metric]");
+          if (!button) return;
+          state.dynamicMetric = button.dataset.dynamicMetric;
+          document.querySelectorAll("[data-dynamic-metric]").forEach((item) => item.classList.toggle("active", item.dataset.dynamicMetric === state.dynamicMetric));
+        });
+        $("motion-timeline").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-motion-k]");
+          if (!button) return;
+          stopPlayback();
+          setK(button.dataset.motionK);
+        });
+        taskSelect.addEventListener("change", () => { state.task = taskSelect.value; stopPlayback(); render(); });
+        $("chunk-range").addEventListener("input", (event) => { stopPlayback(); setK(event.target.value); });
+        $("prev-k").addEventListener("click", () => { stopPlayback(); setK(state.k - 1); });
+        $("next-k").addEventListener("click", () => { stopPlayback(); setK(state.k + 1); });
+        $("play-k").addEventListener("click", togglePlayback);
+        bindChartTooltip("main-chart", "main-tooltip", "main");
+        bindChartTooltip("gap-chart", "gap-tooltip", "gap");
+
+        let resizeTimer;
+        window.addEventListener("resize", () => {
+          window.clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(() => { drawMainChart(); drawGapChart(); }, 100);
+        });
+        document.addEventListener("visibilitychange", () => { if (document.hidden) stopPlayback(); });
+
+        $("validation-note").textContent = `数据完整性：selected-probability 最大 MAE ${data.meta.max_selected_probability_mae.toExponential(2)}；冻结轴 k8 重现最大绝对误差 ${data.meta.frozen_anchor_max_abs_diff.toExponential(1)}。`;
+        render();
+        window.requestAnimationFrame(drawMotionFrame);
+        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) togglePlayback();
+      }
+
+      initialize();
+    })();
+  </script>
+</body>
+</html>

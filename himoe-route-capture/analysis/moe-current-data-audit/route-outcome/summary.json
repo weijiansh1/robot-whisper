@@ -1,0 +1,150 @@
+{
+  "analysis": "route--outcome geometry conditional on action distance",
+  "mode": "legacy_proxy_exploratory",
+  "confirmatory": false,
+  "route_distance": {
+    "name": "RMS Hellinger",
+    "sites": "8 HB layers x 10 denoise rounds x 10 action tokens",
+    "expert_axis": 32,
+    "probability_normalization": "per aligned routing site",
+    "range": [
+      0.0,
+      1.0
+    ]
+  },
+  "provenance": {
+    "pairs": "analysis/behavior-geometry-phase1/legacy-n32-v2/pairs.csv",
+    "pairs_sha256": "41392770933af6648a912962b412e0641a29c9c41e063cd2631867203a228ba1",
+    "phase1_summary": "analysis/behavior-geometry-phase1/legacy-n32-v2/summary.json",
+    "phase1_summary_sha256": "5b81c23e3ce83ac2b7a4ac2b755cd18d22559725e9e6f5780ab6f1daedf7ec71",
+    "fork_records": "runs/fork-pilot-n32-client/fork_records.json",
+    "fork_records_sha256": "ae005f7acf20381cdce89efae418a94e78ae2462c8091b90d8b2fe9878aa76ca",
+    "routes": "runs/fork-pilot-n32/routes.zarr"
+  },
+  "snapshot_count": 20,
+  "pair_count": 9920,
+  "thresholds_reused_without_refitting": {
+    "action_near": 0.13071844781849556,
+    "action_far": 0.2150194902364063,
+    "outcome_same_max": 0.0,
+    "outcome_different_min": 0.007349509854580618
+  },
+  "route_alignment": {
+    "route_store_rows": 3808,
+    "selected_unique_trace_rows": 640,
+    "selected_trace_row_min": 0,
+    "selected_trace_row_max": 3647,
+    "raw_probability_mass_min": 0.999786376953125,
+    "raw_probability_mass_max": 1.0002288818359375
+  },
+  "inequalities": {
+    "far_action": {
+      "available": true,
+      "hypothesis": "d_R(far-action,different-outcome) > d_R(far-action,same-outcome)",
+      "contrast": "different-outcome minus same-outcome",
+      "all_labeled_pair_counts": {
+        "same": 658,
+        "different": 588
+      },
+      "snapshots_with_any_labeled_pair": 10,
+      "eligible_snapshot_count": 3,
+      "per_snapshot": [
+        {
+          "snapshot": "ep2/t10",
+          "same_pair_count": 49,
+          "different_pair_count": 133,
+          "same_mean_d_route": 0.025610183926928296,
+          "different_mean_d_route": 0.027448593037516476,
+          "different_minus_same": 0.0018384091105881802
+        },
+        {
+          "snapshot": "ep4/t10",
+          "same_pair_count": 3,
+          "different_pair_count": 36,
+          "same_mean_d_route": 0.02735588285628342,
+          "different_mean_d_route": 0.026409349897758935,
+          "different_minus_same": -0.0009465329585244854
+        },
+        {
+          "snapshot": "ep4/t11",
+          "same_pair_count": 23,
+          "different_pair_count": 12,
+          "same_mean_d_route": 0.025001690493107926,
+          "different_mean_d_route": 0.024951753051151358,
+          "different_minus_same": -4.993744195656846e-05
+        }
+      ],
+      "snapshot_equal_bootstrap": {
+        "mean": 0.00028064623670237543,
+        "snapshots": 3,
+        "confidence": 0.95,
+        "lower": -0.0009465329585244854,
+        "upper": 0.0018384091105881802,
+        "draws": 10000,
+        "available": true
+      },
+      "snapshot_sign_flip_one_sided": {
+        "alternative": "mean contrast > 0",
+        "observed": 0.00028064623670237543,
+        "p": 0.5,
+        "draws": 8,
+        "exact": true
+      },
+      "point_estimate_holds": true,
+      "confidence_interval_above_zero": false
+    },
+    "near_action": {
+      "available": true,
+      "hypothesis": "d_R(near-action,different-outcome) > d_R(near-action,same-outcome)",
+      "contrast": "different-outcome minus same-outcome",
+      "all_labeled_pair_counts": {
+        "same": 1385,
+        "different": 55
+      },
+      "snapshots_with_any_labeled_pair": 15,
+      "eligible_snapshot_count": 1,
+      "per_snapshot": [
+        {
+          "snapshot": "ep4/t11",
+          "same_pair_count": 1,
+          "different_pair_count": 1,
+          "same_mean_d_route": 0.0222421042496421,
+          "different_mean_d_route": 0.02321000177550314,
+          "different_minus_same": 0.0009678975258610376
+        }
+      ],
+      "snapshot_equal_bootstrap": {
+        "mean": 0.0009678975258610376,
+        "snapshots": 1,
+        "confidence": 0.95,
+        "lower": null,
+        "upper": null,
+        "draws": 0,
+        "available": false
+      },
+      "snapshot_sign_flip_one_sided": {
+        "alternative": "mean contrast > 0",
+        "observed": 0.0009678975258610376,
+        "p": 0.5,
+        "draws": 2,
+        "exact": true
+      },
+      "point_estimate_holds": true,
+      "confidence_interval_above_zero": false
+    }
+  },
+  "decision": {
+    "both_point_estimates_hold": true,
+    "both_snapshot_bootstrap_intervals_above_zero": false,
+    "phase2_small_validation_passed": false,
+    "rule": "pass only if both primary snapshot-bootstrap intervals are above zero"
+  },
+  "inference_unit": "snapshot after within-snapshot pair reduction",
+  "limitations": [
+    "Outcome sameness/difference is the phase-1 drawer-endpoint quantile proxy, not repeated-continuation Q equivalence.",
+    "Action and outcome thresholds were fit post hoc on these same 20 snapshots.",
+    "All snapshots come from one task and only five source episodes; there is no held-out task validation.",
+    "Several snapshots have degenerate proxy outcomes, reducing the number eligible for within-snapshot contrasts.",
+    "Pair mining and this follow-up reuse the same sample; selected effects require independent confirmation."
+  ]
+}

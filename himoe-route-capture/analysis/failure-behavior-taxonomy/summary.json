@@ -1,0 +1,597 @@
+{
+  "bootstrap_stability": {
+    "labels": {
+      "active_retry": {
+        "bootstrap_positive_n_median": 0.0,
+        "default_failure_n": 0,
+        "default_positive_probability_median": null,
+        "jaccard_median": 1.0,
+        "jaccard_p10": 1.0,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 1.0
+      },
+      "eef_oscillation": {
+        "bootstrap_positive_n_median": 0.0,
+        "default_failure_n": 0,
+        "default_positive_probability_median": null,
+        "jaccard_median": 1.0,
+        "jaccard_p10": 1.0,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 1.0
+      },
+      "goal_approach_leave": {
+        "bootstrap_positive_n_median": 5.0,
+        "default_failure_n": 5,
+        "default_positive_probability_median": 1.0,
+        "jaccard_median": 1.0,
+        "jaccard_p10": 1.0,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 1.0
+      },
+      "goal_regression": {
+        "bootstrap_positive_n_median": 49.0,
+        "default_failure_n": 49,
+        "default_positive_probability_median": 1.0,
+        "jaccard_median": 1.0,
+        "jaccard_p10": 1.0,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 1.0
+      },
+      "gripper_cycling": {
+        "bootstrap_positive_n_median": 10.0,
+        "default_failure_n": 9,
+        "default_positive_probability_median": 1.0,
+        "jaccard_median": 0.9,
+        "jaccard_p10": 0.5294117647058824,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 0.9706840390879479
+      },
+      "regrasp_or_drop": {
+        "bootstrap_positive_n_median": 58.0,
+        "default_failure_n": 58,
+        "default_positive_probability_median": 1.0,
+        "jaccard_median": 1.0,
+        "jaccard_p10": 0.9830508474576272,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 0.996742671009772
+      },
+      "stagnation": {
+        "bootstrap_positive_n_median": 166.0,
+        "default_failure_n": 166,
+        "default_positive_probability_median": 1.0,
+        "jaccard_median": 1.0,
+        "jaccard_p10": 1.0,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 1.0
+      },
+      "subtask_undo": {
+        "bootstrap_positive_n_median": 8.0,
+        "default_failure_n": 8,
+        "default_positive_probability_median": 1.0,
+        "jaccard_median": 1.0,
+        "jaccard_p10": 1.0,
+        "jaccard_p90": 1.0,
+        "stable_episode_fraction": 1.0
+      }
+    },
+    "primary_agreement_median": 0.996742671009772,
+    "primary_agreement_p10": 0.9739413680781759,
+    "primary_ari_median": 0.9936359138312757,
+    "primary_ari_p10": 0.9657557590359994,
+    "repeats": 200,
+    "sampling": "success rollouts resampled with replacement within task x init",
+    "seed": 20260828
+  },
+  "definitions": {
+    "cell_shrinkage": 8.0,
+    "goal_radii_m": {
+      "approach": 0.1,
+      "approach_exit": 0.15,
+      "goal": 0.05,
+      "undo_exit": 0.075
+    },
+    "static_thresholds_m": {
+      "eef": 0.005,
+      "gripper_aperture": 0.001,
+      "object": 0.003
+    },
+    "success_baseline": "task x init empirical quantile shrunk toward task quantile"
+  },
+  "event_stasis_crosscheck": {
+    "event_terminal_window_stasis_n": 141,
+    "interpretation": "taxonomy detects any long joint-static run before 90%; event stasis tests the final quarter, so taxonomy positives need not remain terminally static",
+    "intersection_n": 136,
+    "method_review": "analysis/failure-type-method-review/report.md",
+    "source": "analysis/failure-event-audit/episode_events.csv",
+    "strict_long_also_taxonomy_stagnation_n": 109,
+    "strict_long_unfinished_pot1_stasis_n": 109,
+    "taxonomy_stagnation_later_nonstasis_n": 30,
+    "taxonomy_stagnation_n": 166
+  },
+  "failure_mode_cross_tables": {
+    "multilabel": {
+      "active_retry": {},
+      "eef_oscillation": {},
+      "goal_approach_leave": {
+        "partial": 3,
+        "reached_then_lost": 2
+      },
+      "goal_regression": {
+        "lifted_not_placed": 32,
+        "misplaced": 6,
+        "partial": 3,
+        "reached_then_lost": 8
+      },
+      "gripper_cycling": {
+        "lifted_not_placed": 3,
+        "misplaced": 1,
+        "never_grasped": 2,
+        "partial": 3
+      },
+      "regrasp_or_drop": {
+        "lifted_not_placed": 40,
+        "misplaced": 7,
+        "partial": 6,
+        "reached_then_lost": 5
+      },
+      "stagnation": {
+        "lifted_not_placed": 10,
+        "misplaced": 6,
+        "never_grasped": 13,
+        "partial": 137
+      },
+      "subtask_undo": {
+        "reached_then_lost": 8
+      }
+    },
+    "primary": {
+      "goal_approach_leave": {
+        "lifted_not_placed": 0,
+        "misplaced": 0,
+        "never_grasped": 0,
+        "partial": 3,
+        "reached_then_lost": 0
+      },
+      "gripper_cycling": {
+        "lifted_not_placed": 0,
+        "misplaced": 1,
+        "never_grasped": 2,
+        "partial": 2,
+        "reached_then_lost": 0
+      },
+      "other": {
+        "lifted_not_placed": 2,
+        "misplaced": 14,
+        "never_grasped": 14,
+        "partial": 53,
+        "reached_then_lost": 5
+      },
+      "regrasp_or_drop": {
+        "lifted_not_placed": 40,
+        "misplaced": 7,
+        "never_grasped": 0,
+        "partial": 3,
+        "reached_then_lost": 0
+      },
+      "stagnation": {
+        "lifted_not_placed": 0,
+        "misplaced": 3,
+        "never_grasped": 13,
+        "partial": 137,
+        "reached_then_lost": 0
+      },
+      "subtask_undo": {
+        "lifted_not_placed": 0,
+        "misplaced": 0,
+        "never_grasped": 0,
+        "partial": 0,
+        "reached_then_lost": 8
+      }
+    }
+  },
+  "labels": {
+    "active_retry": {
+      "failure_n": 0,
+      "failure_rate": 0.0,
+      "failure_task_counts": {},
+      "success_n": 24,
+      "success_rate": 0.010652463382157125
+    },
+    "eef_oscillation": {
+      "failure_n": 0,
+      "failure_rate": 0.0,
+      "failure_task_counts": {},
+      "success_n": 37,
+      "success_rate": 0.016422547714158898
+    },
+    "goal_approach_leave": {
+      "failure_n": 5,
+      "failure_rate": 0.016286644951140065,
+      "failure_task_counts": {
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 5
+      },
+      "success_n": 0,
+      "success_rate": 0.0
+    },
+    "goal_regression": {
+      "failure_n": 49,
+      "failure_rate": 0.15960912052117263,
+      "failure_task_counts": {
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": 38,
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 11
+      },
+      "success_n": 0,
+      "success_rate": 0.0
+    },
+    "gripper_cycling": {
+      "failure_n": 9,
+      "failure_rate": 0.029315960912052116,
+      "failure_task_counts": {
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": 1,
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 3,
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": 1,
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": 4
+      },
+      "success_n": 22,
+      "success_rate": 0.009764758100310697
+    },
+    "regrasp_or_drop": {
+      "failure_n": 58,
+      "failure_rate": 0.18892508143322476,
+      "failure_task_counts": {
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": 40,
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 11,
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": 1,
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": 6
+      },
+      "success_n": 9,
+      "success_rate": 0.0039946737683089215
+    },
+    "stagnation": {
+      "failure_n": 166,
+      "failure_rate": 0.5407166123778502,
+      "failure_task_counts": {
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": 12,
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 138,
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": 16
+      },
+      "success_n": 5,
+      "success_rate": 0.0022192632046160675
+    },
+    "subtask_undo": {
+      "failure_n": 8,
+      "failure_rate": 0.026058631921824105,
+      "failure_task_counts": {
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 8
+      },
+      "success_n": 0,
+      "success_rate": 0.0
+    }
+  },
+  "overlap_counts": {
+    "active_retry": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 0,
+      "goal_regression": 0,
+      "gripper_cycling": 0,
+      "regrasp_or_drop": 0,
+      "stagnation": 0,
+      "subtask_undo": 0
+    },
+    "eef_oscillation": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 0,
+      "goal_regression": 0,
+      "gripper_cycling": 0,
+      "regrasp_or_drop": 0,
+      "stagnation": 0,
+      "subtask_undo": 0
+    },
+    "goal_approach_leave": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 5,
+      "goal_regression": 5,
+      "gripper_cycling": 1,
+      "regrasp_or_drop": 5,
+      "stagnation": 0,
+      "subtask_undo": 2
+    },
+    "goal_regression": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 5,
+      "goal_regression": 49,
+      "gripper_cycling": 1,
+      "regrasp_or_drop": 46,
+      "stagnation": 12,
+      "subtask_undo": 8
+    },
+    "gripper_cycling": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 1,
+      "goal_regression": 1,
+      "gripper_cycling": 9,
+      "regrasp_or_drop": 4,
+      "stagnation": 0,
+      "subtask_undo": 0
+    },
+    "regrasp_or_drop": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 5,
+      "goal_regression": 46,
+      "gripper_cycling": 4,
+      "regrasp_or_drop": 58,
+      "stagnation": 13,
+      "subtask_undo": 5
+    },
+    "stagnation": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 0,
+      "goal_regression": 12,
+      "gripper_cycling": 0,
+      "regrasp_or_drop": 13,
+      "stagnation": 166,
+      "subtask_undo": 0
+    },
+    "subtask_undo": {
+      "active_retry": 0,
+      "eef_oscillation": 0,
+      "goal_approach_leave": 2,
+      "goal_regression": 8,
+      "gripper_cycling": 0,
+      "regrasp_or_drop": 5,
+      "stagnation": 0,
+      "subtask_undo": 8
+    }
+  },
+  "overlap_jaccard": {
+    "active_retry": {
+      "active_retry": null,
+      "eef_oscillation": null,
+      "goal_approach_leave": 0.0,
+      "goal_regression": 0.0,
+      "gripper_cycling": 0.0,
+      "regrasp_or_drop": 0.0,
+      "stagnation": 0.0,
+      "subtask_undo": 0.0
+    },
+    "eef_oscillation": {
+      "active_retry": null,
+      "eef_oscillation": null,
+      "goal_approach_leave": 0.0,
+      "goal_regression": 0.0,
+      "gripper_cycling": 0.0,
+      "regrasp_or_drop": 0.0,
+      "stagnation": 0.0,
+      "subtask_undo": 0.0
+    },
+    "goal_approach_leave": {
+      "active_retry": 0.0,
+      "eef_oscillation": 0.0,
+      "goal_approach_leave": 1.0,
+      "goal_regression": 0.10204081632653061,
+      "gripper_cycling": 0.07692307692307693,
+      "regrasp_or_drop": 0.08620689655172414,
+      "stagnation": 0.0,
+      "subtask_undo": 0.18181818181818182
+    },
+    "goal_regression": {
+      "active_retry": 0.0,
+      "eef_oscillation": 0.0,
+      "goal_approach_leave": 0.10204081632653061,
+      "goal_regression": 1.0,
+      "gripper_cycling": 0.017543859649122806,
+      "regrasp_or_drop": 0.7540983606557377,
+      "stagnation": 0.059113300492610835,
+      "subtask_undo": 0.16326530612244897
+    },
+    "gripper_cycling": {
+      "active_retry": 0.0,
+      "eef_oscillation": 0.0,
+      "goal_approach_leave": 0.07692307692307693,
+      "goal_regression": 0.017543859649122806,
+      "gripper_cycling": 1.0,
+      "regrasp_or_drop": 0.06349206349206349,
+      "stagnation": 0.0,
+      "subtask_undo": 0.0
+    },
+    "regrasp_or_drop": {
+      "active_retry": 0.0,
+      "eef_oscillation": 0.0,
+      "goal_approach_leave": 0.08620689655172414,
+      "goal_regression": 0.7540983606557377,
+      "gripper_cycling": 0.06349206349206349,
+      "regrasp_or_drop": 1.0,
+      "stagnation": 0.061611374407582936,
+      "subtask_undo": 0.08196721311475409
+    },
+    "stagnation": {
+      "active_retry": 0.0,
+      "eef_oscillation": 0.0,
+      "goal_approach_leave": 0.0,
+      "goal_regression": 0.059113300492610835,
+      "gripper_cycling": 0.0,
+      "regrasp_or_drop": 0.061611374407582936,
+      "stagnation": 1.0,
+      "subtask_undo": 0.0
+    },
+    "subtask_undo": {
+      "active_retry": 0.0,
+      "eef_oscillation": 0.0,
+      "goal_approach_leave": 0.18181818181818182,
+      "goal_regression": 0.16326530612244897,
+      "gripper_cycling": 0.0,
+      "regrasp_or_drop": 0.08196721311475409,
+      "stagnation": 0.0,
+      "subtask_undo": 1.0
+    }
+  },
+  "primary_counts": {
+    "goal_approach_leave": 3,
+    "gripper_cycling": 5,
+    "other": 88,
+    "regrasp_or_drop": 50,
+    "stagnation": 153,
+    "subtask_undo": 8
+  },
+  "residual_audit": {
+    "any_pre90_static_transition_n": 55,
+    "at_least_three_gripper_flips_n": 61,
+    "either_progress_metric_below_success_q05_n": 79,
+    "failure_fraction": 0.28664495114006516,
+    "failure_mode_counts": {
+      "lifted_not_placed": 2,
+      "misplaced": 14,
+      "never_grasped": 14,
+      "partial": 53,
+      "reached_then_lost": 5
+    },
+    "late_goal_progress_below_success_q05_n": 79,
+    "late_path_efficiency_below_success_q05_n": 38,
+    "median_midlate_speed_m": 0.038726875894591964,
+    "midlate_speed_below_success_q25_n": 87,
+    "n": 88,
+    "normalized_gripper_flip_rate_above_success_q95_n": 0,
+    "residual_median_activity_ratio_to_success_q25": 0.6613172918533097,
+    "stagnation_median_activity_ratio_to_success_q25": 0.24214452096873873,
+    "stagnation_median_midlate_speed_m": 0.013604119441895202,
+    "still_unlabeled_after_truncate90_n": 83,
+    "success_median_activity_ratio_to_success_q25": 1.0284760867638156,
+    "success_median_midlate_speed_m": 0.07418238262649057,
+    "task_counts": {
+      "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": 2,
+      "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 62,
+      "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": 10,
+      "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": 14
+    },
+    "terminal_static_majority_n": 13
+  },
+  "schema": "himoe.failure_behavior_taxonomy.v2",
+  "scope": {
+    "episode_length_used_for_rules": false,
+    "episodes": 2560,
+    "failures": 307,
+    "relative_time_only": true,
+    "successes": 2253
+  },
+  "sensitivity": {
+    "quantile": {
+      "0.9": {
+        "active_retry": 1.0,
+        "eef_oscillation": 1.0,
+        "goal_approach_leave": 1.0,
+        "goal_regression": 1.0,
+        "gripper_cycling": 0.9,
+        "regrasp_or_drop": 0.9830508474576272,
+        "stagnation": 1.0,
+        "subtask_undo": 1.0
+      },
+      "0.975": {
+        "active_retry": 1.0,
+        "eef_oscillation": 1.0,
+        "goal_approach_leave": 1.0,
+        "goal_regression": 1.0,
+        "gripper_cycling": 1.0,
+        "regrasp_or_drop": 1.0,
+        "stagnation": 1.0,
+        "subtask_undo": 1.0
+      }
+    },
+    "truncate90": {
+      "active_retry": 1.0,
+      "eef_oscillation": 1.0,
+      "goal_approach_leave": 1.0,
+      "goal_regression": 0.9,
+      "gripper_cycling": 0.46153846153846156,
+      "primary_ari": 0.8979027893913999,
+      "regrasp_or_drop": 0.9661016949152542,
+      "stagnation": 0.9698795180722891,
+      "subtask_undo": 0.5
+    }
+  },
+  "stagnation_audit": {
+    "definition_excludes_final_fraction": 0.1,
+    "failure_naive_full_only_n": 4,
+    "failure_naive_full_trajectory_n": 165,
+    "failure_stagnation_n": 166,
+    "failure_terminal_static_majority_n": 154,
+    "stagnation_onset_before_75pct_n": 157,
+    "stagnation_onset_phase_median": 0.5980392156862745,
+    "stagnation_onset_phase_q25": 0.5784313725490197,
+    "stagnation_onset_phase_q75": 0.6519607843137255,
+    "stagnation_without_terminal_static_majority_n": 45,
+    "terminal_static_but_not_stagnation_n": 33,
+    "truncate90_jaccard": 0.9698795180722891
+  },
+  "target_audit": [
+    {
+      "goal_positions": [],
+      "targets": [],
+      "task": "libero_goal/open_the_middle_drawer_of_the_cabinet"
+    },
+    {
+      "goal_positions": [
+        [
+          0.03148163482546806,
+          -0.08352470397949219,
+          1.1518700122833252
+        ]
+      ],
+      "targets": [
+        "akita_black_bowl_1_joint0"
+      ],
+      "task": "libero_goal/open_the_top_drawer_and_put_the_bowl_inside"
+    },
+    {
+      "goal_positions": [
+        [
+          -0.007746306713670492,
+          -0.16538673639297485,
+          1.023492455482483
+        ],
+        [
+          -0.10646814107894897,
+          -0.2466583549976349,
+          0.9967278242111206
+        ]
+      ],
+      "targets": [
+        "moka_pot_1_joint0",
+        "moka_pot_2_joint0"
+      ],
+      "task": "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove"
+    },
+    {
+      "goal_positions": [
+        [
+          0.06658326834440231,
+          0.1952085942029953,
+          0.9586477279663086
+        ]
+      ],
+      "targets": [
+        "akita_black_bowl_1_joint0"
+      ],
+      "task": "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate"
+    },
+    {
+      "goal_positions": [
+        [
+          0.07526662945747375,
+          0.19252923130989075,
+          0.9467748403549194
+        ]
+      ],
+      "targets": [
+        "akita_black_bowl_1_joint0"
+      ],
+      "task": "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate"
+    }
+  ]
+}

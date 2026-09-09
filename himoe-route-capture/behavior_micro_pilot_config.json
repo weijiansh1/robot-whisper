@@ -1,0 +1,208 @@
+{
+  "schema": "himoe.behavior_micro_pilot.config.v1",
+  "confirmatory": false,
+  "master_seed": 20260824,
+  "benchmark": "libero_goal",
+  "checkpoint": {
+    "path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-Goal",
+    "sha256": "98ee29d09d1855716e341532a3d0f76068de6fa131f8fe16ffd52f982df1b953",
+    "libero_wrist_layout": "released-left"
+  },
+  "tasks": [
+    {
+      "task_id": 0,
+      "role": "calibration",
+      "source_rollout_dir": "runs/objstate-t0s24-client"
+    },
+    {
+      "task_id": 1,
+      "role": "evaluation",
+      "source_rollout_dir": "runs/objstate-t1s19-client"
+    },
+    {
+      "task_id": 3,
+      "role": "evaluation",
+      "source_rollout_dir": "runs/objstate-t3s0-client"
+    }
+  ],
+  "snapshot_sampling": {
+    "snapshots_per_task": 6,
+    "distinct_source_episodes": true,
+    "source_outcomes_per_task": {
+      "success": 3,
+      "failure": 3
+    },
+    "event_critical": {
+      "count_per_task": 4,
+      "cells": [
+        ["success", "early"],
+        ["failure", "early"],
+        ["success", "late"],
+        ["failure", "late"]
+      ],
+      "windows": {
+        "early": [0.2, 0.5],
+        "late": [0.5, 0.8]
+      },
+      "assignment": "maximum-total-source-event-score-with-distinct-episodes",
+      "tie_break": "earliest-control-step-then-lowest-episode",
+      "zero_event_fallback": "window-midpoint"
+    },
+    "uniform_audit": {
+      "count_per_task": 2,
+      "outcomes": ["success", "failure"],
+      "window": [0.2, 0.8],
+      "selection": "deterministic-seed-domain-audit"
+    },
+    "forbidden_selection_inputs": [
+      "candidate_action",
+      "candidate_outcome",
+      "candidate_route",
+      "candidate_hidden",
+      "candidate_xtraj"
+    ]
+  },
+  "seed_derivation": {
+    "algorithm": "numpy.SeedSequence-PCG64-uint32-v1",
+    "entropy_words": [
+      "master_seed",
+      "low32(sha256(domain))",
+      "task_id",
+      "episode",
+      "fork_step",
+      "domain_coordinates"
+    ],
+    "domains": [
+      "screen/candidate",
+      "screen/continuation",
+      "formal/candidate",
+      "formal/continuation",
+      "execution",
+      "audit/inclusion"
+    ],
+    "continuation_seed_excludes_candidate": true
+  },
+  "capture": {
+    "action_chunk_horizon": 10,
+    "candidates_per_pool": 32,
+    "continuation_control_steps": 5,
+    "continuation_action_horizon": 10,
+    "continuation_shard_repeats": 8,
+    "screen_repeats": 8,
+    "formal_initial_repeats": 48,
+    "formal_topup_repeats": 96,
+    "capture_candidate_signals": [
+      "hb_router_probabilities",
+      "router_hidden",
+      "normalized_flow_trajectory"
+    ],
+    "capture_continuation_signals": [],
+    "candidate_rows_expected": 1152,
+    "continuation_rows_expected": 0
+  },
+  "queues": {
+    "main": {
+      "snapshots": "all-18",
+      "candidate_pool": "formal/candidate",
+      "continuation_pool": "formal/continuation"
+    },
+    "enriched": {
+      "snapshots": "screen-positive-only",
+      "candidate_pool": "reuse-screen/candidate",
+      "continuation_pool": "formal/continuation",
+      "exclude_screen_repeats_from_formal_labels": true
+    }
+  },
+  "screening": {
+    "allowed_inputs": ["action", "physical_trajectory", "event_tape", "R8_outcome"],
+    "forbidden_inputs": ["route", "hidden", "flow_trajectory"],
+    "same": {
+      "events": "exact-equality",
+      "max_abs_q_difference": 0.125
+    },
+    "different": {
+      "events": "different",
+      "min_abs_q_difference": 0.25,
+      "combine": "or"
+    },
+    "positive_per_action_stratum": {
+      "same_pairs_min": 2,
+      "different_pairs_min": 2,
+      "unique_candidates_per_class_min": 3
+    }
+  },
+  "formal_labels": {
+    "equivalence_margin": 0.1,
+    "confidence": 0.95,
+    "same": "events-exact-and-paired-q-ci-inside-equivalence-margin",
+    "different": "events-different-or-paired-q-ci-outside-equivalence-margin",
+    "otherwise": "ambiguous",
+    "common_random_numbers": true
+  },
+  "analysis": {
+    "calibration_task_ids": [0],
+    "evaluation_task_ids": [1, 3],
+    "action_threshold_quantiles": {
+      "near": 0.2,
+      "far": 0.8
+    },
+    "far_requires_physical_far": true,
+    "physical_schema": "fixed-cross-task-components-with-presence-mask",
+    "route_metric": "full-hb-rms-hellinger",
+    "matching": {
+      "features": ["d_action"],
+      "method": "one-to-one-minimum-cost",
+      "caliper_sd_multiplier": 0.2,
+      "minimum_matches": 5,
+      "minimum_unique_candidates_per_group": 4
+    },
+    "residual_sensitivity": "task0-weighted-quadratic-d_route-on-d_action",
+    "hidden_control": "deterministic-route-dimensional-random-projection",
+    "flow_trajectory_role": "secondary-distance",
+    "inference_unit": "snapshot-with-episode-and-task-macro-reduction"
+  },
+  "global_topup_rule": {
+    "from_repeats": 48,
+    "to_repeats": 96,
+    "apply_to": "all-formal-pools",
+    "trigger_any": {
+      "evaluation_label_coverage_below": 0.7,
+      "main_near_eligible_snapshots_below": 4,
+      "main_far_eligible_snapshots_below": 4
+    }
+  },
+  "gates": {
+    "engineering": {
+      "planned_snapshots_complete": 18,
+      "fidelity_pass_all": true,
+      "checksums_pass_all": true,
+      "crn_pass_all": true,
+      "candidate_rows_exact": 1152,
+      "continuation_rows_exact": 0,
+      "candidate_store_alignment": true
+    },
+    "science": {
+      "main_eligible_snapshots_per_stratum_min": 4,
+      "evaluation_tasks_per_stratum_min": 2,
+      "source_episodes_per_stratum_min": 4,
+      "matches_per_snapshot_min": 5,
+      "unique_candidates_per_group_min": 4,
+      "screen_recall_min": 0.75,
+      "screen_ppv_min": 0.4,
+      "label_coverage_min": 0.7
+    },
+    "censoring": {
+      "definition": "no-success-and-all-50-environment-actions-executed",
+      "max_fraction_per_evaluation_task_and_cohort": 0.2
+    },
+    "effect_direction_is_gate": false
+  },
+  "restrictions": {
+    "evaluation_threshold_retuning": false,
+    "scientific_failure_rerun_same_plan": false,
+    "engineering_failure_rerun_same_plan": true,
+    "build_cross_control_state_graph": false,
+    "train_candidate_selector": false,
+    "launch_large_formal_collection": false
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "schema": "himoe.bestofn.config.v1",
+  "confirmatory": false,
+  "master_seed": 20260825,
+  "benchmark": "libero_goal",
+  "checkpoint": {
+    "path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-Goal",
+    "sha256": "98ee29d09d1855716e341532a3d0f76068de6fa131f8fe16ffd52f982df1b953",
+    "libero_wrist_layout": "released-left"
+  },
+  "tasks": [
+    {
+      "task_id": 0,
+      "source_rollout_dir": "runs/objstate-t0s24-client"
+    },
+    {
+      "task_id": 1,
+      "source_rollout_dir": "runs/objstate-t1s19-client"
+    },
+    {
+      "task_id": 3,
+      "source_rollout_dir": "runs/objstate-t3s0-client"
+    }
+  ],
+  "source_event_root": "runs/behavior-micro-pilot-20260824/source_events",
+  "snapshot_sampling": {
+    "snapshots_per_task": 100,
+    "phase_counts": {
+      "free_space": 25,
+      "pre_contact": 25,
+      "contact_manipulation": 25,
+      "late_recovery": 25
+    },
+    "split_counts_per_phase": {
+      "train": 15,
+      "validation": 5,
+      "test": 5
+    },
+    "parent_episode_grouped": true,
+    "privileged_phase_not_critic_input": true
+  },
+  "proposal": {
+    "base_candidates": 8,
+    "extension_candidates": 16,
+    "extension_snapshot_fraction": 0.2,
+    "action_chunk_horizon": 10,
+    "flow_noise_scale": 1.0,
+    "freeze_vla": true,
+    "capture": [
+      "full_hb_router_probabilities",
+      "selected_raw_probability",
+      "router_hidden",
+      "normalized_flow_trajectory",
+      "pooled_frozen_vlm_feature",
+      "raw_observation_images",
+      "proprioception",
+      "candidate_action_chunk"
+    ]
+  },
+  "continuation": {
+    "policy": "frozen_base_himoe_vla",
+    "terminal_environment_steps": 300,
+    "initial_repeats": 4,
+    "topup_repeats": 8,
+    "common_random_numbers": true,
+    "seed_excludes_candidate": true,
+    "capture_routing": false
+  },
+  "oracle": {
+    "candidate_counts": [1, 2, 4, 8, 16],
+    "cross_fit": "independent_half-seed-select/evaluate-and-swap",
+    "maximum_subsets_per_snapshot": 256,
+    "bootstrap_draws": 10000,
+    "bootstrap_unit": "task-then-snapshot",
+    "gate_candidate_count": 8,
+    "gate": "cross_fitted_headroom_ci95_lower_above_zero"
+  },
+  "critic": {
+    "authorized_only_after_oracle_gate": true,
+    "baselines": [
+      "state_action",
+      "state_route",
+      "state_action_route",
+      "state_action_router_hidden"
+    ],
+    "primary_delta": "state_action_route-minus-state_action",
+    "split_unit": "parent_episode-grouped plus leave-one-task-out",
+    "losses": ["binomial_value", "within_snapshot_pairwise_rank"],
+    "candidate_set_advantage_centering": true,
+    "ensemble_seeds": [2026082501, 2026082502, 2026082503, 2026082504, 2026082505],
+    "control_seeds": [2026082511, 2026082512, 2026082513],
+    "loto_seeds": [2026082521, 2026082522, 2026082523],
+    "model": {
+      "width": 256,
+      "latent": 128,
+      "hidden_projection": 16
+    },
+    "training": {
+      "learning_rate": 0.0003,
+      "weight_decay": 0.0001,
+      "max_epochs": 200,
+      "patience": 25,
+      "minimum_delta": 0.0001,
+      "batch_snapshots": 8,
+      "rank_weight": 1.0,
+      "gradient_clip": 5.0,
+      "deterministic": true
+    },
+    "evaluation": {
+      "bootstrap_draws": 10000,
+      "bootstrap_unit": "task-then-snapshot",
+      "gate_2": "joint selected-q paired-CI lower>0, pairwise delta>0, regret delta<0",
+      "primary_split": "parent-episode-grouped test",
+      "secondary_split": "leave-one-task-out"
+    },
+    "route_exclusions": [
+      "same_snapshot_shuffle",
+      "cross_snapshot_shuffle",
+      "expert_id_permutation_retrained",
+      "flow_order_reversed",
+      "state_token_removed",
+      "action_tokens_removed",
+      "early_middle_late_final",
+      "as_moe_negative_control"
+    ]
+  },
+  "restrictions": {
+    "reuse_old_candidate_or_outcome_data": false,
+    "train_router_or_vla": false,
+    "q_guided_denoising": false,
+    "critic_training_before_gate1": false
+  }
+}

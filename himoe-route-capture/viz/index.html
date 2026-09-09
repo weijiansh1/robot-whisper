@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiMoE-VLA 路由状态 · 同一场景 64 次 flow 噪声</title>
+<style>
+  :root {
+    --ok: #1b7f47; --bad: #b8342a; --ink: #16181a; --dim: #6b7075;
+    --line: #dde0e3; --bg: #fafafa; --panel: #fff; --accent: #2b5d8a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.6 -apple-system, "Segoe UI", "Noto Sans SC", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header { padding: 20px 26px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  h1 { margin: 0 0 4px; font-size: 20px; font-weight: 650; }
+  .lede { font-size: 14px; margin: 8px 0 0; max-width: 1020px; }
+  .setup { color: var(--dim); font-size: 12.5px; margin-top: 6px; }
+  .setup code { background: #f1f2f3; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+  .wrap { padding: 16px 26px 70px; max-width: 1720px; }
+
+  .keys { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 16px; }
+  .key {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 7px;
+    padding: 9px 14px; flex: 1 1 210px;
+  }
+  .key .n { font-size: 20px; font-weight: 650; letter-spacing: -.4px; }
+  .key .t { font-size: 12px; color: var(--dim); line-height: 1.45; margin-top: 1px; }
+
+  .bar {
+    display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 15px; margin-bottom: 16px; position: sticky; top: 0; z-index: 9;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  }
+  .ctl { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+  .ctl > label { color: var(--dim); white-space: nowrap; }
+  .sep { width: 1px; align-self: stretch; background: var(--line); }
+  select, button {
+    font: inherit; font-size: 13px; padding: 4px 9px; border: 1px solid #ccd0d4;
+    border-radius: 6px; background: #fff; color: var(--ink); cursor: pointer;
+  }
+  select:focus, button:focus { outline: 2px solid #9cc3e8; outline-offset: 1px; }
+  button:hover { background: #f4f6f8; }
+  button.primary { background: var(--ink); color: #fff; border-color: var(--ink); min-width: 78px; }
+  button.primary:hover { background: #2c3033; }
+  button.mini { padding: 3px 8px; font-size: 12px; color: var(--dim); }
+  input[type=range] { width: 300px; vertical-align: middle; accent-color: var(--accent); }
+  .stepno { font-variant-numeric: tabular-nums; min-width: 62px; font-size: 13px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 13px 16px 14px; min-width: 0;
+  }
+  .card h2 { margin: 0; font-size: 14.5px; font-weight: 640; }
+  .card .q { font-size: 12.5px; color: var(--dim); margin: 2px 0 0; }
+  .card .verdict {
+    font-size: 12.5px; margin: 7px 0 9px; padding: 6px 10px; border-radius: 5px;
+    background: #f2f6fa; border-left: 3px solid var(--accent); color: #244a6d;
+  }
+  details.more { margin-top: 9px; }
+  details.more summary { font-size: 12px; color: var(--dim); cursor: pointer; }
+  details.more p { font-size: 12px; color: var(--dim); margin: 6px 0 0; line-height: 1.55; }
+  canvas { display: block; width: 100%; }
+  .legend { font-size: 11.5px; color: var(--dim); margin-top: 7px; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; }
+  .pill.ok { background: #e4f2ea; color: var(--ok); }
+  .pill.bad { background: #f8e6e4; color: var(--bad); }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+  #loading { padding: 60px 26px; color: var(--dim); }
+  .warn { background:#fff8e8; border-left:3px solid #d9a441; padding:9px 13px; margin:0 0 16px;
+          font-size:12.5px; color:#5b4a25; line-height:1.6; }
+</style>
+</head>
+<body>
+<div id="loading">正在解压路由数据…</div>
+<div id="app" style="display:none">
+  <header>
+    <h1>HiMoE-VLA 的 MoE 路由状态如何变化</h1>
+    <p class="lede" id="lede"></p>
+    <div class="setup" id="setup"></div>
+  </header>
+
+  <div class="wrap">
+    <div class="keys" id="keys"></div>
+    <div class="warn" id="caveat"></div>
+
+    <div class="bar">
+      <div class="ctl">
+        <button class="primary" id="play">▶ 播放</button>
+        <label for="step">控制步</label>
+        <input type="range" id="step" min="0" value="0">
+        <span class="stepno" id="stepLabel"></span>
+      </div>
+      <div class="ctl">
+        <button class="mini" data-jump="0">跳到 0</button>
+        <button class="mini" data-jump="sep">跳到分离点</button>
+        <button class="mini" data-jump="end">跳到末尾</button>
+      </div>
+      <div class="sep"></div>
+      <div class="ctl">
+        <label for="episode">集</label>
+        <select id="episode"></select>
+        <span id="epTag"></span>
+      </div>
+      <div class="sep"></div>
+      <div class="ctl"><label for="layer">HB 层</label><select id="layer"></select></div>
+      <div class="ctl"><label for="denoise">去噪步</label><select id="denoise"></select></div>
+      <div class="ctl"><label for="token">token</label><select id="token"></select></div>
+      <div class="ctl"><label for="mode">显示</label><select id="mode">
+        <option value="resid">残差（减去各专家自身均值）</option>
+        <option value="raw">原始概率</option>
+      </select></div>
+      <div class="ctl" style="color:var(--dim);font-size:12px">← → 单步 ・ 空格 播放/暂停</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>① 64 次抽样在路由空间中的位置</h2>
+        <p class="q">同一个观测、64 个不同噪声，它们的路由状态什么时候才分开？</p>
+        <div class="verdict" id="vScatter"></div>
+        <canvas id="cScatter" data-h="400"></canvas>
+        <div class="legend">
+          <span class="swatch" style="background:var(--ok)"></span>最终成功
+          <span class="swatch" style="background:var(--bad);margin-left:12px"></span>最终失败
+          <span style="margin-left:12px">○ 已结束（冻结在最后状态）</span>
+          <span id="scatterInfo" style="margin-left:12px"></span>
+        </div>
+        <details class="more"><summary>说明</summary>
+          <p>每个点是一次 flow 噪声抽样在当前控制步的路由状态（8 层 × 10 去噪步 × 32 专家，
+          对动作 token 平均），投影到全体状态拟合的前两个主成分。细线是该集从第 0 步走到当前步的轨迹。
+          <b>控制步 0 时 64 集的机器人状态逐位相同（实测 max|Δ| = 0.0）</b>，此刻的散布完全由噪声造成。
+          点击任意点可切换到该集。两个主成分只解释 36% 的方差，所以"看起来分开"要以面板 ⑥ 的
+          分离度曲线为准。</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>② 当前集：专家 × 控制步</h2>
+        <p class="q">单看一集，路由残差随时间怎么走？</p>
+        <div class="verdict">没有稳定的"这几个专家负责这个阶段"的条纹——每一步的花样都在重排。</div>
+        <canvas id="cHeat" data-h="400"></canvas>
+        <div class="legend" id="heatInfo"></div>
+        <details class="more"><summary>说明</summary>
+          <p>选中集在选中层上的路由残差（对 10 个去噪步与 10 个动作 token 取平均）。
+          竖线是当前控制步。红 = 高于该专家自身均值，蓝 = 低于。
+          残差已按<b>该层</b>的每专家均值中心化；若按全部 8 层混合中心化，各层自身的偏好会变成
+          恒定横条，看起来像结构其实不随时间变。</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>③ 32 个专家的概率分布</h2>
+        <p class="q">router 到底有多"挑"？</p>
+        <div class="verdict" id="vBars"></div>
+        <canvas id="cBars" data-h="320"></canvas>
+        <div class="legend" id="barInfo"></div>
+        <details class="more"><summary>说明</summary>
+          <p>当前（集，控制步，层，去噪步）下的 router softmax 输出。
+          把右上角"显示"切到<b>原始概率</b>，会看到 32 根柱子几乎贴着均匀线 1/32 = 0.03125——
+          这是模型的真实状态，不是渲染问题。切回<b>残差</b>才能看见变化，代价是纵轴被放大了两个数量级。</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>④ 一次推理内部：去噪步 × 专家</h2>
+        <p class="q">路由只在控制步之间动，还是在 flow 积分过程中也动？</p>
+        <div class="verdict">一次推理内部就在动，但比控制步之间稳得多：相邻去噪步的 top-4 重叠 0.57–0.85，相邻控制步只有 0.25–0.31。</div>
+        <canvas id="cDenoise" data-h="320"></canvas>
+        <div class="legend" id="denoiseInfo"></div>
+        <details class="more"><summary>说明</summary>
+          <p>同一个控制步里，flow ODE 的 10 个积分步各自的路由残差，从 t=0（纯噪声）到 t=1（动作）。
+          黑框是当前选中的去噪步。残差幅度沿这条轴呈 U 形：t=4–5 最小，t=9（最接近动作）最大。</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>⑤ top-4 选择的翻搅</h2>
+        <p class="q">实际被选中的是哪 4 个专家，稳不稳？</p>
+        <div class="verdict">几乎每个控制步都换一批。相邻步 Jaccard 0.25–0.31，随机 4/32 基线是 0.067。</div>
+        <canvas id="cPiano" data-h="340"></canvas>
+        <div class="legend" id="pianoInfo"></div>
+        <details class="more"><summary>说明</summary>
+          <p>当前（层，去噪步，token）这一个路由站点上，每个控制步实际进入 top-4 的 4 个专家。
+          注意这是<b>单个站点</b>：把一整个控制步的 10×11×4 = 440 个 slot 并起来看会覆盖几乎全部
+          32 个专家，任意两步都像 90% 相同，那个指标没有意义。</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>⑥ 群体曲线</h2>
+        <p class="q">整批 64 集什么时候散开、什么时候成败可分？</p>
+        <div class="verdict" id="vCurves"></div>
+        <canvas id="cCurves" data-h="360"></canvas>
+        <div class="legend" id="curveInfo"></div>
+        <details class="more"><summary>说明</summary>
+          <p><b>散开程度</b> = 各集到当步集合均值的平均距离。<b>成败分离度</b> = 两组路由中心的距离 ÷ 组内散度，
+          任一组不足 5 集就不画。<b>存活集数</b>：成功的集一开完抽屉就结束，所以灰底区间里存活样本
+          越来越偏向失败，那里的曲线在比较不同的集合，不能当时间趋势读。关键是分离度的跃升发生在
+          灰底<b>之前</b>（第 10→14 步，此时 64 集全部在运行），不是幸存者偏差。</p>
+        </details>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+const D = window.HIMOE_DATA;
+const NE = 32, ND = 10, NS = 11, NK = 4;
+const OK = '#1b7f47', BAD = '#b8342a', INK = '#16181a', DIM = '#8b9096', GRID = '#ebedef';
+const S = { step: 0, ep: 0, layer: 0, denoise: 0, token: 5, mode: 'resid', playing: false };
+let AGG, DET, STATEDET, IDS, T, L, NEP, showIdx, SEPSTEP = 0;
+
+async function inflate(b64) {
+  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(stream).arrayBuffer();
+}
+function dequant(spec, buf) {
+  const u = new Uint16Array(buf), out = new Float32Array(u.length);
+  for (let i = 0; i < u.length; i++) out[i] = spec.offset + u[i] * spec.scale;
+  return out;
+}
+
+const aggAt = (e, t, l, x) => AGG[((e * T + t) * L + l) * NE + x];
+const detAt = (arr, d, t, l, n, x) => arr[(((d * T + t) * L + l) * ND + n) * NE + x];
+const idAt = (d, t, l, n, s, k) => IDS[((((d * T + t) * L + l) * ND + n) * NS + s) * NK + k];
+const showcaseSlot = ep => showIdx.indexOf(ep);
+
+// ---- canvas plumbing ------------------------------------------------------
+// The bitmap must be scaled by devicePixelRatio on BOTH axes.  Scaling only the
+// width while the context is transformed by (r, r) silently clips the bottom
+// 1 - 1/r of every panel, which on a 2x display eats exactly the x axis.
+function fit(c) {
+  const r = window.devicePixelRatio || 1;
+  const wCss = c.clientWidth || c.parentElement.clientWidth;
+  const hCss = +c.dataset.h;
+  const bw = Math.round(wCss * r), bh = Math.round(hCss * r);
+  if (c.width !== bw || c.height !== bh) { c.width = bw; c.height = bh; }
+  c.style.height = hCss + 'px';
+  const g = c.getContext('2d');
+  g.setTransform(r, 0, 0, r, 0, 0);
+  g.clearRect(0, 0, wCss, hCss);
+  return { g, w: wCss, h: hCss };
+}
+
+function niceTicks(lo, hi, target) {
+  const span = hi - lo;
+  if (!(span > 0)) return [lo];
+  const raw = span / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-12; v += step) out.push(+v.toPrecision(12));
+  return out;
+}
+function fmt(v, span) {
+  const a = Math.abs(v);
+  if (a === 0) return '0';
+  if (span < 0.01 || a >= 1e5) return v.toExponential(1).replace('e', 'e');
+  if (span < 1) return v.toFixed(Math.max(0, 2 - Math.floor(Math.log10(span))));
+  return String(+v.toFixed(2));
+}
+function text(g, s, x, y, col, size, align, baseline) {
+  g.fillStyle = col || DIM; g.font = (size || 11) + 'px system-ui, sans-serif';
+  g.textAlign = align || 'left'; g.textBaseline = baseline || 'alphabetic';
+  g.fillText(s, x, y);
+}
+
+/** Draw a framed plot area with ticks. box = {l,r,t,b} pixel margins. */
+function plot(c, m, cfg) {
+  const { g, w, h } = fit(c);
+  const B = { x0: m.l, x1: w - m.r, y0: h - m.b, y1: m.t };
+  const sx = v => B.x0 + (v - cfg.xr[0]) / (cfg.xr[1] - cfg.xr[0]) * (B.x1 - B.x0);
+  const sy = v => B.y0 - (v - cfg.yr[0]) / (cfg.yr[1] - cfg.yr[0]) * (B.y0 - B.y1);
+
+  const xt = cfg.xticks || niceTicks(cfg.xr[0], cfg.xr[1], 6);
+  const yt = cfg.yticks || niceTicks(cfg.yr[0], cfg.yr[1], 5);
+  g.lineWidth = 1;
+  if (cfg.grid !== false) {
+    g.strokeStyle = GRID; g.beginPath();
+    xt.forEach(v => { const x = Math.round(sx(v)) + .5; g.moveTo(x, B.y0); g.lineTo(x, B.y1); });
+    yt.forEach(v => { const y = Math.round(sy(v)) + .5; g.moveTo(B.x0, y); g.lineTo(B.x1, y); });
+    g.stroke();
+  }
+  g.strokeStyle = '#b9bec3'; g.beginPath();
+  g.moveTo(B.x0 + .5, B.y1); g.lineTo(B.x0 + .5, B.y0 + .5); g.lineTo(B.x1, B.y0 + .5); g.stroke();
+
+  const xspan = cfg.xr[1] - cfg.xr[0], yspan = cfg.yr[1] - cfg.yr[0];
+  xt.forEach(v => text(g, cfg.xfmt ? cfg.xfmt(v) : fmt(v, xspan), sx(v), B.y0 + 14, DIM, 10.5, 'center'));
+  yt.forEach(v => text(g, cfg.yfmt ? cfg.yfmt(v) : fmt(v, yspan), B.x0 - 6, sy(v) + 3.5, DIM, 10.5, 'right'));
+  if (cfg.xlabel) text(g, cfg.xlabel, (B.x0 + B.x1) / 2, h - 4, DIM, 11.5, 'center');
+  if (cfg.ylabel) {
+    g.save(); g.translate(11, (B.y0 + B.y1) / 2); g.rotate(-Math.PI / 2);
+    text(g, cfg.ylabel, 0, 0, DIM, 11.5, 'center'); g.restore();
+  }
+  return { g, w, h, B, sx, sy };
+}
+
+function diverging(v, m) {
+  const t = Math.max(-1, Math.min(1, v / (m || 1e-9)));
+  if (t >= 0) { const k = 1 - t; return `rgb(${Math.round(178 + 77 * k)},${Math.round(24 + 231 * k)},${Math.round(43 + 212 * k)})`; }
+  const k = 1 + t; return `rgb(${Math.round(33 + 222 * k)},${Math.round(102 + 153 * k)},${Math.round(172 + 83 * k)})`;
+}
+/** Horizontal colour key for the diverging scale. */
+function colourbar(g, x, y, wid, hei, m) {
+  for (let i = 0; i < wid; i++) {
+    g.fillStyle = diverging((i / (wid - 1) * 2 - 1) * m, m);
+    g.fillRect(x + i, y, 1.6, hei);
+  }
+  g.strokeStyle = '#c9ced3'; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, wid, hei);
+  text(g, '−' + m.toExponential(1), x - 5, y + hei - 1, DIM, 10, 'right');
+  text(g, '+' + m.toExponential(1), x + wid + 5, y + hei - 1, DIM, 10, 'left');
+}
+
+const stepTicks = () => { const o = []; for (let t = 0; t < T; t += T > 20 ? 5 : 2) o.push(t); if (o[o.length - 1] !== T - 1) o.push(T - 1); return o; };
+const expertTicks = [0, 8, 16, 24, 31];
+
+// ---- panels ---------------------------------------------------------------
+function drawScatter() {
+  const pts = D.pca.coords;
+  let xs = [], ys = [];
+  pts.forEach(c => c.forEach(p => { xs.push(p[0]); ys.push(p[1]); }));
+  const pad = v => (Math.max(...v) - Math.min(...v)) * 0.05;
+  const xr = [Math.min(...xs) - pad(xs), Math.max(...xs) + pad(xs)];
+  const yr = [Math.min(...ys) - pad(ys), Math.max(...ys) + pad(ys)];
+  const P = plot(document.getElementById('cScatter'), { l: 56, r: 14, t: 12, b: 34 }, {
+    xr, yr,
+    xlabel: `PC1 (${(D.pca.explained[0] * 100).toFixed(1)}% 方差)`,
+    ylabel: `PC2 (${(D.pca.explained[1] * 100).toFixed(1)}% 方差)`,
+  });
+  const { g, sx, sy } = P;
+
+  D.episodes.forEach((e, i) => {
+    const c = pts[i], last = Math.min(S.step, e.n - 1);
+    if (last < 1) return;
+    g.strokeStyle = i === S.ep ? 'rgba(22,24,26,.62)' : (e.ok ? 'rgba(27,127,71,.20)' : 'rgba(184,52,42,.18)');
+    g.lineWidth = i === S.ep ? 1.9 : 0.9;
+    g.beginPath(); g.moveTo(sx(c[0][0]), sy(c[0][1]));
+    for (let t = 1; t <= last; t++) g.lineTo(sx(c[t][0]), sy(c[t][1]));
+    g.stroke();
+  });
+  let live = 0;
+  D.episodes.forEach((e, i) => {
+    const done = S.step >= e.n, p = pts[i][Math.min(S.step, e.n - 1)];
+    if (!done) live++;
+    const col = e.ok ? OK : BAD;
+    g.beginPath(); g.arc(sx(p[0]), sy(p[1]), i === S.ep ? 7 : 4.6, 0, 7);
+    if (done) { g.strokeStyle = col; g.lineWidth = 1.4; g.stroke(); }
+    else { g.fillStyle = col; g.fill(); }
+    if (i === S.ep) { g.strokeStyle = INK; g.lineWidth = 1.8; g.stroke(); }
+  });
+  document.getElementById('scatterInfo').textContent = `仍在运行 ${live}/${NEP}`;
+  drawScatter.map = { sx, sy, pts };
+}
+
+function drawHeat() {
+  const e = S.ep, n = D.episodes[e].n;
+  let m = 0;
+  for (let t = 0; t < n; t++) for (let x = 0; x < NE; x++) m = Math.max(m, Math.abs(aggAt(e, t, S.layer, x)));
+  const P = plot(document.getElementById('cHeat'), { l: 40, r: 14, t: 26, b: 34 }, {
+    xr: [-0.5, T - 0.5], yr: [-0.5, NE - 0.5], grid: false,
+    xticks: stepTicks(), yticks: expertTicks,
+    xlabel: '控制步', ylabel: '专家编号', xfmt: v => String(v), yfmt: v => String(v),
+  });
+  const { g, B, sx, sy } = P;
+  const cw = (B.x1 - B.x0) / T, ch = (B.y0 - B.y1) / NE;
+  for (let t = 0; t < T; t++) for (let x = 0; x < NE; x++) {
+    g.fillStyle = t < n ? diverging(aggAt(e, t, S.layer, x), m) : '#f5f6f7';
+    g.fillRect(B.x0 + t * cw, B.y0 - (x + 1) * ch, cw + .6, ch + .6);
+  }
+  g.strokeStyle = INK; g.lineWidth = 1.7; g.beginPath();
+  g.moveTo(sx(S.step), B.y1 - 6); g.lineTo(sx(S.step), B.y0); g.stroke();
+  text(g, '当前步', sx(S.step), B.y1 - 10, INK, 10.5, 'center');
+  colourbar(g, B.x1 - 130, 8, 100, 8, m);
+  document.getElementById('heatInfo').textContent =
+    `层 ${D.layers[S.layer]}｜色标 ±${m.toExponential(2)}（均匀值 1/32 = 0.03125）` +
+    (n < T ? `｜该集在第 ${n} 步结束，右侧灰色无数据` : '');
+}
+
+function drawBars() {
+  const slot = showcaseSlot(S.ep), detailed = slot >= 0, useState = S.token === 0;
+  const t = Math.min(S.step, D.episodes[S.ep].n - 1);
+  const vals = new Float32Array(NE);
+  for (let x = 0; x < NE; x++) {
+    vals[x] = detailed
+      ? detAt(useState ? STATEDET : DET, slot, Math.min(S.step, T - 1), S.layer, S.denoise, x)
+      : aggAt(S.ep, t, S.layer, x);
+  }
+  const raw = S.mode === 'raw';
+  const disp = Array.from(vals, (v, x) => raw ? v + D.expert_mean[S.layer][x] : v);
+  const yr = raw
+    ? [0, Math.max(D.meta.uniform * 1.55, Math.max(...disp) * 1.1)]
+    : (() => { const m = Math.max(...disp.map(Math.abs)) * 1.18 || 1e-6; return [-m, m]; })();
+
+  const P = plot(document.getElementById('cBars'), { l: 62, r: 14, t: 14, b: 34 }, {
+    xr: [-1, NE], yr, xticks: expertTicks, xfmt: v => String(v),
+    xlabel: '专家编号', ylabel: raw ? 'router 概率' : 'p − 该专家均值',
+    yfmt: v => raw ? v.toFixed(4) : (v === 0 ? '0' : v.toExponential(1)),
+  });
+  const { g, B, sx, sy } = P;
+  const bw = (B.x1 - B.x0) / (NE + 1);
+  const base = sy(raw ? 0 : 0);
+  disp.forEach((v, x) => {
+    g.fillStyle = raw ? '#5b7fa6' : diverging(v, yr[1]);
+    const y = sy(v);
+    g.fillRect(sx(x) - bw * .38, Math.min(base, y), bw * .76, Math.abs(y - base));
+  });
+  if (raw) {
+    g.strokeStyle = INK; g.lineWidth = 1.4; g.setLineDash([6, 4]); g.beginPath();
+    g.moveTo(B.x0, sy(D.meta.uniform)); g.lineTo(B.x1, sy(D.meta.uniform)); g.stroke(); g.setLineDash([]);
+    text(g, '均匀 1/32', B.x1 - 4, sy(D.meta.uniform) - 6, INK, 11, 'right');
+  } else {
+    g.strokeStyle = '#b9bec3'; g.lineWidth = 1; g.beginPath();
+    g.moveTo(B.x0, base + .5); g.lineTo(B.x1, base + .5); g.stroke();
+  }
+  document.getElementById('barInfo').textContent = detailed
+    ? `层 ${D.layers[S.layer]}｜控制步 ${Math.min(S.step, T - 1)}｜去噪步 ${S.denoise}｜${useState ? 'state token' : '动作 token 平均'}`
+    : `层 ${D.layers[S.layer]}｜控制步 ${t}｜该集不在精细样本内，显示去噪步平均（去噪步选择器对它无效）`;
+}
+
+function drawDenoise() {
+  const c = document.getElementById('cDenoise'), slot = showcaseSlot(S.ep);
+  if (slot < 0) {
+    const { g, w, h } = fit(c);
+    text(g, '该集不在精细样本内', w / 2, h / 2 - 8, DIM, 13, 'center');
+    text(g, '从"集"下拉框里选带 ★ 的 8 集，可看逐去噪步的路由', w / 2, h / 2 + 12, DIM, 12, 'center');
+    document.getElementById('denoiseInfo').textContent = '';
+    return;
+  }
+  const t = Math.min(S.step, T - 1), arr = S.token === 0 ? STATEDET : DET;
+  let m = 0;
+  for (let n = 0; n < ND; n++) for (let x = 0; x < NE; x++) m = Math.max(m, Math.abs(detAt(arr, slot, t, S.layer, n, x)));
+  const P = plot(c, { l: 46, r: 14, t: 26, b: 34 }, {
+    xr: [-0.5, NE - 0.5], yr: [-0.5, ND - 0.5], grid: false,
+    xticks: expertTicks, yticks: [0, 2, 4, 6, 8, 9],
+    xlabel: '专家编号', ylabel: '去噪步 (t=0 → 1)',
+    xfmt: v => String(v), yfmt: v => String(v),
+  });
+  const { g, B, sy } = P;
+  const cw = (B.x1 - B.x0) / NE, ch = (B.y0 - B.y1) / ND;
+  // place rows through the y scale, not by counting down from the top: the axis
+  // runs 0 at the bottom to 9 at the top, and drawing top-down silently flips it
+  for (let n = 0; n < ND; n++) for (let x = 0; x < NE; x++) {
+    g.fillStyle = diverging(detAt(arr, slot, t, S.layer, n, x), m);
+    g.fillRect(B.x0 + x * cw, sy(n) - ch / 2, cw + .6, ch + .6);
+  }
+  g.strokeStyle = INK; g.lineWidth = 1.7;
+  g.strokeRect(B.x0 - .5, sy(S.denoise) - ch / 2 - .5, (B.x1 - B.x0) + 1, ch + 1);
+  colourbar(g, B.x1 - 130, 8, 100, 8, m);
+  document.getElementById('denoiseInfo').textContent =
+    `层 ${D.layers[S.layer]}｜控制步 ${t}｜色标 ±${m.toExponential(2)}｜黑框 = 当前去噪步 ${S.denoise}`;
+}
+
+function drawPiano() {
+  const c = document.getElementById('cPiano'), slot = showcaseSlot(S.ep);
+  if (slot < 0) {
+    const { g, w, h } = fit(c);
+    text(g, '该集不在精细样本内', w / 2, h / 2 - 8, DIM, 13, 'center');
+    text(g, '从"集"下拉框里选带 ★ 的 8 集，可看 top-4 选择', w / 2, h / 2 + 12, DIM, 12, 'center');
+    document.getElementById('pianoInfo').textContent = '';
+    return;
+  }
+  const n = D.episodes[S.ep].n;
+  const P = plot(c, { l: 40, r: 14, t: 22, b: 34 }, {
+    xr: [-0.5, T - 0.5], yr: [-0.5, NE - 0.5], grid: true,
+    xticks: stepTicks(), yticks: expertTicks,
+    xlabel: '控制步', ylabel: '专家编号', xfmt: v => String(v), yfmt: v => String(v),
+  });
+  const { g, B, sx, sy } = P;
+  const cw = (B.x1 - B.x0) / T, ch = (B.y0 - B.y1) / NE;
+  g.fillStyle = D.episodes[S.ep].ok ? OK : BAD;
+  for (let t = 0; t < n; t++) for (let k = 0; k < NK; k++) {
+    const x = idAt(slot, t, S.layer, S.denoise, S.token, k);
+    g.fillRect(sx(t) - cw * .34, sy(x) - ch * .38, Math.max(2, cw * .68), Math.max(2, ch * .76));
+  }
+  if (n < T) { g.fillStyle = 'rgba(120,125,130,.08)'; g.fillRect(sx(n - .5), B.y1, (T - n) * cw, B.y0 - B.y1); }
+  g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath();
+  g.moveTo(sx(S.step), B.y1 - 5); g.lineTo(sx(S.step), B.y0); g.stroke();
+
+  let jac = '—';
+  if (S.step > 0 && S.step < n) {
+    const a = new Set(), b = new Set();
+    for (let k = 0; k < NK; k++) { a.add(idAt(slot, S.step - 1, S.layer, S.denoise, S.token, k)); b.add(idAt(slot, S.step, S.layer, S.denoise, S.token, k)); }
+    let inter = 0; a.forEach(v => { if (b.has(v)) inter++; });
+    jac = (inter / (a.size + b.size - inter)).toFixed(2);
+  }
+  document.getElementById('pianoInfo').textContent =
+    `层 ${D.layers[S.layer]}｜去噪步 ${S.denoise}｜token ${S.token}${S.token === 0 ? ' (state)' : ''}｜` +
+    `与上一控制步的 Jaccard = ${jac}（随机 4/32 基线 0.07）`;
+}
+
+function drawCurves() {
+  const c = document.getElementById('cCurves');
+  const { g, w, h } = fit(c);
+  const tAll = D.meta.t_all_alive;
+  const rows = [
+    { v: D.curves.spread, c: '#2b5d8a', t: '散开程度' },
+    { v: D.curves.sep, c: '#8a2b6d', t: '成败分离度' },
+    { v: D.curves.alive, c: '#6b7075', t: '存活集数', v2: D.curves.alive_ok, c2: OK },
+  ];
+  const gap = 12, top = 8, bot = 30;
+  const rowH = (h - top - bot - gap * 2) / 3;
+  rows.forEach((r, i) => {
+    const y1 = top + i * (rowH + gap), y0 = y1 + rowH;
+    const B = { x0: 54, x1: w - 14, y0, y1 };
+    const vals = (r.v2 ? r.v.concat(r.v2) : r.v).filter(v => v !== null && v !== undefined);
+    const hi = Math.max(...vals), lo = Math.min(0, Math.min(...vals));
+    const sx = t => B.x0 + t / (T - 1) * (B.x1 - B.x0);
+    const sy = v => B.y0 - (v - lo) / ((hi - lo) || 1) * rowH;
+
+    g.fillStyle = 'rgba(120,125,130,.10)';
+    g.fillRect(sx(tAll - .5), y1, B.x1 - sx(tAll - .5), rowH);
+    g.strokeStyle = GRID; g.lineWidth = 1; g.beginPath();
+    stepTicks().forEach(t => { const x = Math.round(sx(t)) + .5; g.moveTo(x, y0); g.lineTo(x, y1); });
+    g.stroke();
+    g.strokeStyle = '#b9bec3'; g.beginPath();
+    g.moveTo(B.x0 + .5, y1); g.lineTo(B.x0 + .5, y0 + .5); g.lineTo(B.x1, y0 + .5); g.stroke();
+
+    const line = (arr, col) => {
+      g.strokeStyle = col; g.lineWidth = 1.9; g.beginPath(); let on = false;
+      arr.forEach((v, t) => {
+        if (v === null || v === undefined) { on = false; return; }
+        if (!on) { g.moveTo(sx(t), sy(v)); on = true; } else g.lineTo(sx(t), sy(v));
+      });
+      g.stroke();
+    };
+    line(r.v, r.c);
+    if (r.v2) line(r.v2, r.c2);
+    g.strokeStyle = 'rgba(22,24,26,.55)'; g.lineWidth = 1.2; g.beginPath();
+    g.moveTo(sx(S.step), y1); g.lineTo(sx(S.step), y0); g.stroke();
+
+    text(g, r.t, B.x0 + 6, y1 + 12, r.c, 11.5);
+    if (r.v2) text(g, '其中成功', B.x0 + 62, y1 + 12, OK, 11);
+    text(g, fmt(hi, hi - lo), B.x0 - 6, y1 + 9, DIM, 10.5, 'right');
+    text(g, fmt(lo, hi - lo), B.x0 - 6, y0 + 3, DIM, 10.5, 'right');
+    if (i === rows.length - 1) {
+      stepTicks().forEach(t => text(g, String(t), sx(t), y0 + 15, DIM, 10.5, 'center'));
+      text(g, '控制步', (B.x0 + B.x1) / 2, h - 3, DIM, 11.5, 'center');
+    }
+  });
+  document.getElementById('curveInfo').textContent =
+    `灰底从第 ${tAll} 步开始：此后成功的集陆续结束，存活样本越来越偏向失败`;
+}
+
+function drawAll() {
+  drawScatter(); drawHeat(); drawBars(); drawDenoise(); drawPiano(); drawCurves();
+  const e = D.episodes[S.ep];
+  document.getElementById('stepLabel').textContent = `${S.step} / ${T - 1}`;
+  document.getElementById('epTag').innerHTML =
+    `<span class="pill ${e.ok ? 'ok' : 'bad'}">${e.ok ? '成功' : '失败'}</span> ` +
+    `<span style="color:var(--dim);font-size:12px">${e.steps} 步</span>`;
+}
+
+function fillSelect(id, items, sel) {
+  const el = document.getElementById(id);
+  el.innerHTML = items.map(o => `<option value="${o.v}"${o.v === sel ? ' selected' : ''}>${o.t}</option>`).join('');
+  return el;
+}
+
+async function boot() {
+  T = D.meta.t_max; L = D.layers.length; NEP = D.episodes.length; showIdx = D.showcase;
+  AGG = dequant(D.agg, await inflate(D.agg.b64));
+  DET = dequant(D.detail, await inflate(D.detail.b64));
+  STATEDET = dequant(D.state_detail, await inflate(D.state_detail.b64));
+  IDS = new Uint8Array(await inflate(D.ids.b64));
+  S.ep = showIdx[0];
+
+  const sep = D.curves.sep;
+  let best = 0, bv = -1;
+  sep.forEach((v, t) => { if (v !== null && t < D.meta.t_all_alive && v > bv) { bv = v; best = t; } });
+  SEPSTEP = best;
+
+  const m = D.meta;
+  document.getElementById('lede').innerHTML =
+    `同一个场景重复 <b>${m.n_episodes}</b> 次，唯一的变量是 flow 噪声。` +
+    `在<b>控制步 0</b>——64 次看到的观测逐位相同——路由状态对最终成败<b>没有任何信息</b>` +
+    `（留一交叉验证平衡准确率 0.423，置换 p = 0.92，低于随机）。` +
+    `要到<b>第 ${SEPSTEP} 个控制步左右</b>两组才分得开，而那时轨迹早已实际分岔。` +
+    `<b>路由是一个晚的读出，不是早期预警。</b>`;
+  document.getElementById('setup').innerHTML =
+    `LIBERO-Goal task 0 · <code>${m.prompt}</code> · 初始状态 ${m.init_state_id} · ` +
+    `wrist 布局 <code>${m.layout}</code> · checkpoint <code>${m.checkpoint_sha256}…</code> · ` +
+    `成功 ${m.n_success}/${m.n_episodes} = ${(100 * m.n_success / m.n_episodes).toFixed(1)}%`;
+
+  document.getElementById('keys').innerHTML = [
+    ['0.423', '步 0 用路由预测成败的平衡准确率（p = 0.92）。随机是 0.5。'],
+    ['0.577', '同一时刻 K=64 动作块集合偏离量的 AUROC。两条路线在步 0 都是空的。'],
+    ['0.898', '用前 17 个控制步解码则很准（p = 0.001）——但那是事后读出。'],
+    ['30.7 / 32', '有效专家数（层 2）。router 熵是 ln32 的 98.9%，几乎均匀。'],
+  ].map(([n, t]) => `<div class="key"><div class="n">${n}</div><div class="t">${t}</div></div>`).join('');
+
+  document.getElementById('caveat').innerHTML =
+    `<b>两个读图前提。</b>一、<b>路由本身几乎是均匀的</b>：8 个 HB 层的 router 熵都在 ln32 的 98% 以上，` +
+    `有效专家数 30+/32。所以除面板 ③ 的"原始概率"外，所有面板画的都是<b>减去各专家自身均值后的残差</b>，` +
+    `幅度被放大了才看得见。二、<b>成功的集会提前结束</b>：本批成功集约 17–21 个控制步、失败集跑满 30 个，` +
+    `所以第 ${m.t_all_alive} 步之后存活样本越来越偏向失败，灰底区间的任何"变化"都可能只是样本换了。`;
+
+  document.getElementById('vScatter').textContent =
+    `第 0 步全部挤在一个点上（观测相同）；到第 ${SEPSTEP} 步左右分成绿、红两簇。`;
+  document.getElementById('vBars').textContent =
+    `切到"原始概率"看：32 根柱子几乎贴着均匀线。所谓"路由变化"都是在这个近乎平坦的分布上的微小残差。`;
+  document.getElementById('vCurves').innerHTML =
+    `分离度在第 10 → ${SEPSTEP} 步之间从 0.32 跃到 1.05，<b>发生在灰底之前</b>（此时 64 集全在运行），所以不是幸存者偏差。`;
+
+  fillSelect('layer', D.layers.map((l, i) => ({ v: i, t: `${l}` })), 0);
+  fillSelect('denoise', Array.from({ length: ND }, (_, i) => ({ v: i, t: `${i}` })), 0);
+  fillSelect('token', Array.from({ length: NS }, (_, i) => ({ v: i, t: i === 0 ? '0 · state' : `${i} · 动作` })), 5);
+  fillSelect('episode', D.episodes.map((e, i) => ({
+    v: i, t: `${showIdx.includes(i) ? '★ ' : '　'}seed ${e.seed} · ${e.ok ? '成功' : '失败'} · ${e.steps} 步`
+  })), S.ep);
+  const stepEl = document.getElementById('step');
+  stepEl.max = T - 1;
+
+  const setStep = v => { S.step = Math.max(0, Math.min(T - 1, v)); stepEl.value = S.step; drawAll(); };
+  stepEl.oninput = ev => setStep(+ev.target.value);
+  document.getElementById('episode').onchange = ev => { S.ep = +ev.target.value; drawAll(); };
+  document.getElementById('layer').onchange = ev => { S.layer = +ev.target.value; drawAll(); };
+  document.getElementById('denoise').onchange = ev => { S.denoise = +ev.target.value; drawAll(); };
+  document.getElementById('token').onchange = ev => { S.token = +ev.target.value; drawAll(); };
+  document.getElementById('mode').onchange = ev => { S.mode = ev.target.value; drawAll(); };
+  document.querySelectorAll('[data-jump]').forEach(b => {
+    b.onclick = () => setStep(b.dataset.jump === 'sep' ? SEPSTEP : b.dataset.jump === 'end' ? T - 1 : 0);
+  });
+
+  const btn = document.getElementById('play');
+  let timer = null;
+  const toggle = () => {
+    S.playing = !S.playing;
+    btn.textContent = S.playing ? '❚❚ 暂停' : '▶ 播放';
+    if (S.playing) timer = setInterval(() => setStep((S.step + 1) % T), 340);
+    else clearInterval(timer);
+  };
+  btn.onclick = toggle;
+  window.addEventListener('keydown', ev => {
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(ev.target.tagName)) return;
+    if (ev.key === 'ArrowRight') { setStep(S.step + 1); ev.preventDefault(); }
+    else if (ev.key === 'ArrowLeft') { setStep(S.step - 1); ev.preventDefault(); }
+    else if (ev.key === ' ') { toggle(); ev.preventDefault(); }
+  });
+
+  document.getElementById('cScatter').onclick = ev => {
+    const map = drawScatter.map; if (!map) return;
+    const r = ev.currentTarget.getBoundingClientRect();
+    const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+    let best = -1, bd = 1e9;
+    D.episodes.forEach((e, i) => {
+      const p = map.pts[i][Math.min(S.step, e.n - 1)];
+      const d = (map.sx(p[0]) - mx) ** 2 + (map.sy(p[1]) - my) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    });
+    if (best >= 0 && bd < 400) { S.ep = best; document.getElementById('episode').value = best; drawAll(); }
+  };
+
+  let raf = null;
+  window.addEventListener('resize', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(drawAll); });
+  document.querySelectorAll('details.more').forEach(d => d.addEventListener('toggle', drawAll));
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  const h = parseInt((location.hash || '').replace('#step=', ''), 10);
+  if (Number.isFinite(h)) { S.step = Math.max(0, Math.min(T - 1, h)); stepEl.value = S.step; }
+  drawAll();
+}
+
+if (!('DecompressionStream' in window)) {
+  document.getElementById('loading').textContent =
+    '这个浏览器不支持 DecompressionStream，无法解压内嵌数据。请用较新的 Chrome / Edge / Firefox / Safari 打开。';
+} else {
+  boot().catch(err => {
+    document.getElementById('loading').textContent = '加载失败：' + err;
+    console.error(err);
+  });
+}
+</script>
+</body>
+</html>

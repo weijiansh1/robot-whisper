@@ -1,0 +1,214 @@
+{
+  "schema": "himoe-current-five-task-audit-v1",
+  "date_utc": "2026-08-25",
+  "scope": "five-task right-16x32 MoE cross-task experiment audit",
+  "source_artifacts": [
+    {
+      "status": "legacy_verified_not_rerun",
+      "path": "analysis/route-noise-selector/summary.json",
+      "sha256": "e3a74f91c3d29b9aec386cd408db8e10888025b72887f4cd11e8f2d80247fe7b"
+    },
+    {
+      "status": "legacy_verified_not_rerun",
+      "path": "analysis/moe-value-signal/summary.json",
+      "sha256": "087b932cce2d3b047b5ff4899a1b906d56f3a74d6ffa3b502acd0ae3100219e6"
+    },
+    {
+      "status": "legacy_verified_not_rerun",
+      "path": "analysis/early-action-head/summary.json",
+      "sha256": "8ff1599dda39acb3c19e3488faa807797c725ae4f80f0fce3fa619724c0b4c19"
+    },
+    {
+      "status": "legacy_verified_not_rerun",
+      "path": "analysis/oracle-gate/summary.json",
+      "sha256": "7f8997bc04e984e6311f08f06ae04cc1a7fad143601535e898a75748bd42c4cf"
+    },
+    {
+      "status": "run_in_this_audit",
+      "path": "analysis/moe-current-data-audit/cross-task/k32_route_medoid.json",
+      "sha256": "9e0c5749a8d9802516f4f92532e34bd898095a7f3945ac16005b4ba519838848"
+    },
+    {
+      "status": "run_in_this_audit",
+      "path": "analysis/moe-current-data-audit/cross-task/task_seed_heldout_increment.json",
+      "sha256": "b622ceb1c9f3fdb4159799ead72691ed469bdef6581868ffed71d7a378420ca3"
+    }
+  ],
+  "sample": {
+    "tasks": 5,
+    "suites": 3,
+    "states_per_task": 16,
+    "independent_state_pools": 80,
+    "candidates_per_state": 32,
+    "candidate_rollouts": 2560,
+    "common_noise_seeds": "1000..1031 repeated across every state and task",
+    "k8_folds_per_state": 4,
+    "k8_pools": 320,
+    "k8_informative_pools_after_all_success_task_exclusion": 256,
+    "success_rates": {
+      "libero_goal/open_the_middle_drawer_of_the_cabinet": 1.0,
+      "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": 0.91796875,
+      "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 0.578125,
+      "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": 0.9765625,
+      "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": 0.927734375
+    },
+    "k32_mean_opportunity_by_task": {
+      "libero_goal/open_the_middle_drawer_of_the_cabinet": 0.0,
+      "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": 0.08203125,
+      "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 0.359375,
+      "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": 0.0234375,
+      "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": 0.072265625
+    }
+  },
+  "route_consensus_selector": {
+    "legacy_k8_strict_task_and_seed_heldout_macro_delta": {
+      "early_route_central": -0.008203125,
+      "future_route_head": -0.011328125,
+      "future_route_noise_head": -0.011328125,
+      "initial_noise_central": -0.008203125,
+      "late_route_oracle": -0.011328125
+    },
+    "legacy_primary_heldout_task": {
+      "task": "libero_goal/open_the_top_drawer_and_put_the_bowl_inside",
+      "early_route_central_delta": 0.01953125,
+      "early_route_central_ci95": [-0.013671875, 0.052734375],
+      "future_route_noise_head_delta": -0.01171875,
+      "future_route_noise_head_ci95": [-0.04296875, 0.015625],
+      "future_route_rank_spearman": 0.8165922619047619,
+      "early_route_noise_centrality_spearman": 0.9017857142857144
+    },
+    "new_k32_medoid_task_macro": {
+      "route_probability_d0": {
+        "delta": 0.007421875,
+        "ci95": [-0.0375, 0.05078125],
+        "unique_seeds": 3,
+        "max_seed_share": 0.9125
+      },
+      "route_probability_d0_2": {
+        "delta": 0.007421875,
+        "ci95": [-0.037109375, 0.0515625],
+        "unique_seeds": 2,
+        "max_seed_share": 0.975
+      },
+      "route_probability_full": {
+        "delta": 0.007421875,
+        "ci95": [-0.037890625, 0.051171875],
+        "unique_seeds": 3,
+        "max_seed_share": 0.975
+      },
+      "expert_id_d0": {
+        "delta": -0.005078125,
+        "ci95": [-0.0484375, 0.034765625]
+      },
+      "expert_id_d0_2": {
+        "delta": 0.007421875,
+        "ci95": [-0.03046875, 0.042578125]
+      },
+      "expert_id_full": {
+        "delta": -0.017578125,
+        "ci95": [-0.06796875, 0.030859375]
+      }
+    },
+    "interpretation": "No route-consensus selector has a state-bootstrap interval excluding zero; probability medoids mostly recover one global noise-seed template."
+  },
+  "route_increment": {
+    "legacy_action_geometry_not_value": {
+      "scope": "within-task action reconstruction; not task-heldout outcome prediction",
+      "seed_disjoint_within_held8_spearman": {
+        "noise": 0.012862616310892173,
+        "hidden": 0.5421455938697318,
+        "router_pooled32": 0.23426382047071703,
+        "router_layer_resolved128": 0.4458128078817734
+      },
+      "seed_disjoint_coverage_over_random": {
+        "noise": 1.006538855471131,
+        "hidden": 0.987372157023955,
+        "router_pooled32": 0.9953966484575385,
+        "router_layer_resolved128": 0.9862200639594636
+      }
+    },
+    "legacy_single_task_value_probe": {
+      "task": "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "noise_auc": 0.4116898148148148,
+      "router_auc": 0.3813161375661376,
+      "expert_full_auc": 0.5870866402116403,
+      "expert_full_auc_permutation_p": 0.05858828234353129,
+      "expert_full_selected_delta": 0.078125,
+      "expert_full_delta_permutation_p": 0.05718856228754249,
+      "noise_plus_expert_auc": 0.5595238095238094,
+      "note": "No hidden or action conditional baseline and only one task."
+    },
+    "new_strict_task_and_seed_heldout_probe": {
+      "method_task_macro": {
+        "noise": {"auc": 0.47555894308943086, "delta": -0.001953125},
+        "action": {"auc": 0.5608013937282229, "delta": 0.007421875},
+        "hidden": {"auc": 0.4790650406504065, "delta": -0.001953125},
+        "route": {"auc": 0.47793989547038324, "delta": -0.008203125},
+        "action_noise": {"auc": 0.5333042973286874, "delta": 0.004296875},
+        "action_noise_route": {"auc": 0.5103803716608594, "delta": 0.001171875},
+        "action_noise_hidden": {"auc": 0.4493321718931475, "delta": -0.001953125},
+        "action_noise_hidden_route": {"auc": 0.43986643437862954, "delta": -0.008203125}
+      },
+      "conditional_route_over_action_noise": {
+        "selected_success_increment": -0.003125,
+        "ci95": [-0.028125, 0.01875],
+        "auc_increment": -0.022923925667828082
+      },
+      "conditional_route_over_action_noise_hidden": {
+        "selected_success_increment": -0.00625,
+        "ci95": [-0.03125, 0.01875],
+        "auc_increment": -0.009465737514517958
+      },
+      "interpretation": "This fixed post-hoc linear readout shows no reusable route increment; it does not prove that all nonlinear route information is absent."
+    }
+  },
+  "route_dispersion_opportunity": {
+    "k32_probability_finite_task_spearman_macro": {
+      "d0": 0.051781522810877084,
+      "d0_2": 0.08894476749106392,
+      "full": 0.024681716964407886
+    },
+    "task_heldout_probability_ols": {
+      "d0_mae": 0.18784359457321895,
+      "d0_2_mae": 0.18797171064535179,
+      "full_mae": 0.18777809634769166,
+      "train_mean_baseline_mae": 0.16138916015625
+    },
+    "interpretation": "Probability-route dispersion has near-zero within-task association and is worse than a train-task mean opportunity baseline when calibrated task-heldout."
+  },
+  "oracle_gate_and_counterfactual_checks": {
+    "informative_k8_pools": 256,
+    "success_oracle": 0.94921875,
+    "pseudo_target_deltas": {
+      "final_action_centrality": -0.00244140625,
+      "future_route_change": 0.00927734375,
+      "late_route_centrality": -0.01416015625
+    },
+    "gate_threshold": 0.03,
+    "passed_targets": [],
+    "local_progress_route_spearman_within_snapshot": 0.112,
+    "local_progress_route_spearman_held_snapshot": 0.01,
+    "local_progress_held_snapshot_p": 0.4336,
+    "common_future_route_outcome_mi_bits": 0.046584325808904925,
+    "common_future_route_outcome_mi_p": 0.9210039498025099
+  },
+  "confounds": [
+    "The same 32 seed identities recur in every state and task; K8 and K32 consensus rules strongly recover global seed templates.",
+    "Each candidate has one rollout and its seed controls the first query plus later replanning noise, so eventual success is not a CRN first-chunk value label.",
+    "K8 folds from one K32 state share a state and are not independent; uncertainty must use state or task clusters.",
+    "One task is exactly all-success and three more are highly saturated; only the Libero-Long task has broad outcome variation.",
+    "There are 80 state pools but only five tasks across three suites; task-heldout estimates have weak task-level support.",
+    "Early-action-head reconstructs action geometry within task and uses label-free transductive feature centering; it is not a value or task-heldout result.",
+    "The new conditional probe is post-hoc, linear, fixed-hyperparameter, and pool-transductive; negative increment only applies to that readout.",
+    "All selectors are shadow evaluations after computing every candidate; no closed-loop compute or success gain was measured.",
+    "Router probability float16 mass was repaired by per-site L1 normalization; maximum post-normalization error is 2.22e-16."
+  ],
+  "decision": {
+    "route_consensus_selector_supported": false,
+    "route_increment_beyond_action_noise_hidden_supported": false,
+    "route_dispersion_opportunity_supported": false,
+    "weak_single_task_expert_function_signal": true,
+    "online_or_causal_claim_supported": false,
+    "next_required_data": "same-snapshot action chunks with physical execution and repeated common-random-number continuations, stratified across non-saturated tasks"
+  }
+}

@@ -1,0 +1,629 @@
+{
+  "schema": "himoe.moe_current_data_audit.mechanism.v1",
+  "created_utc": "2026-08-25",
+  "audit": {
+    "scope": [
+      "within-query denoising chronology",
+      "functional and expert-output evidence",
+      "cross-control route dynamics",
+      "offline and runtime intervention evidence"
+    ],
+    "mode": "read_only_existing_artifact_review",
+    "new_model_runs": 0,
+    "new_simulator_runs": 0,
+    "analysis_reruns": 0,
+    "existing_reports_and_json_cross_checked": true,
+    "moe_action_decision_formation_status": "synthesis_only_not_independent_evidence",
+    "synthesis_source": "analysis/moe-action-decision-formation/REPORT.md"
+  },
+  "verdict": {
+    "overall": "mechanism_level_1_only",
+    "supported": [
+      "HB routing tracks the current noisy action latent and the local denoising update.",
+      "Routing is temporally continuous and predictably structured across control queries.",
+      "Selected expert outputs are functionally non-identical and the routed branch is nonzero.",
+      "A correctly paired HB5/d0 perturbation can propagate to the final action latent."
+    ],
+    "not_supported": [
+      "Routing reveals the final action basin before the action latent does.",
+      "Expert-output features add stable information beyond hidden/shared/action controls.",
+      "Cross-control routing is an autonomous skill state or outperforms matched proprioception as dynamics state.",
+      "Any expert ID has a stable semantic or outcome-causal role.",
+      "An expert intervention improves action quality, continuation value, or task success."
+    ],
+    "causal_scientific_gate_passed": false,
+    "high_level_control_abstraction_established": false,
+    "best_current_interpretation": "state- and noise-conditioned local computation path plus a low-cost diagnostic readout"
+  },
+  "independence_groups": {
+    "flow_lead_t0s24": {
+      "warning": "Action commitment, weighted-noise, unsupervised-route, and cumulative-prefix reports reuse one mechanism capture and are not independent replications.",
+      "tasks": 1,
+      "initial_scenes": 1,
+      "rollouts": 4,
+      "query_states": 44,
+      "candidates_per_query": 16
+    },
+    "expert_grid_5task_16x32": {
+      "warning": "Several functional-output reports reuse the same five-task first-query candidate grid and are not independent replications.",
+      "tasks": 5,
+      "pools_per_task": 16,
+      "candidates_per_pool": 32,
+      "total_pools": 80,
+      "total_candidates": 2560
+    }
+  },
+  "evidence": [
+    {
+      "id": "denoise_action_commitment",
+      "execution_status": "existing_model_capture_completed_audit_review_only",
+      "independence_group": "flow_lead_t0s24",
+      "sample": {
+        "tasks": 1,
+        "initial_scenes": 1,
+        "rollouts": 4,
+        "query_states": 44,
+        "candidates_per_query": 16,
+        "candidate_trajectories": 704,
+        "denoise_rounds": 10
+      },
+      "key_effects": {
+        "action_geometry_spearman_tau0": 0.231,
+        "action_geometry_spearman_tau9": 0.428,
+        "exact_final_medoid_tau9_fraction": 0.205,
+        "geometry_rho_ge_0_90_first_reached_final_round_queries": 44,
+        "round_only_oof_r2": 0.9231740637512447,
+        "round_plus_route_oof_r2": 0.9675214303729991,
+        "round_plus_current_latent_oof_r2": 0.9973746222997502,
+        "round_plus_latent_plus_route_oof_r2": 0.9968872031085393,
+        "route_increment_over_current_latent_r2": -0.0004874191912108694
+      },
+      "assessment": "Routing reads computation progress, but the current latent is stronger and route has no incremental advantage over it. Early exact action commitment was not observed.",
+      "limitations": [
+        "One task, one initial scene, and four correlated rollouts.",
+        "Action stability is not task success.",
+        "Leave-one-rollout-out evaluation remains diagnostic at n=4 groups."
+      ],
+      "sources": [
+        "analysis/action-commitment-pilot/REPORT.md",
+        "analysis/action-commitment-pilot/summary.json"
+      ]
+    },
+    {
+      "id": "denoise_route_geometry",
+      "execution_status": "existing_analysis_completed_audit_review_only",
+      "independence_group": "flow_lead_t0s24",
+      "sample": {
+        "tasks": 1,
+        "rollouts": 4,
+        "query_states": 44,
+        "candidates_per_query": 16,
+        "pairs_per_query": 120
+      },
+      "key_effects": {
+        "tau0_route_vs_current_latent_rho": 0.8800442265561371,
+        "tau0_route_vs_immediate_update_given_current_rho": 0.14739502502385468,
+        "tau0_route_vs_final_action_rho": 0.1675362556743208,
+        "tau0_route_vs_final_action_given_current_rho": -0.07920872909600458,
+        "tau9_route_vs_final_action_given_current_rho": 0.018238687204256566,
+        "tau9_conditional_final_action_permutation_p": 0.374,
+        "top1_expert_stability_tau0_to_1": 0.7440873579545456,
+        "top1_expert_stability_tau8_to_9": 0.591
+      },
+      "assessment": "Route geometry is primarily a projection of current noisy action state plus local update information, not a latent-independent final-action code.",
+      "limitations": [
+        "Same small mechanism capture as action commitment.",
+        "Pair counts are dependent within query and cannot substitute for rollout/task replication.",
+        "Router probabilities only; no runtime expert outputs in this capture."
+      ],
+      "sources": [
+        "analysis/unsupervised-moe-dynamics/flow-lead-real/report.md",
+        "analysis/unsupervised-moe-dynamics/flow-lead-real/summary.json",
+        "analysis/weighted-noise-evolution/flow-lead-real/report.md",
+        "analysis/weighted-noise-evolution/flow-lead-real/summary.json"
+      ]
+    },
+    {
+      "id": "retrospective_route_pruning_shadow",
+      "execution_status": "existing_retrospective_shadow_completed_audit_review_only",
+      "sample": {
+        "tasks": 10,
+        "cases": 50,
+        "pools": 701,
+        "candidates_per_pool": 8
+      },
+      "key_effects": {
+        "route_k6_exact_medoid_fraction": 0.6667285589125831,
+        "route_minus_random_normalized_regret": -0.003452529665195679,
+        "route_minus_random_ci95": [
+          -0.004534656163735641,
+          -0.0023912740445505122
+        ],
+        "route_minus_initial_noise_normalized_regret": 0.0011871628244719346,
+        "route_minus_initial_noise_ci95": [
+          0.00024052578287280083,
+          0.0021267923827194123
+        ]
+      },
+      "assessment": "Route pruning beats exact random but is worse than initial-noise centrality; it does not establish MoE-specific compute value.",
+      "limitations": [
+        "Retrospective: all candidates completed all denoise rounds.",
+        "Exploratory development grid already inspected.",
+        "No closed-loop success or measured latency endpoint."
+      ],
+      "sources": [
+        "analysis/action-commitment-pilot/REPORT.md",
+        "analysis/action-commitment-pilot/summary.json"
+      ]
+    },
+    {
+      "id": "k32_complete_route_trajectories",
+      "execution_status": "existing_complete_rollouts_captured_audit_review_only",
+      "sample": {
+        "tasks": 1,
+        "initial_states": 1,
+        "rollouts": 32,
+        "policy_queries_per_rollout_range": [
+          37,
+          52
+        ],
+        "successes": 14,
+        "failures": 18
+      },
+      "key_effects": {
+        "within_query_adjacent_denoise_route_distance": 0.0059,
+        "cross_query_d9_to_d0_route_distance": 0.0291,
+        "top4_mass_d0": 0.1396,
+        "top4_mass_d9": 0.1473,
+        "normalized_entropy_d0": 0.999066,
+        "normalized_entropy_d9": 0.997909,
+        "success_minus_failure_top4_mass": -0.00054,
+        "success_minus_failure_route_speed": -0.000214
+      },
+      "assessment": "The route distribution tightens only slightly and reorganizes more strongly late in denoising; simple route mass/speed does not separate success from failure.",
+      "limitations": [
+        "One Long/Moka task and one initial state.",
+        "Cross-query jumps combine observation change with newly sampled action noise.",
+        "Outcome contrasts are descriptive and are not continuation-Q comparisons."
+      ],
+      "sources": [
+        "analysis/k32-route-trajectories/report.md",
+        "analysis/k32-route-trajectories/summary.json"
+      ]
+    },
+    {
+      "id": "cross_control_route_continuity",
+      "execution_status": "existing_rollout_analysis_completed_audit_review_only",
+      "sample": {
+        "tasks": 30,
+        "rollouts": 1500,
+        "control_queries": 18384,
+        "adjacent_transitions": 16884
+      },
+      "key_effects": {
+        "adjacent_route_distance": 0.024227987934939837,
+        "within_rollout_random_order_distance": 0.027979710655178028,
+        "continuity_ratio": 0.8659127406114229,
+        "continuity_difference_ci95": [
+          0.0032549172474083186,
+          0.0042731295198606325
+        ],
+        "task_sign_flip_p": 0.00004999750012499375,
+        "denoise0_cross_control_distance": 0.0183660773961008,
+        "denoise9_cross_control_distance": 0.03443508262256909
+      },
+      "assessment": "Routing has robust temporal continuity and lag structure across control queries. This is descriptive route dynamics, not evidence of physical progress or outcome semantics.",
+      "limitations": [
+        "No action, robot-state, reward, contact, or outcome variable entered this analysis.",
+        "Absolute speed differs substantially by task and is not physical execution speed."
+      ],
+      "sources": [
+        "analysis/control-route-speed/report.md",
+        "analysis/control-route-speed/summary.json"
+      ]
+    },
+    {
+      "id": "cross_control_state_token_markov",
+      "execution_status": "existing_rollout_analysis_completed_audit_review_only",
+      "sample": {
+        "tasks": 5,
+        "scenes_per_task": 16,
+        "seeds_per_scene": 32,
+        "rollouts_per_task": 512,
+        "total_rollouts": 2560,
+        "minimum_common_windows": [
+          12,
+          17,
+          35,
+          9,
+          11
+        ]
+      },
+      "key_effects": {
+        "k16_route_first_over_zero_bits_per_step_task_macro": 2.6381,
+        "k16_proprio_first_over_zero_bits_per_step_task_macro": 2.7087,
+        "k16_route_minus_proprio": -0.0706,
+        "k16_route_wins_tasks": 1,
+        "k16_total_tasks": 5
+      },
+      "assessment": "State-token routes have predictable one-step dynamics, but do not stably exceed matched proprioception and are not a discovered autonomous state machine.",
+      "limitations": [
+        "Finite states are analyst-selected K-means codes.",
+        "Second-order history and phase still improve prediction, so first-order homogeneous Markov is only approximate.",
+        "State-token routing is already known to track proprioception."
+      ],
+      "sources": [
+        "analysis/markov-routing-all/REPORT.md",
+        "analysis/markov-routing-all/summary.json"
+      ]
+    },
+    {
+      "id": "cross_control_phase_backbone",
+      "execution_status": "existing_analysis_completed_audit_review_only",
+      "independence_group": "flow_lead_t0s24",
+      "sample": {
+        "tasks": 1,
+        "rollouts": 4,
+        "controls_per_rollout": 11,
+        "sibling_noises_per_query": 16
+      },
+      "key_effects": {
+        "route_cloud_phase_icc": 0.860932055732515,
+        "single_execution_phase_icc": 0.5128123075079514,
+        "route_cloud_phase_gap_rho": 0.6984136894358738,
+        "robot_state_phase_gap_rho": 0.9079742471975174,
+        "route_phase_gap_rho_given_robot_state": 0.12572457084563585
+      },
+      "assessment": "A reproducible phase backbone exists, but most of it is parsimoniously explained as current robot-state/progress encoding rather than an independent internal clock.",
+      "limitations": [
+        "One task and one initial scene.",
+        "Reuses the flow-lead mechanism data.",
+        "No outcome or physical event labels."
+      ],
+      "sources": [
+        "analysis/cumulative-moe-prefix/flow-lead-real/report.md",
+        "analysis/cumulative-moe-prefix/flow-lead-real/summary.json"
+      ]
+    },
+    {
+      "id": "denoise_markov_outcome_transfer",
+      "execution_status": "existing_analysis_completed_audit_review_only",
+      "sample": {
+        "tasks": 3,
+        "candidates_per_task_per_cohort": 64,
+        "cohorts": 2,
+        "total_candidate_rollouts": 384,
+        "snapshots_per_task_per_cohort": 1
+      },
+      "key_effects": {
+        "development_markov_delta_vs_random": -0.041666666666666664,
+        "replication_markov_delta_vs_random": -0.11979166666666667,
+        "replication_auc": 0.41318027210884356,
+        "replication_markov_minus_zero_order": -0.08333333333333333,
+        "markov_path_likelihood_gain_bits_per_coordinate_transition_approx": 1.935
+      },
+      "assessment": "Continuous denoise routes have predictable local dynamics, but their learned outcome association does not transfer to held-out tasks or resampled object states.",
+      "limitations": [
+        "Only one snapshot per task in each cohort.",
+        "Episode-start shadow outcomes, not repeated continuation Q.",
+        "Selection uses small K8 held-seed folds."
+      ],
+      "sources": [
+        "analysis/intraquery-continuous-markov-transfer/REPORT.md",
+        "analysis/intraquery-continuous-markov-transfer/summary.json"
+      ]
+    },
+    {
+      "id": "expert_output_future_action_single_task",
+      "execution_status": "existing_offline_reconstruction_analysis_completed_audit_review_only",
+      "sample": {
+        "tasks": 1,
+        "scenes": 16,
+        "candidates_per_scene": 32,
+        "episodes": 512,
+        "successes": 296
+      },
+      "key_effects": {
+        "step0_live_noise_action_basin_auc": 0.674,
+        "step0_expert_size_increment_auc": 0.015,
+        "step0_routed_direction_increment_auc": 0.060,
+        "best_shared_direction_increment_auc": 0.092,
+        "step0_success_expert_size_auc": 0.585,
+        "step0_success_expert_size_increment_auc": 0.117,
+        "success_baseline_log_loss": 0.435,
+        "success_expert_size_log_loss": 0.439
+      },
+      "assessment": "Expert direction contains future-action signal, but shared direction is stronger. Expert-size success ranking is unstable and worsens log loss.",
+      "limitations": [
+        "One task and first policy query only.",
+        "Expert outputs reconstructed offline from fp16 hidden values.",
+        "Success is a distant endpoint and the result is observational."
+      ],
+      "sources": [
+        "analysis/expert-activation-future/long-t08/report.md",
+        "analysis/expert-activation-future/long-t08/summary.json"
+      ]
+    },
+    {
+      "id": "hidden_matched_expert_geometry",
+      "execution_status": "existing_retrospective_proxy_completed_audit_review_only",
+      "independence_group": "expert_grid_5task_16x32",
+      "sample": {
+        "tasks": 5,
+        "pools": 80,
+        "candidates": 2560,
+        "balanced_selected_pairs": 1600,
+        "strict_global_q10_q90_divergent_pairs": 45
+      },
+      "key_effects": {
+        "full_hidden_auc_task_mean": 0.623,
+        "shared_auc_task_mean": 0.662,
+        "conflict_auc_task_mean": 0.680,
+        "dcq_auc_task_mean": 0.660,
+        "conflict_minus_hidden": 0.057,
+        "conflict_minus_hidden_ci95": [
+          -0.053,
+          0.162
+        ],
+        "conflict_minus_shared": 0.017,
+        "conflict_minus_shared_ci95": [
+          -0.079,
+          0.111
+        ],
+        "dcq_minus_hidden": 0.037,
+        "dcq_minus_hidden_ci95": [
+          -0.040,
+          0.118
+        ],
+        "dcq_minus_shared": -0.003,
+        "dcq_minus_shared_ci95": [
+          -0.090,
+          0.069
+        ],
+        "checkpoint_top4_set_match_mean": 0.885
+      },
+      "assessment": "Expert geometry is decodable, but has no stable extraction advantage over full-hidden/shared controls. Strict matched divergent twins are too sparse.",
+      "limitations": [
+        "Balanced tail pairs are a proxy, not strict same-hidden twins.",
+        "Offline fp32 reconstruction from fp16 hidden is not runtime exact.",
+        "One nominal task result does not survive correction over five tasks."
+      ],
+      "sources": [
+        "analysis/expert-activation-hidden-matched/REPORT.md",
+        "analysis/expert-activation-hidden-matched/goal-middle/summary.json",
+        "analysis/expert-activation-hidden-matched/goal-top/summary.json",
+        "analysis/expert-activation-hidden-matched/long-t08/summary.json",
+        "analysis/expert-activation-hidden-matched/spatial-ramekin/summary.json",
+        "analysis/expert-activation-hidden-matched/spatial-stove/summary.json"
+      ]
+    },
+    {
+      "id": "functional_routed_increment",
+      "execution_status": "existing_offline_vector_screen_completed_audit_review_only",
+      "independence_group": "expert_grid_5task_16x32",
+      "sample": {
+        "tasks": 5,
+        "pools": 80,
+        "candidates": 2560
+      },
+      "key_effects": {
+        "base_within_pool_spearman": 0.5124350027367268,
+        "base_plus_residual_routed_spearman": 0.49820402298850575,
+        "macro_spearman_gain": -0.014230979748221132,
+        "macro_spearman_gain_ci95": [
+          -0.02147864497810619,
+          -0.00711506226053641
+        ],
+        "standalone_routed_minus_best_baseline": -0.05464046250684181,
+        "screen_positive": false
+      },
+      "assessment": "The functional routed vector is correlated with future action geometry, but its residualized addition makes the matched base worse on average and fails all fixed gates.",
+      "limitations": [
+        "Retrospective first-query proxy using final-action geometry, not behavior outcome.",
+        "Offline reconstruction and selected-expert conditioning.",
+        "Confidence intervals are descriptive engineering intervals."
+      ],
+      "sources": [
+        "analysis/offline-vector-screen/REPORT.md",
+        "analysis/offline-vector-screen/summary.json"
+      ]
+    },
+    {
+      "id": "fixed_expert_amplitude_after_seed_control",
+      "execution_status": "existing_offline_analysis_completed_audit_review_only",
+      "independence_group": "expert_grid_5task_16x32",
+      "sample": {
+        "tasks": 5,
+        "states_per_task": 16,
+        "candidates_per_state": 32,
+        "total_candidates": 2560
+      },
+      "key_effects": {
+        "seed_template_target_rho": 0.971,
+        "raw_d6_pairwise_ranking_advantage_percentage_points": 0.93,
+        "raw_d7_pairwise_ranking_advantage_percentage_points": 0.95,
+        "raw_d8_pairwise_ranking_advantage_percentage_points": 0.73,
+        "weighted_rebound_residual_maxT_p": 0.16764
+      },
+      "assessment": "Most apparent expert-amplitude signal is seed-template structure. The residual expert association is reproducible but too small and observational for pruning or commitment claims.",
+      "limitations": [
+        "Feature family was selected after earlier full-data exploration.",
+        "Selected-only offline reconstruction.",
+        "Target is x0-to-x10 displacement, not remaining correction at each denoise round."
+      ],
+      "sources": [
+        "analysis/fixed-expert-flow-displacement/REPORT.md",
+        "analysis/fixed-expert-flow-displacement/summary.json"
+      ]
+    },
+    {
+      "id": "predown_internal_activation_corrected_screen",
+      "execution_status": "existing_corrected_observational_screen_completed_audit_review_only",
+      "sample": {
+        "tasks": 5,
+        "states_per_task": 8,
+        "candidates_per_state": 16,
+        "total_candidates": 640,
+        "cell": "HB5_denoise0"
+      },
+      "key_effects": {
+        "predown_exact40_macro_relative_rmse_gain": -0.00547,
+        "ci95": [
+          -0.00735,
+          -0.00388
+        ],
+        "tasks_improved": 0,
+        "tasks_total": 5,
+        "better_than_matched_postdown_tasks": 1
+      },
+      "assessment": "Raw pre-down activation magnitude adds no held-out remaining-correction value beyond the complete baseline.",
+      "limitations": [
+        "HB5/d0 only.",
+        "Reconstructed from fp16 input and checkpoint rather than captured runtime tensors.",
+        "Observational screen, not intervention."
+      ],
+      "related_withdrawal": {
+        "artifact": "analysis/runtime-vector-v3/REPORT.md",
+        "status": "experiment_ran_but_inferential_result_withdrawn",
+        "reason": "The original target was nearly determined by exact d0 velocity RMS while the baseline could not represent that norm."
+      },
+      "sources": [
+        "analysis/raw-internal-activation-correction/observational-hb5-d0/REPORT.md",
+        "analysis/raw-internal-activation-correction/observational-hb5-d0/summary.json",
+        "analysis/runtime-vector-v3/REPORT.md",
+        "analysis/runtime-vector-v3/summary.json"
+      ]
+    },
+    {
+      "id": "offline_expert_replacement_sensitivity",
+      "execution_status": "existing_offline_counterfactual_completed_audit_review_only",
+      "independence_group": "expert_grid_5task_16x32",
+      "sample": {
+        "tasks": 5,
+        "pools": 80,
+        "candidates": 2560,
+        "replacement": "captured_top4_replaced_by_probability_ranks_5_to_8"
+      },
+      "key_effects": {
+        "disagreement_vs_routed_relative_delta_task_mean_spearman": 0.463,
+        "cancellation_vs_routed_relative_delta_task_mean_spearman": 0.484,
+        "dcq_vs_routed_relative_delta_task_mean_spearman": 0.485,
+        "conflict_vs_post_moe_relative_delta_task_mean_spearman": 0.457,
+        "conflict_minus_simple_routed_shared_ratio": -0.078
+      },
+      "assessment": "Expert geometry predicts its own immediate offline replacement size, but the result is denominator-dependent and shares inputs with the target; it is a local sensitivity diagnostic, not causal future-action evidence.",
+      "limitations": [
+        "No continuation through later transformer blocks or denoise rounds.",
+        "No simulator execution or task outcome.",
+        "Offline reconstruction top-4 mismatch is about 11.5 percent of sites."
+      ],
+      "sources": [
+        "analysis/expert-activation-hidden-matched/REPORT.md",
+        "analysis/expert-activation-hidden-matched/goal-middle/summary.json",
+        "analysis/expert-activation-hidden-matched/goal-top/summary.json",
+        "analysis/expert-activation-hidden-matched/long-t08/summary.json",
+        "analysis/expert-activation-hidden-matched/spatial-ramekin/summary.json",
+        "analysis/expert-activation-hidden-matched/spatial-stove/summary.json"
+      ]
+    },
+    {
+      "id": "legacy_synthetic_expert_probes",
+      "execution_status": "existing_model_probes_completed_but_provenance_incomplete",
+      "sample": {
+        "expert_contribution_random_queries": 2,
+        "expert_contribution_sampled_token_sites_per_layer": 80,
+        "expert_swap_observations": "not encoded in artifact; script default is 4",
+        "inputs": "synthetic random images, wrist images, states, and flow noise"
+      },
+      "key_effects": {
+        "routed_branch_share_range": [
+          0.11798898875713348,
+          0.365785151720047
+        ],
+        "all_expert_pairwise_cosine_mean_range": [
+          0.02778838388621807,
+          0.044427093118429184
+        ],
+        "swap4_random_relative_moe_output_change": 0.3131888657808304,
+        "swap4_random_relative_velocity_change": 0.09550738893449306,
+        "swap4_random_relative_final_action_change": 0.05980097223073244
+      },
+      "assessment": "Experts are not functionally identical and the routed branch is not zero. These probes cannot quantify task-relevant causal specialization because inputs are synthetic and run metadata/sample count are incomplete.",
+      "limitations": [
+        "No run manifest, checkpoint digest, command line, confidence interval, or task outcome in the summaries.",
+        "Swap acts broadly across HB sites rather than a preregistered matched cell.",
+        "Random synthetic observations are outside the demonstrated environment distribution."
+      ],
+      "sources": [
+        "analysis/expert-contribution/summary.json",
+        "analysis/expert-swap/summary.json",
+        "probe_expert_contribution.py",
+        "probe_expert_swap.py"
+      ]
+    },
+    {
+      "id": "hb5_d0_runtime_intervention_v4_smoke",
+      "execution_status": "actual_runtime_engineering_smoke_completed",
+      "sample": {
+        "pairs": 1,
+        "arms": 3,
+        "queries": 3,
+        "arms_list": [
+          "baseline",
+          "drop",
+          "matched_random"
+        ]
+      },
+      "key_effects": {
+        "baseline_noop_error": 0.0,
+        "max_original_pair_difference": 0.0,
+        "drop_formula_error": 1.5251319041009737e-08,
+        "drop_final_live7_rms_delta": 0.0020619593690674354,
+        "matched_random_final_live7_rms_delta": 0.002304549834520868,
+        "drop_amplification": 6.017998515136551,
+        "matched_random_amplification": 7.252673845257441
+      },
+      "assessment": "The intervention and pairing instrumentation work and a local perturbation propagates to x10. One pair provides no scientific policy contrast or causal generalization.",
+      "limitations": [
+        "K=1 engineering smoke.",
+        "No environment execution, physical trajectory, Q, or success endpoint.",
+        "No state/task replication."
+      ],
+      "sources": [
+        "runs/hb5-intervention-v4-smoke-goal-k1/capture_summary.json",
+        "runs/hb5-intervention-v4-smoke-goal-k1/validation.json"
+      ]
+    },
+    {
+      "id": "runtime_exact_raw_pruning_v5",
+      "execution_status": "preregistered_only_not_run",
+      "sample": null,
+      "key_effects": null,
+      "assessment": "No v5 capture or result exists in the reviewed workspace; it contributes protocol design but no evidence.",
+      "limitations": [
+        "HB5/d0 only even when run.",
+        "Preregistered endpoints are action-latent effects, not behavior or continuation value."
+      ],
+      "sources": [
+        "analysis/raw-pruning-v5/PREREGISTRATION.md"
+      ]
+    }
+  ],
+  "claim_matrix": {
+    "route_is_local_denoising_diagnostic": "supported_exploratory",
+    "action_geometry_commits_early": "not_supported",
+    "route_leads_current_action_latent": "not_supported",
+    "functional_route_beats_hidden_or_shared": "not_supported",
+    "cross_control_route_has_temporal_structure": "supported_descriptive",
+    "cross_control_route_is_autonomous_skill_state": "not_supported",
+    "expert_identity_has_stable_semantics": "not_tested_or_not_supported",
+    "expert_intervention_changes_final_action": "engineering_smoke_only",
+    "expert_intervention_improves_behavior_or_q": "not_tested"
+  },
+  "required_next_evidence": [
+    "Runtime-exact matched interventions over preregistered denoise rounds and held-out tasks/states.",
+    "Downstream action-path and route compensation measurements for every intervention arm.",
+    "Dense physical trajectory, event tape, post-chunk state, and repeated-CRN continuation Q before any behavior-abstraction claim.",
+    "Hidden/action/proprio matched controls and task- or snapshot-level inference rather than pair-level pseudo-replication."
+  ]
+}

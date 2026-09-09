@@ -1,0 +1,755 @@
+{
+  "schema": "himoe-task-seed-heldout-increment-audit-v1",
+  "status": "posthoc_exploratory",
+  "protocol": {
+    "source": "five right-16x32 runs; first policy query per episode",
+    "tasks": 5,
+    "states_per_task": 16,
+    "candidate_pools": "four fixed modulo-four K8 folds per K32 state",
+    "test_exclusion": "complete held task and the held fold's eight seed identities absent from training",
+    "features": {
+      "noise": "initial flow noise, ten tokens x seven live dimensions",
+      "action": "complete first 10x7 action chunk, checkpoint-std normalized",
+      "hidden": "d0 HB2-5 gate-input hidden, mean over layers and action tokens",
+      "route": "d0 HB2-5 normalized router probabilities, layer-resolved token mean"
+    },
+    "pool_preprocessing": "each feature column standardized inside its test/train K8 pool",
+    "block_reduction": "train-only StandardScaler + randomized PCA(12), deterministic per outer fold",
+    "probe": "linear ridge alpha=100.0",
+    "target": "eventual episode success",
+    "bootstrap": "states resampled independently within task",
+    "bootstrap_draws": 20000,
+    "random_seed": 20260825
+  },
+  "methods": {
+    "noise": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.90625,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": -0.01171875,
+          "state_bootstrap_ci95": [
+            -0.056640625,
+            0.029296875
+          ],
+          "mean_pool_auc": 0.4441391941391942,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.578125,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            -0.0546875,
+            0.060546875
+          ],
+          "mean_pool_auc": 0.5107638888888888,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.984375,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": 0.0078125,
+          "state_bootstrap_ci95": [
+            -0.029296875,
+            0.03515625
+          ],
+          "mean_pool_auc": 0.4166666666666667,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.921875,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": -0.005859375,
+          "state_bootstrap_ci95": [
+            -0.072265625,
+            0.05859375
+          ],
+          "mean_pool_auc": 0.4683106575963719,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.878125,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": -0.001953125,
+      "stratified_state_bootstrap_ci95": [
+        -0.022265625,
+        0.01875
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.47555894308943086
+    },
+    "action": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 7,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.953125,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": 0.03515625,
+          "state_bootstrap_ci95": [
+            -0.015625,
+            0.091796875
+          ],
+          "mean_pool_auc": 0.6173992673992673,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 5,
+          "max_seed_share": 0.25
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.546875,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": -0.03125,
+          "state_bootstrap_ci95": [
+            -0.12109375,
+            0.05859375
+          ],
+          "mean_pool_auc": 0.5813988095238094,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.96875,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": -0.0078125,
+          "state_bootstrap_ci95": [
+            -0.041015625,
+            0.017578125
+          ],
+          "mean_pool_auc": 0.5357142857142857,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 5,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.96875,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": 0.041015625,
+          "state_bootstrap_ci95": [
+            -0.0078125,
+            0.087890625
+          ],
+          "mean_pool_auc": 0.5047902494331067,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.8875,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": 0.007421875,
+      "stratified_state_bootstrap_ci95": [
+        -0.016796875,
+        0.031640625
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.5608013937282229
+    },
+    "hidden": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.9375,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": 0.01953125,
+          "state_bootstrap_ci95": [
+            -0.009765625,
+            0.048828125
+          ],
+          "mean_pool_auc": 0.4967032967032967,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.546875,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": -0.03125,
+          "state_bootstrap_ci95": [
+            -0.1171875,
+            0.06059570312499574
+          ],
+          "mean_pool_auc": 0.49280753968253976,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 5,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.984375,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": 0.0078125,
+          "state_bootstrap_ci95": [
+            -0.0234375,
+            0.033203125
+          ],
+          "mean_pool_auc": 0.5357142857142857,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.921875,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": -0.005859375,
+          "state_bootstrap_ci95": [
+            -0.080078125,
+            0.0546875
+          ],
+          "mean_pool_auc": 0.412216553287982,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.878125,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": -0.001953125,
+      "stratified_state_bootstrap_ci95": [
+        -0.02578125,
+        0.021875
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.4790650406504065
+    },
+    "route": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 7,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.90625,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": -0.01171875,
+          "state_bootstrap_ci95": [
+            -0.056640625,
+            0.029296875
+          ],
+          "mean_pool_auc": 0.44322344322344315,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.5625,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": -0.015625,
+          "state_bootstrap_ci95": [
+            -0.080078125,
+            0.05078125
+          ],
+          "mean_pool_auc": 0.5038029100529101,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.96875,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": -0.0078125,
+          "state_bootstrap_ci95": [
+            -0.041015625,
+            0.015625
+          ],
+          "mean_pool_auc": 0.5119047619047619,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.921875,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": -0.005859375,
+          "state_bootstrap_ci95": [
+            -0.0625,
+            0.048828125
+          ],
+          "mean_pool_auc": 0.4356859410430839,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.871875,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": -0.008203125,
+      "stratified_state_bootstrap_ci95": [
+        -0.028515625,
+        0.01171875
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.47793989547038324
+    },
+    "action_noise": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.953125,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": 0.03515625,
+          "state_bootstrap_ci95": [
+            -0.015625,
+            0.091796875
+          ],
+          "mean_pool_auc": 0.576007326007326,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.546875,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": -0.03125,
+          "state_bootstrap_ci95": [
+            -0.123046875,
+            0.05859375
+          ],
+          "mean_pool_auc": 0.5313657407407407,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.96875,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": -0.0078125,
+          "state_bootstrap_ci95": [
+            -0.044921875,
+            0.01953125
+          ],
+          "mean_pool_auc": 0.46428571428571425,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 7,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.953125,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": 0.025390625,
+          "state_bootstrap_ci95": [
+            -0.033203125,
+            0.080078125
+          ],
+          "mean_pool_auc": 0.5496315192743764,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 8,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.884375,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": 0.004296875,
+      "stratified_state_bootstrap_ci95": [
+        -0.020703125,
+        0.029296875
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.5333042973286874
+    },
+    "action_noise_route": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 8,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.9375,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": 0.01953125,
+          "state_bootstrap_ci95": [
+            -0.009765625,
+            0.048828125
+          ],
+          "mean_pool_auc": 0.5117216117216118,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 4,
+          "max_seed_share": 0.25
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.5625,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": -0.015625,
+          "state_bootstrap_ci95": [
+            -0.10942382812499996,
+            0.07421875
+          ],
+          "mean_pool_auc": 0.5263227513227512,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 12,
+          "max_seed_share": 0.234375
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.96875,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": -0.0078125,
+          "state_bootstrap_ci95": [
+            -0.04296875,
+            0.01953125
+          ],
+          "mean_pool_auc": 0.44047619047619047,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 9,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.9375,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": 0.009765625,
+          "state_bootstrap_ci95": [
+            -0.0390625,
+            0.0546875
+          ],
+          "mean_pool_auc": 0.5221655328798187,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 9,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.88125,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": 0.001171875,
+      "stratified_state_bootstrap_ci95": [
+        -0.021484375,
+        0.023046875
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.5103803716608594
+    },
+    "action_noise_hidden": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 7,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.9375,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": 0.01953125,
+          "state_bootstrap_ci95": [
+            -0.033203125,
+            0.078125
+          ],
+          "mean_pool_auc": 0.5120879120879122,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 9,
+          "max_seed_share": 0.21875
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.5625,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": -0.015625,
+          "state_bootstrap_ci95": [
+            -0.1015625,
+            0.06640625
+          ],
+          "mean_pool_auc": 0.45937500000000003,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 11,
+          "max_seed_share": 0.21875
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.984375,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": 0.0078125,
+          "state_bootstrap_ci95": [
+            -0.0234375,
+            0.033203125
+          ],
+          "mean_pool_auc": 0.38095238095238093,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 5,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.90625,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": -0.021484375,
+          "state_bootstrap_ci95": [
+            -0.087890625,
+            0.041015625
+          ],
+          "mean_pool_auc": 0.43234126984126986,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.878125,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": -0.001953125,
+      "stratified_state_bootstrap_ci95": [
+        -0.026953125,
+        0.022265625
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.4493321718931475
+    },
+    "action_noise_hidden_route": {
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_rate": 1.0,
+          "random_pool_mean": 1.0,
+          "delta_vs_random": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "mean_pool_auc": null,
+          "evaluable_auc_pools": 0,
+          "unique_selected_seeds": 5,
+          "max_seed_share": 0.25
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_rate": 0.921875,
+          "random_pool_mean": 0.91796875,
+          "delta_vs_random": 0.00390625,
+          "state_bootstrap_ci95": [
+            -0.056640625,
+            0.046875
+          ],
+          "mean_pool_auc": 0.5188644688644689,
+          "evaluable_auc_pools": 13,
+          "unique_selected_seeds": 7,
+          "max_seed_share": 0.25
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_rate": 0.5625,
+          "random_pool_mean": 0.578125,
+          "delta_vs_random": -0.015625,
+          "state_bootstrap_ci95": [
+            -0.1171875,
+            0.083984375
+          ],
+          "mean_pool_auc": 0.44750330687830686,
+          "evaluable_auc_pools": 36,
+          "unique_selected_seeds": 10,
+          "max_seed_share": 0.234375
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.953125,
+          "random_pool_mean": 0.9765625,
+          "delta_vs_random": -0.0234375,
+          "state_bootstrap_ci95": [
+            -0.064453125,
+            0.009765625
+          ],
+          "mean_pool_auc": 0.38095238095238093,
+          "evaluable_auc_pools": 12,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_rate": 0.921875,
+          "random_pool_mean": 0.927734375,
+          "delta_vs_random": -0.005859375,
+          "state_bootstrap_ci95": [
+            -0.0625,
+            0.048828125
+          ],
+          "mean_pool_auc": 0.41153628117913826,
+          "evaluable_auc_pools": 21,
+          "unique_selected_seeds": 6,
+          "max_seed_share": 0.25
+        }
+      },
+      "task_macro_selected_success_rate": 0.871875,
+      "task_macro_random_pool_mean": 0.880078125,
+      "task_macro_delta_vs_random": -0.008203125,
+      "stratified_state_bootstrap_ci95": [
+        -0.034765625,
+        0.0171875
+      ],
+      "mean_pool_auc_over_evaluable_pools": 0.43986643437862954
+    }
+  },
+  "route_increments": {
+    "route_over_action_noise": {
+      "with_route": "action_noise_route",
+      "baseline": "action_noise",
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_increment": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "pool_auc_increment": null
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_increment": -0.015625,
+          "state_bootstrap_ci95": [
+            -0.0625,
+            0.03125
+          ],
+          "pool_auc_increment": -0.06428571428571417
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_increment": 0.015625,
+          "state_bootstrap_ci95": [
+            -0.046875,
+            0.078125
+          ],
+          "pool_auc_increment": -0.00504298941798953
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_increment": 0.0,
+          "state_bootstrap_ci95": [
+            -0.046875,
+            0.046875
+          ],
+          "pool_auc_increment": -0.02380952380952378
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_increment": -0.015625,
+          "state_bootstrap_ci95": [
+            -0.078125,
+            0.046875
+          ],
+          "pool_auc_increment": -0.027465986394557662
+        }
+      },
+      "task_macro_selected_success_increment": -0.003125,
+      "stratified_state_bootstrap_ci95": [
+        -0.028125,
+        0.01875
+      ],
+      "pooled_evaluable_auc_increment": -0.022923925667828082
+    },
+    "route_over_action_noise_hidden": {
+      "with_route": "action_noise_hidden_route",
+      "baseline": "action_noise_hidden",
+      "per_task": {
+        "libero_goal/open_the_middle_drawer_of_the_cabinet": {
+          "selected_success_increment": 0.0,
+          "state_bootstrap_ci95": [
+            0.0,
+            0.0
+          ],
+          "pool_auc_increment": null
+        },
+        "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": {
+          "selected_success_increment": -0.015625,
+          "state_bootstrap_ci95": [
+            -0.0625,
+            0.03125
+          ],
+          "pool_auc_increment": 0.0067765567765567525
+        },
+        "libero_long/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": {
+          "selected_success_increment": 0.0,
+          "state_bootstrap_ci95": [
+            -0.078125,
+            0.09375
+          ],
+          "pool_auc_increment": -0.011871693121693172
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": {
+          "selected_success_increment": -0.03125,
+          "state_bootstrap_ci95": [
+            -0.078125,
+            0.0
+          ],
+          "pool_auc_increment": 0.0
+        },
+        "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": {
+          "selected_success_increment": 0.015625,
+          "state_bootstrap_ci95": [
+            -0.03125,
+            0.0625
+          ],
+          "pool_auc_increment": -0.020804988662131596
+        }
+      },
+      "task_macro_selected_success_increment": -0.00625,
+      "stratified_state_bootstrap_ci95": [
+        -0.03125,
+        0.01875
+      ],
+      "pooled_evaluable_auc_increment": -0.009465737514517958
+    }
+  },
+  "limitations": [
+    "Post-hoc model family and fixed hyperparameters were not preregistered.",
+    "Eventual success is a seed-stream outcome, not a first-chunk CRN value label.",
+    "Only 80 state pools and five tasks are available; one task is all-success.",
+    "Pool standardization is label-free but transductive over all eight test candidates.",
+    "Hidden is a pre-router gate input and route is its deterministic downstream function; this is predictive, not causal, increment."
+  ]
+}

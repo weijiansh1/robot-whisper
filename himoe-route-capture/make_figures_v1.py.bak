@@ -1,0 +1,254 @@
+"""Figures for the HiMoE-VLA wrist-layout routing comparison."""
+
+from __future__ import annotations
+
+import itertools
+import pathlib
+import sys
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.font_manager as fm
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
+
+sys.path.insert(0, "/home/jovyan/work/himoe-libero-wrist-fix/src")
+sys.path.insert(0, "/home/jovyan/work/himoe-route-capture")
+from analyze_routes import HB_LAYERS, load, load_per_layer, topk_set_jaccard, tv  # noqa: E402
+from himoe_libero_bridge.routing import sparse_routes_to_dense  # noqa: E402
+
+FONT = "/home/jovyan/.fonts/NotoSansSC.ttf"
+fm.fontManager.addfont(FONT)
+plt.rcParams["font.family"] = fm.FontProperties(fname=FONT).get_name()
+plt.rcParams["axes.unicode_minus"] = False
+
+# --- design tokens (validated reference palette, light mode) ---
+SURFACE = "#fcfcfb"
+INK = "#0b0b0b"
+INK2 = "#52514e"
+MUTED = "#8a8983"
+GRID = "#e8e7e4"
+S1 = "#2a78d6"   # blue   — checkpoint-right / cross-layout
+S2 = "#eb6834"   # orange — released-left / within-condition
+S3 = "#1baf7a"   # aqua   — needs a direct label (sub-3:1 on light surface)
+CRIT = "#d03b3b"
+DIVERGE = LinearSegmentedColormap.from_list("bl_gy_rd", ["#184f95", "#f0efec", "#d03b3b"])
+
+OUT = pathlib.Path("/home/jovyan/work/himoe-route-capture/figures")
+OUT.mkdir(exist_ok=True)
+
+
+def style(ax, xlabel="", ylabel="", title="", sub=""):
+    ax.set_facecolor(SURFACE)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(GRID)
+        ax.spines[side].set_linewidth(1.0)
+    ax.tick_params(colors=INK2, labelsize=9, length=3, width=0.8)
+    ax.grid(True, color=GRID, linewidth=0.8, zorder=0)
+    ax.set_axisbelow(True)
+    if xlabel:
+        ax.set_xlabel(xlabel, color=INK2, fontsize=9.5)
+    if ylabel:
+        ax.set_ylabel(ylabel, color=INK2, fontsize=9.5)
+    if title:
+        ax.set_title(title, color=INK, fontsize=12, fontweight="bold", loc="left", pad=18 if sub else 8)
+    if sub:
+        ax.text(0, 1.015, sub, transform=ax.transAxes, color=INK2, fontsize=9.5, va="bottom")
+
+
+def fig1(right, left):
+    """Depth gradient: how far the wrist swap moves routing, per HB layer."""
+    n = len(right)
+    cross = np.zeros((8, n))
+    within = [[] for _ in range(8)]
+    for li in range(8):
+        for ep in range(n):
+            cross[li, ep] = topk_set_jaccard(right[ep]["ids"][0, :, li], left[ep]["ids"][0, :, li])
+        for i, j in itertools.combinations(range(n), 2):
+            within[li].append(topk_set_jaccard(right[i]["ids"][0, :, li], right[j]["ids"][0, :, li]))
+
+    # x positions with a visible gap where the dense layers 6-11 sit
+    xs = np.array([0, 1, 2, 3, 5.0, 6.0, 7.0, 8.0])
+    fig, ax = plt.subplots(figsize=(8.6, 5.0), facecolor=SURFACE)
+    style(
+        ax,
+        ylabel="top-4 专家集合 Jaccard",
+        title="wrist 槽位错配对 HB-MoE 路由的影响随层深单调增大",
+        sub="第一次推理的配对对比：同初始状态、同 settle、同 flow noise，唯一差异是 wrist 图像放在 left 还是 right 槽",
+    )
+
+    rng = np.random.default_rng(0)
+    for li in range(8):
+        ax.scatter(np.full(n, xs[li]) + rng.uniform(-0.11, 0.11, n), cross[li],
+                   s=34, color=S1, alpha=0.45, linewidths=0, zorder=3)
+        w = np.array(within[li])
+        ax.scatter(np.full(len(w), xs[li]) + rng.uniform(-0.11, 0.11, len(w)), w,
+                   s=22, color=S2, alpha=0.30, linewidths=0, zorder=3)
+    ax.plot(xs[:4], cross[:4].mean(1), "-o", color=S1, lw=2, ms=8, zorder=5,
+            markeredgecolor=SURFACE, markeredgewidth=1.5)
+    ax.plot(xs[4:], cross[4:].mean(1), "-o", color=S1, lw=2, ms=8, zorder=5,
+            markeredgecolor=SURFACE, markeredgewidth=1.5, label="跨 layout（配对，同一集）")
+    ax.plot(xs[:4], [np.mean(w) for w in within[:4]], "-s", color=S2, lw=2, ms=7, zorder=5,
+            markeredgecolor=SURFACE, markeredgewidth=1.5)
+    ax.plot(xs[4:], [np.mean(w) for w in within[4:]], "-s", color=S2, lw=2, ms=7, zorder=5,
+            markeredgecolor=SURFACE, markeredgewidth=1.5, label="组内跨 episode（同 layout，不同初始状态）")
+
+    # reference rules stop short of the gap so their labels sit in empty space
+    for y, lab, dash in ((0.0742, "随机基线 0.074", (0, (5, 4))), (1.0, "完全相同 1.0", (0, (2, 3)))):
+        ax.plot([-0.45, 3.75], [y, y], color=MUTED, lw=1.2, ls=dash, zorder=2)
+        ax.plot([4.75, 8.45], [y, y], color=MUTED, lw=1.2, ls=dash, zorder=2)
+        ax.text(4.25, y, lab, color=MUTED, fontsize=8.5, va="center", ha="center",
+                bbox=dict(fc=SURFACE, ec="none", pad=1.5))
+
+    ax.set_xticks(xs)
+    ax.set_xticklabels([str(l) for l in HB_LAYERS])
+    ax.set_xlabel("HB-MoE 层（6-11 层是 dense MLP，无路由）", color=INK2, fontsize=9.5)
+    ax.set_xlim(-0.55, 8.55)
+    ax.set_ylim(0, 1.22)
+    ax.axvspan(-0.55, 4.25, color="#f6f5f2", zorder=0)
+    ax.text(1.85, 1.16, "早层  2-5", color=INK2, fontsize=10.5, ha="center", fontweight="bold")
+    ax.text(6.5, 1.16, "晚层  12-15", color=INK2, fontsize=10.5, ha="center", fontweight="bold")
+    ax.text(6.5, 0.46, "晚层的跨-layout 相似度已经掉到\n「无关 episode」的水平（两线重合）\n= 路由被 wrist 输入完全打散",
+            color=INK2, fontsize=9, ha="center", va="center", linespacing=1.5)
+    ax.text(1.72, 0.44, "早层跨 layout 仍比\n换个初始状态更相似",
+            color=INK2, fontsize=9, ha="center", va="center", linespacing=1.5)
+    leg = ax.legend(loc="upper left", frameon=False, fontsize=9.5, bbox_to_anchor=(0.015, 0.80))
+    for t in leg.get_texts():
+        t.set_color(INK2)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig1_depth_gradient.png", dpi=170, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def drift_first_n(ids, w, n):
+    d = sparse_routes_to_dense(ids[:n], w[:n])
+    d = d / d.sum(-1, keepdims=True)
+    return float(tv(d[1:], d[:-1]).mean())
+
+
+def fig2(right, left):
+    """Drift strip plot: between-condition separation, within-condition overlap."""
+    n_win = min(e["ids"].shape[0] for e in right + left)
+    groups = [
+        ("checkpoint-right\n(8/8 成功)", [drift_first_n(e["ids"], e["w"], n_win) for e in right], S1, "o", True),
+        ("released-left\n成功 (2)", [drift_first_n(e["ids"], e["w"], n_win) for e in left if e["summary"]["success"]], S2, "o", True),
+        ("released-left\n失败 (6)", [drift_first_n(e["ids"], e["w"], n_win) for e in left if not e["summary"]["success"]], S2, "X", False),
+    ]
+    fig, ax = plt.subplots(figsize=(7.6, 5.0), facecolor=SURFACE)
+    style(ax, ylabel="相邻控制步的路由 TV（漂移量）",
+          title="错误 layout 让路由变迟钝；但成功与失败之间没有差别",
+          sub="统一取每集前 %d 个控制步，消除 episode 长度混淆（失败集平均 283 步 vs 成功集 117 步）" % n_win)
+    rng = np.random.default_rng(1)
+    for gi, (label, vals, color, marker, filled) in enumerate(groups):
+        x = np.full(len(vals), gi) + rng.uniform(-0.07, 0.07, len(vals))
+        ax.scatter(x, vals, s=110, marker=marker,
+                   facecolor=color if filled else "none",
+                   edgecolor=color, linewidths=2.0, zorder=4)
+        ax.plot([gi - 0.22, gi + 0.22], [np.mean(vals)] * 2, color=INK, lw=2.2, zorder=5)
+        ax.text(gi + 0.27, np.mean(vals), "%.3f" % np.mean(vals),
+                color=INK, fontsize=10, va="center", fontweight="bold")
+    ax.set_xticks(range(3))
+    ax.set_xticklabels([g[0] for g in groups], fontsize=9.5)
+    ax.set_xlim(-0.5, 2.75)
+    ax.set_ylim(0.60, 0.78)
+    right_min = min(groups[0][1])
+    left_max = max(groups[1][1] + groups[2][1])
+    ax.annotate("", xy=(0.42, right_min), xytext=(0.42, left_max),
+                arrowprops=dict(arrowstyle="<->", color=CRIT, lw=1.6))
+    for y in (right_min, left_max):
+        ax.plot([-0.32, 2.55], [y, y], color=CRIT, lw=0.9, ls=(0, (4, 4)), alpha=0.55, zorder=2)
+    ax.text(0.47, (right_min + left_max) / 2,
+            "两组无重叠\n最低的 right (%.3f) 仍高于\n最高的 left (%.3f)\n置换检验 p = 0.0001"
+            % (right_min, left_max), color=CRIT, fontsize=9.5, va="center", linespacing=1.5)
+    ax.text(1.5, 0.622, "两组重叠  p = 0.75", color=INK2, fontsize=9.5, ha="center")
+    ax.plot([1, 2], [0.632, 0.632], color=MUTED, lw=1.2)
+    ax.text(2.0, 0.767, "实心圆 = 成功     空心叉 = 失败", color=INK2, fontsize=9, ha="center")
+    fig.tight_layout()
+    fig.savefig(OUT / "fig2_drift.png", dpi=170, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def fig3(left):
+    """The null: observed success-vs-failure split against all 28 possible splits."""
+    n_win = 11
+    LL = np.array([load_per_layer(e["ids"][:n_win], e["w"][:n_win]) for e in left])
+    ok = [i for i, e in enumerate(left) if e["summary"]["success"]]
+    obs = tv(LL[ok].mean(0), LL[[i for i in range(8) if i not in ok]].mean(0)).mean()
+    perm = []
+    for combo in itertools.combinations(range(8), 2):
+        rest = [i for i in range(8) if i not in combo]
+        perm.append((combo, tv(LL[list(combo)].mean(0), LL[rest].mean(0)).mean()))
+    vals = np.array([v for _, v in perm])
+
+    fig, ax = plt.subplots(figsize=(8.2, 3.6), facecolor=SURFACE)
+    style(ax, xlabel="专家负载分布的 TV 距离（2 集 vs 其余 6 集）",
+          title="released-left 组内：成功 vs 失败检测不到路由差异",
+          sub="把 8 集按所有 C(8,2)=28 种方式分成 2 组，真实的「成功/失败」划分毫无特殊之处")
+    rng = np.random.default_rng(2)
+    is_real = np.array([set(c) == set(ok) for c, _ in perm])
+    ax.scatter(vals[~is_real], rng.uniform(-1, 1, (~is_real).sum()),
+               s=80, color=MUTED, alpha=0.55, linewidths=0, zorder=3)
+    ax.scatter(vals[is_real], [0], s=230, marker="D", color=S2,
+               edgecolor=SURFACE, linewidths=2, zorder=6)
+    ax.annotate("真实划分（2 成功 vs 6 失败）\nTV = %.4f，p = 0.39" % obs,
+                xy=(vals[is_real][0], 0.25), xytext=(vals[is_real][0] + 0.0035, 1.6),
+                color=INK, fontsize=10,
+                arrowprops=dict(arrowstyle="->", color=S2, lw=1.6))
+    ax.text(vals.min() - 0.0012, -1.7, "其余 27 种任意划分", color=INK2, fontsize=9.5)
+    ax.set_yticks([])
+    ax.spines["left"].set_visible(False)
+    ax.set_ylim(-2.4, 2.6)
+    ax.grid(axis="y", visible=False)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig3_null.png", dpi=170, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def fig4(right, left):
+    """Where the load actually shifts: left minus right, per layer x expert."""
+    n_win = 11
+    lr = np.mean([load_per_layer(e["ids"][:n_win], e["w"][:n_win]) for e in right], axis=0)
+    ll = np.mean([load_per_layer(e["ids"][:n_win], e["w"][:n_win]) for e in left], axis=0)
+    d = (ll - lr) * 100
+    lim = np.abs(d).max()
+
+    fig, ax = plt.subplots(figsize=(10.2, 3.9), facecolor=SURFACE)
+    im = ax.imshow(d, cmap=DIVERGE, vmin=-lim, vmax=lim, aspect="auto")
+    style(ax, xlabel="HB-MoE 专家编号（每层 32 个）", ylabel="HB-MoE 层",
+          title="负载变化分散在全部 32 个专家上，没有专家坍缩",
+          sub="released-left 减 checkpoint-right 的专家负载占比（百分点）；两组都用满 32 个专家")
+    ax.grid(False)
+    ax.set_yticks(range(8))
+    ax.set_yticklabels(HB_LAYERS)
+    ax.set_xticks(range(0, 32, 2))
+    ax.set_xticklabels(range(0, 32, 2))
+    ax.set_xticks(np.arange(-0.5, 32, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, 8, 1), minor=True)
+    ax.grid(which="minor", color=SURFACE, linewidth=2)
+    ax.tick_params(which="minor", length=0)
+    cb = fig.colorbar(im, ax=ax, pad=0.015, fraction=0.03)
+    cb.outline.set_visible(False)
+    cb.ax.tick_params(colors=INK2, labelsize=9, length=3)
+    cb.set_label("right 更多  ←→  left 更多   (百分点)", color=INK2, fontsize=9)
+    fig.tight_layout()
+    fig.savefig(OUT / "fig4_load_delta.png", dpi=170, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def main():
+    right = load("/home/jovyan/work/himoe-route-capture/runs/right")
+    left = load("/home/jovyan/work/himoe-route-capture/runs/left")
+    fig1(right, left)
+    fig2(right, left)
+    fig3(left)
+    fig4(right, left)
+    for p in sorted(OUT.glob("*.png")):
+        print(p, p.stat().st_size)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
