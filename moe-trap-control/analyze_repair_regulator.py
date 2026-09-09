@@ -81,8 +81,8 @@ def run(args):
         forks += [r for r in fork_rows(extra, other) if (r["main_id"], r["event_id"], r["replicate"], r["arm"]) not in seen]
         seen_e = {(r["main_id"], r["replicate"], r["arm"]) for r in episodes}
         episodes += [r for r in episode_rows(extra, other) if (r["main_id"], r["replicate"], r["arm"]) not in seen_e]
-        plan["arms"] = plan["arms"] or other["arms"]
-        plan["episode_arms"] = plan["episode_arms"] or other["episode_arms"]
+        plan["arms"] = list(plan["arms"]) + [a for a in other["arms"] if a not in plan["arms"]]
+        plan["episode_arms"] = list(plan["episode_arms"]) + [a for a in other["episode_arms"] if a not in plan["episode_arms"]]
     for r in forks:
         r["nn_window"] = v1.get((r["event_id"], r["replicate"], "new_noise"), dict(window=False))["window"]
         r["a4_window"] = v1.get((r["event_id"], r["replicate"], "retract_above_target"), dict(window=False))["window"]
