@@ -1,0 +1,688 @@
+{
+  "artifacts": {
+    "tensor_archive": "/home/jovyan/work/himoe-vla-cache/himoe-libero-bridge/formal-artifacts/data-contract-goal-20260803T125234441831Z/synthetic-golden-contract.npz",
+    "tensor_archive_sha256": "f4067f7596a5a66876340dad82ff4dc7b9a0a1e9da25fdea0a53cfce23ac8c11"
+  },
+  "checkpoint": {
+    "directory": "/home/jovyan/.cache/himoe-libero-bridge/checkpoints/HiMoE-VLA-Libero-Goal",
+    "normalization_stats_path": "/home/jovyan/.cache/himoe-libero-bridge/checkpoints/HiMoE-VLA-Libero-Goal/libero_goal_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "0a900ab12eb7cf3a25a0afb406dfc95dbe04a215b4feed7cd4c1fa5be44acfcf",
+    "weights_expected_sha256": "98ee29d09d1855716e341532a3d0f76068de6fa131f8fe16ffd52f982df1b953"
+  },
+  "checks": [
+    {
+      "evidence": {
+        "reference_action_padding_exact": true,
+        "reference_left_wrist_exact": true,
+        "reference_right_wrist_exact": true,
+        "reference_state_padding_exact": true,
+        "train_eval_base_image_exact": true,
+        "train_eval_left_wrist_exact": true,
+        "train_eval_right_wrist_exact": true,
+        "train_eval_state_exact": true,
+        "train_eval_token_ids_exact": true,
+        "train_eval_token_mask_exact": true
+      },
+      "id": "synthetic_train_eval_common_inputs",
+      "status": "pass"
+    },
+    {
+      "evidence": {
+        "reference_action_padding_exact": true,
+        "reference_left_wrist_exact": true,
+        "reference_right_wrist_exact": true,
+        "reference_state_padding_exact": true,
+        "train_eval_base_image_exact": true,
+        "train_eval_left_wrist_exact": true,
+        "train_eval_right_wrist_exact": true,
+        "train_eval_state_exact": true,
+        "train_eval_token_ids_exact": true,
+        "train_eval_token_mask_exact": true
+      },
+      "id": "released_transform_reference_equivalence",
+      "status": "pass"
+    },
+    {
+      "evidence": {
+        "max_abs_error": 2.7755575615628914e-17,
+        "threshold": 1e-06
+      },
+      "id": "action_round_trip",
+      "status": "pass"
+    },
+    {
+      "evidence": {
+        "invalid_dimension_nonzero_count": 0
+      },
+      "id": "invalid_action_dimensions_zero",
+      "status": "pass"
+    },
+    {
+      "evidence": {
+        "observation": "The released transform stores all 8 raw state values in slots 0-7 but marks only 7 corresponding validity positions true.",
+        "raw_state_dimension": 8,
+        "released_data_mask_true_count": 7,
+        "state_value_slots": 24,
+        "validity_slots": 24,
+        "validity_true_count": 7
+      },
+      "id": "state_value_validity_width",
+      "status": "needs_review"
+    },
+    {
+      "evidence": {
+        "interpretation": "Could be naming-only or a training/inference version mismatch; paired A/B is required.",
+        "paper_contract": "single-arm visual input mapped to right-arm channel; left zero-padded",
+        "paper_url": "https://arxiv.org/html/2512.05693v2",
+        "released_transform": "real wrist in left_wrist_0_rgb; right_wrist_0_rgb zero and mask false"
+      },
+      "id": "single_arm_wrist_slot",
+      "status": "needs_review"
+    },
+    {
+      "evidence": {
+        "reason": "No LIBERO demonstration dataset is present in the current cache.",
+        "required_asset": "openvla/modified_libero_rlds plus an immutable conversion manifest"
+      },
+      "id": "raw_demonstration_train_eval_equivalence",
+      "status": "blocked"
+    },
+    {
+      "evidence": {
+        "published_stats_sha256": "0a900ab12eb7cf3a25a0afb406dfc95dbe04a215b4feed7cd4c1fa5be44acfcf",
+        "reason": "Published stats are present, but source demonstrations are absent."
+      },
+      "id": "normalization_reconstruction",
+      "status": "blocked"
+    }
+  ],
+  "comparisons": {
+    "reference_action_padding_exact": true,
+    "reference_left_wrist_exact": true,
+    "reference_right_wrist_exact": true,
+    "reference_state_padding_exact": true,
+    "train_eval_base_image_exact": true,
+    "train_eval_left_wrist_exact": true,
+    "train_eval_right_wrist_exact": true,
+    "train_eval_state_exact": true,
+    "train_eval_token_ids_exact": true,
+    "train_eval_token_mask_exact": true
+  },
+  "contract": {
+    "actual_input_order": [
+      "repack raw sample",
+      "LiberoInputs camera/state/action mapping",
+      "normalize raw 8D state and raw 7D action",
+      "resize images and tokenize prompt",
+      "pad state to 24D+24D validity and action to 24D"
+    ],
+    "actual_output_order": [
+      "unpad 24D action to 7D",
+      "unnormalize 7D action",
+      "LiberoOutputs"
+    ],
+    "data_mask": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "model_action_dimension": 24,
+    "model_state_dimension": 48,
+    "raw_action_dimension": 7,
+    "raw_state_dimension": 8
+  },
+  "created_utc": "2026-08-03T12:52:34.418825+00:00",
+  "overall_status": "needs_review",
+  "runtime_sources": {
+    "moevla.models.tokenizer": {
+      "path": "/home/jovyan/.cache/himoe-libero-bridge/upstream/HiMoE-VLA/src/moevla/models/tokenizer.py",
+      "sha256": "a71c76d57368dc8ae9a3b8a7a72f48bce3983522ecc3752aeb987932e94e798a"
+    },
+    "moevla.policies.libero_policy": {
+      "path": "/home/jovyan/.cache/himoe-libero-bridge/upstream/HiMoE-VLA/src/moevla/policies/libero_policy.py",
+      "sha256": "b9b5998891e2f2e3b50f93d3221a12987d392987fb7c808cff6f83ff46c09ecc"
+    },
+    "moevla.transforms": {
+      "path": "/home/jovyan/.cache/himoe-libero-bridge/upstream/HiMoE-VLA/src/moevla/transforms.py",
+      "sha256": "6ded6c9f261da6c24b2f7eccafb8dfd8aa277af3781b31fe60dec7f3f9ab65ab"
+    }
+  },
+  "schema": "himoe-libero-data-contract-audit-v1",
+  "scope": "Synthetic code-level train/eval equivalence; not demonstration-level equivalence",
+  "suite": "goal",
+  "tensor_fingerprints": {
+    "data_mask": {
+      "dtype": "bool",
+      "first_values": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "sha256": "47e1449a2474154aae11afe64a113456dc80d256dd5ff075227a90699b7ce96c",
+      "shape": [
+        24
+      ]
+    },
+    "evaluation_base": {
+      "dtype": "uint8",
+      "first_values": [
+        255,
+        255,
+        246,
+        254,
+        255,
+        241,
+        253,
+        255,
+        235,
+        252,
+        255,
+        230,
+        250,
+        255,
+        224,
+        249,
+        255,
+        218,
+        248,
+        255
+      ],
+      "max": 255.0,
+      "mean": 127.59501886692176,
+      "min": 0.0,
+      "sha256": "24f2574f3742622da5eed15883b6e8efbdab7bb38304cc08a2c11bfca47683ff",
+      "shape": [
+        224,
+        224,
+        3
+      ],
+      "std": 73.08835219238489
+    },
+    "evaluation_wrist": {
+      "dtype": "uint8",
+      "first_values": [
+        247,
+        242,
+        0,
+        246,
+        230,
+        1,
+        245,
+        218,
+        2,
+        244,
+        206,
+        4,
+        242,
+        193,
+        5,
+        241,
+        181,
+        6,
+        240,
+        168
+      ],
+      "max": 255.0,
+      "mean": 127.63463275935374,
+      "min": 0.0,
+      "sha256": "de5d701ba3fa969e2b881db2467a07515f46d2576971aff27177a5af4051c12c",
+      "shape": [
+        224,
+        224,
+        3
+      ],
+      "std": 71.50868895650207
+    },
+    "model_actions": {
+      "dtype": "float64",
+      "first_values": [
+        -0.14999961432760742,
+        -0.17999947969386546,
+        -0.20999957561008623,
+        -0.239995671735945,
+        -0.2699965371052579,
+        -0.29999704071420213,
+        -0.32999966710193096,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": 0.32999965697479333,
+      "mean": 7.11862420862038e-12,
+      "min": -0.32999966710193096,
+      "sha256": "0006d602e9fa7b7083a80872933108774e6f78919a607e1c2d8342c49cd38e87",
+      "shape": [
+        10,
+        24
+      ],
+      "std": 0.0852766853080049
+    },
+    "model_state_with_validity": {
+      "dtype": "float32",
+      "first_values": [
+        -0.2499978095293045,
+        -0.17856986820697784,
+        -0.10714179277420044,
+        -0.03571433573961258,
+        0.03571423888206482,
+        0.10714256018400192,
+        0.17855960130691528,
+        0.2499832957983017,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": 1.0,
+      "mean": 0.14583283104002476,
+      "min": -0.2499978095293045,
+      "sha256": "51325cb6df4ddd74da27f74762536c6f037106f3af2e59f645bb9a4df344bd00",
+      "shape": [
+        48
+      ],
+      "std": 0.359207602849567
+    },
+    "normalized_actions": {
+      "dtype": "float64",
+      "first_values": [
+        -0.14999961432760742,
+        -0.17999947969386546,
+        -0.20999957561008623,
+        -0.239995671735945,
+        -0.2699965371052579,
+        -0.29999704071420213,
+        -0.32999966710193096,
+        -0.11666636814085975,
+        -0.13999959540787835,
+        -0.1633330084895399,
+        -0.18666328958910144,
+        -0.20999730170595146,
+        -0.2333310315579717,
+        -0.25666640288172105,
+        -0.08333311956535881,
+        -0.09999971112189124,
+        -0.11666644136899361,
+        -0.1333309242615727,
+        -0.14999807227684597,
+        -0.16666501780669846
+      ],
+      "max": 0.32999965697479333,
+      "mean": 2.4406704435264713e-11,
+      "min": -0.32999966710193096,
+      "sha256": "df59241932452dd0d8ac01acf052f0f06a7a50b3b51d1d489dc551b35e0183cd",
+      "shape": [
+        10,
+        7
+      ],
+      "std": 0.15790173860025913
+    },
+    "normalized_state": {
+      "dtype": "float64",
+      "first_values": [
+        -0.2499978063253744,
+        -0.1785698735736363,
+        -0.10714179224368715,
+        -0.03571433628160699,
+        0.03571423918481277,
+        0.10714255755806104,
+        0.17855959708969232,
+        0.2499832960129932
+      ],
+      "max": 0.2499832960129932,
+      "mean": -3.014822343189172e-06,
+      "min": -0.2499978063253744,
+      "sha256": "069b53338b461f23c61efb131cecb1d65f0ebea99b735a0a3efafbcb493e2e24",
+      "shape": [
+        8
+      ],
+      "std": 0.1636578721079058
+    },
+    "post_rotation_base": {
+      "dtype": "uint8",
+      "first_values": [
+        255,
+        255,
+        248,
+        254,
+        255,
+        243,
+        253,
+        255,
+        238,
+        252,
+        255,
+        233,
+        251,
+        255,
+        228,
+        250,
+        255,
+        223,
+        249,
+        255
+      ],
+      "max": 255.0,
+      "mean": 127.5,
+      "min": 0.0,
+      "sha256": "6dc73764e81a2dc582ebad01f63015b33f0da52e51402144d1766bcd69121151",
+      "shape": [
+        256,
+        256,
+        3
+      ],
+      "std": 73.90027063549903
+    },
+    "post_rotation_wrist": {
+      "dtype": "uint8",
+      "first_values": [
+        248,
+        244,
+        0,
+        247,
+        233,
+        1,
+        246,
+        222,
+        2,
+        245,
+        211,
+        3,
+        244,
+        200,
+        4,
+        243,
+        189,
+        5,
+        242,
+        178
+      ],
+      "max": 255.0,
+      "mean": 127.5,
+      "min": 0.0,
+      "sha256": "41cfee842632172efbf3fb8ca13bcef3e642e79714096e886ca210b8c0af367f",
+      "shape": [
+        256,
+        256,
+        3
+      ],
+      "std": 73.90027063549903
+    },
+    "raw_actions": {
+      "dtype": "float32",
+      "first_values": [
+        -0.023346615955233574,
+        -0.03528749197721481,
+        -0.2458776831626892,
+        -0.01533831749111414,
+        0.004686127882450819,
+        -0.0029280120506882668,
+        -0.5720965266227722,
+        -0.01035071350634098,
+        -0.021450547501444817,
+        -0.2225792407989502,
+        -0.012385185807943344,
+        0.009365923702716827,
+        0.0038279162254184484,
+        -0.5011454820632935,
+        0.0026451898738741875,
+        -0.00761360302567482,
+        -0.19928079843521118,
+        -0.009432055056095123,
+        0.014045719057321548,
+        0.010583844967186451
+      ],
+      "max": 0.09361650794744492,
+      "mean": -0.04008116841765254,
+      "min": -0.5720965266227722,
+      "sha256": "aadc941e931610e5b576daf691c4789d60617896895567e45414841bd785e980",
+      "shape": [
+        10,
+        7
+      ],
+      "std": 0.13392803712914997
+    },
+    "raw_state": {
+      "dtype": "float32",
+      "first_values": [
+        -0.1284041702747345,
+        -0.006912234239280224,
+        1.058273196220398,
+        2.8095624446868896,
+        0.3330537974834442,
+        -0.2348633110523224,
+        0.03078223206102848,
+        -0.02358817681670189
+      ],
+      "max": 2.8095624446868896,
+      "mean": 0.47973797225859016,
+      "min": -0.2348633110523224,
+      "sha256": "cc1974c40006c1c06127315b5633d90bda7e6a86d467fe9a153861c9433b291c",
+      "shape": [
+        8
+      ],
+      "std": 0.9589395234410092
+    },
+    "round_trip_actions": {
+      "dtype": "float64",
+      "first_values": [
+        -0.023346615955233574,
+        -0.03528749197721482,
+        -0.2458776831626892,
+        -0.01533831749111414,
+        0.0046861278824508155,
+        -0.0029280120506882668,
+        -0.5720965266227722,
+        -0.01035071350634098,
+        -0.021450547501444817,
+        -0.2225792407989502,
+        -0.012385185807943344,
+        0.009365923702716827,
+        0.0038279162254184484,
+        -0.5011454820632935,
+        0.0026451898738741875,
+        -0.00761360302567482,
+        -0.19928079843521118,
+        -0.009432055056095123,
+        0.014045719057321548,
+        0.010583844967186451
+      ],
+      "max": 0.09361650794744492,
+      "mean": -0.04008116841765254,
+      "min": -0.5720965266227722,
+      "sha256": "014b4152cbc2a20d8fa0a78fe8c944c5587a4ccdaf5756c8c2b054ad397abfc7",
+      "shape": [
+        10,
+        7
+      ],
+      "std": 0.13392803712914997
+    },
+    "source_base": {
+      "dtype": "uint8",
+      "first_values": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        5,
+        2,
+        0,
+        10,
+        3,
+        0,
+        15,
+        4,
+        0,
+        20,
+        5,
+        0,
+        25,
+        6,
+        0
+      ],
+      "max": 255.0,
+      "mean": 127.5,
+      "min": 0.0,
+      "sha256": "f16db36ae9134b2d9bb092e9128ec1bfa1c736b4784ab7ae35175c49c5980efe",
+      "shape": [
+        256,
+        256,
+        3
+      ],
+      "std": 73.90027063549903
+    },
+    "source_wrist": {
+      "dtype": "uint8",
+      "first_values": [
+        0,
+        0,
+        0,
+        1,
+        11,
+        1,
+        2,
+        22,
+        2,
+        3,
+        33,
+        3,
+        4,
+        44,
+        4,
+        5,
+        55,
+        5,
+        6,
+        66
+      ],
+      "max": 255.0,
+      "mean": 127.5,
+      "min": 0.0,
+      "sha256": "224daca563320fd323e7135ef70829008b00c42857adeee99e6d3639f47dbbf6",
+      "shape": [
+        256,
+        256,
+        3
+      ],
+      "std": 73.90027063549903
+    },
+    "token_ids": {
+      "dtype": "int64",
+      "first_values": [
+        2,
+        4141,
+        573,
+        7185,
+        39635,
+        576,
+        573,
+        22402,
+        235265,
+        108,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "max": 235265.0,
+      "mean": 6467.916666666667,
+      "min": 0.0,
+      "sha256": "6771b45e5b8f6435d3833718761633a9f2e5ffe1e0977b7851ab44668b4e5d0a",
+      "shape": [
+        48
+      ],
+      "std": 33998.81917485844
+    },
+    "token_mask": {
+      "dtype": "bool",
+      "first_values": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "sha256": "aca078dff151c8ef310f51debd4c1aa6a460c0fac349f5bb3c1c8c4e529994fa",
+      "shape": [
+        48
+      ]
+    }
+  }
+}

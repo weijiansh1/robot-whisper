@@ -1,0 +1,195 @@
+{
+  "schema": "himoe-vla-section4.1-alignment-v1",
+  "generated_utc": "2026-08-03T22:57:19Z",
+  "paper": {
+    "artifact": "/home/jovyan/work/arXiv-2512.05693v2.tar.gz",
+    "artifact_sha256": "9804dc969092b5788ca681544b3777047781c1cc2a883211eaed7628ea2d351a",
+    "table_source": "example.tex:253-263",
+    "input_contract_source": "example.tex:590-592",
+    "reported_rates": {
+      "spatial": 0.982,
+      "object": 0.994,
+      "goal": 0.986,
+      "long": 0.958
+    }
+  },
+  "source": {
+    "himoe_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "libero_commit": "8f1084e3132a39270c3a13ebe37270a43ece2a01",
+    "frozen_baseline_bridge_commit": "f5dc26bbf4d878ad6621c7be85335eb61f494dc0",
+    "full_run_bridge_commit": "927640c55e096a81f04c4effcd649fa435984c97",
+    "final_bridge_commit": "d7797415d0fce6b4fd25393dbc0d1923ac28ed3b",
+    "final_policies_source_sha256": "4c22e568305f75c6e616fcb71a75136a1e3140b32cff6612355a829479b92ded",
+    "upstream_libero_policy_sha256": "b9b5998891e2f2e3b50f93d3221a12987d392987fb7c808cff6f83ff46c09ecc",
+    "upstream_transforms_sha256": "6ded6c9f261da6c24b2f7eccafb8dfd8aa277af3781b31fe60dec7f3f9ab65ab",
+    "final_tests": {
+      "passed": 155,
+      "failed": 0
+    }
+  },
+  "root_cause": {
+    "status": "causally_supported",
+    "summary": "The released checkpoint expects the real LIBERO wrist image in the right wrist token slot, while the public LiberoInputs places it in the left slot.",
+    "public_pipeline": {
+      "after_libero_inputs": {
+        "left_wrist": "real, valid",
+        "right_wrist": "zero, invalid"
+      },
+      "after_drop_state_and_image": {
+        "left_wrist": "real, valid",
+        "right_wrist": "zero, valid"
+      },
+      "mask_rewrite_note": "DropStateAndImage rewrites both wrist masks to true even when both dropout ratios are zero."
+    },
+    "validated_checkpoint_layout": {
+      "name": "checkpoint-right",
+      "left_wrist": "zero, valid",
+      "right_wrist": "real, valid"
+    },
+    "strict_paper_mask_layout": {
+      "name": "paper-right",
+      "left_wrist": "zero, invalid",
+      "right_wrist": "real, valid",
+      "status": "ablation_only_not_recommended"
+    }
+  },
+  "canonical_protocol": {
+    "tasks_per_suite": 10,
+    "episodes_per_task": 50,
+    "official_initial_states": true,
+    "environment_seed": 7,
+    "policy_seed": 42,
+    "replan_steps": 10,
+    "settling_steps": 10,
+    "flow_steps": 10,
+    "routing_top_k": 4,
+    "python": "3.8.20",
+    "robosuite": "1.4.1",
+    "mujoco": "3.2.3",
+    "renderer": "EGL"
+  },
+  "suite_results": {
+    "goal": {
+      "paper_rate": 0.986,
+      "released_left": {
+        "successes": 410,
+        "episodes": 500,
+        "rate": 0.82
+      },
+      "checkpoint_right": {
+        "successes": 489,
+        "episodes": 500,
+        "rate": 0.978,
+        "per_task_successes": [49, 48, 50, 46, 49, 50, 50, 50, 50, 47],
+        "wilson_95": [0.961039139, 0.987671992],
+        "paper_rate_inside_wilson_95": true,
+        "log": "paper-alignment/paper-right-libero-goal-rs141-egl-20260803T1437Z/eval.log",
+        "log_sha256": "f6546708b944e90e5df9c241c1ccc37e2d7f72f587e0fbde2bb1a64693ed2152"
+      },
+      "judgement": "statistically_aligned_not_exact"
+    },
+    "spatial": {
+      "paper_rate": 0.982,
+      "released_left": {
+        "successes": 406,
+        "episodes": 500,
+        "rate": 0.812
+      },
+      "checkpoint_right_public_default": {
+        "successes": 471,
+        "episodes": 500,
+        "rate": 0.942,
+        "per_task_successes": [50, 46, 48, 50, 38, 47, 49, 47, 48, 48],
+        "wilson_95": [0.917943812143745, 0.9593162708882429],
+        "paper_rate_inside_wilson_95": false,
+        "log": "paper-alignment/paper-right-libero-spatial-rs141-egl-20260803T1624Z/eval.log",
+        "log_sha256": "7e4ead3ebcf1000c6adf02cd5064f06812c25ad58f02e205bf8906034d9bb1c6"
+      },
+      "checkpoint_right_replan5_diagnostic": {
+        "successes": 478,
+        "episodes": 500,
+        "rate": 0.956,
+        "per_task_successes": [48, 47, 50, 49, 44, 49, 49, 44, 50, 48],
+        "wilson_95": [0.9342805571276716, 0.9707660443713928],
+        "paper_rate_inside_wilson_95": false,
+        "log": "paper-alignment/paper-right-replan5-libero-spatial-rs141-egl-20260803T2006Z/eval.log",
+        "log_sha256": "04bd6ddd87976a2809a3941d7ebe4b0c3cc73b0e6f6c0eabb89267a3df7316a5"
+      },
+      "judgement": "major_gap_fixed_not_reproduced"
+    },
+    "object": {
+      "paper_rate": 0.994,
+      "released_left": {
+        "successes": 396,
+        "episodes": 500,
+        "rate": 0.792
+      },
+      "checkpoint_right": {
+        "successes": 483,
+        "episodes": 500,
+        "rate": 0.966,
+        "per_task_successes": [48, 50, 49, 47, 49, 48, 45, 48, 49, 50],
+        "wilson_95": [0.9462286345, 0.9786654802],
+        "paper_rate_inside_wilson_95": false,
+        "log": "paper-alignment/paper-right-libero-object-rs141-egl-20260803T1752Z/eval.log",
+        "log_sha256": "4356a2a945c80e3fe71164f6bca892bcd275803d8eb32160088d3fb7bbd7b9bc"
+      },
+      "judgement": "major_gap_fixed_not_reproduced"
+    },
+    "long": {
+      "paper_rate": 0.958,
+      "status": "blocked_missing_full_checkpoint",
+      "local_file_bytes": 135,
+      "expected_file_bytes": 8138322389,
+      "lfs_oid_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256"
+    }
+  },
+  "paired_evidence": {
+    "goal_wrist_slot_10x5": {
+      "released_left": 40,
+      "checkpoint_right": 48,
+      "episodes": 50,
+      "failure_to_success": 10,
+      "success_to_failure": 2,
+      "exact_mcnemar_two_sided_p": 0.038574219,
+      "only_changed": "real wrist image slot; final wrist masks were true/true in both conditions"
+    },
+    "goal_right_slot_mask_4x5": {
+      "tasks": [0, 1, 6, 9],
+      "init_states": [0, 1, 2, 3, 4],
+      "checkpoint_right_successes": 20,
+      "paper_right_successes": 18,
+      "episodes": 20,
+      "checkpoint_right_to_paper_failure": 2,
+      "paper_failure_to_success": 0,
+      "exact_mcnemar_two_sided_p": 0.5,
+      "checkpoint_summary_sha256": "184c23ed8ecad4ef147bd0acf1dde1824196caf5957abd6ad3fd98793177d831",
+      "paper_summary_sha256": "a4ad5e6ad6d557cd28870b74b8a0a91242f94c4a53ade8532d9f31c2583e6ba5"
+    },
+    "final_checkpoint_right_compatibility": {
+      "old_bridge_commit": "927640c55e096a81f04c4effcd649fa435984c97",
+      "new_bridge_commit": "d7797415d0fce6b4fd25393dbc0d1923ac28ed3b",
+      "paired_cases": 20,
+      "matched_cases": 20,
+      "mismatched_cases": 0,
+      "compared_fields": ["arrays", "result", "config"],
+      "audit": "metadata/checkpoint-right-compatibility-audit-20260803.json",
+      "audit_sha256": "2490e77dff6a1f62627b8b04965ce5dbdd6b8d5b4d19c00dbbb9bdbd207a7a97"
+    },
+    "spatial_replan_10x5": {
+      "replan10_successes": 46,
+      "replan5_successes": 49,
+      "episodes": 50,
+      "failure_to_success": 4,
+      "success_to_failure": 1,
+      "exact_mcnemar_two_sided_p": 0.375
+    }
+  },
+  "remaining_non_reproducibility": [
+    "The paper does not publish the exact evaluation episode and policy-noise manifest.",
+    "The released checkpoints contain no global step, run ID, source commit, or dataset manifest.",
+    "The paper specifies 35k/40k/45k LIBERO fine-tuning steps while public configs use 50k for every suite.",
+    "The training demonstrations and complete conversion/sampling lineage needed for strict retraining are unavailable locally.",
+    "The complete Long checkpoint could not be obtained from the available network endpoints."
+  ]
+}
