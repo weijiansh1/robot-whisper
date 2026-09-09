@@ -19,7 +19,10 @@ from analyze_repair_supervisor import v1_lookup, bootstrap
 def fork_rows(run_dir, plan):
     rows = []
     for task in plan["tasks"]:
-        result = json.loads((run_dir / "tasks" / task["main_id"] / "branches/result.json").read_text())
+        path = run_dir / "tasks" / task["main_id"] / "branches/result.json"
+        if not path.exists():
+            continue
+        result = json.loads(path.read_text())
         for b in result["branches"]:
             rows.append(dict(main_id=task["main_id"], failed=task["failed"], base_task=task["base_task"], timing=b["timing"],
                 arm=b["arm"], event_id=b["event_id"], replicate=b["replicate"], physical_class=b["physical_class"],

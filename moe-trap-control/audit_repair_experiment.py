@@ -82,6 +82,12 @@ def audit_task(task_dir, plan_task, plan):
     if replay["status"] != "completed" or replay["c0"]["status"] != "passed":
         findings.append("replay_not_passed")
     events = [e for e in replay["events"] if not plan.get("timings") or e["timing"] in plan["timings"]]
+    if v2 and not plan["arms"]:                      # episodes-only plan: no fork branches to audit
+        report = dict(main_id=plan_task["main_id"], findings=findings, events=len(events), branches=0, suffix_rows=0, repair_rows=0)
+        episode_findings, episodes, rows = audit_episodes(task_dir, plan_task, plan)
+        findings.extend(episode_findings)
+        report.update(episodes=episodes, episode_rows=rows)
+        return report
     for event in events:
         location = replay_dir / "events" / event["event_id"]
         manifest = json.loads((location / "snapshot/manifest.json").read_text())
