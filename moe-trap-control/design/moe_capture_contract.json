@@ -1,0 +1,41 @@
+{
+  "schema": "moe_control.capture_design.v1",
+  "status": "design_only_not_deployed",
+  "hidden_capture": false,
+  "physical_gpus": [0, 1, 2, 3, 4, 5, 7],
+  "excluded_physical_gpu": 6,
+  "hb_layers": [2, 3, 4, 5, 12, 13, 14, 15],
+  "axes": ["layer", "denoise", "suffix_token", "expert_or_slot"],
+  "denoise_steps": 10,
+  "state_token_index": 0,
+  "action_token_indices": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "required_query_arrays": {
+    "hb_native_probs": {"shape": [8, 10, 11, 32], "dtype": "float16", "raw_bytes": 56320},
+    "hb_native_ids": {"shape": [8, 10, 11, 4], "dtype": "uint8", "raw_bytes": 3520},
+    "hb_effective_ids": {"shape": [8, 10, 11, 4], "dtype": "uint8", "raw_bytes": 3520},
+    "hb_native_weights": {"shape": [8, 10, 11, 4], "dtype": "float32", "raw_bytes": 14080},
+    "hb_effective_weights": {"shape": [8, 10, 11, 4], "dtype": "float32", "raw_bytes": 14080}
+  },
+  "derived_query_arrays": {
+    "mobility": {"shape": [8], "dtype": "float32"},
+    "flow_acceleration": {"shape": [], "dtype": "float32"},
+    "lag_periodicity": {"shape": [], "dtype": "float32"},
+    "flow_speed": {"shape": [8, 9], "dtype": "float32"}
+  },
+  "derived_array_bytes": 328,
+  "array_bytes_per_query_without_aliasing": 91848,
+  "array_byte_exclusions": ["AS", "state", "actions", "flow_noise", "metadata", "snapshots", "compression"],
+  "equal_native_effective_storage": "explicit equality/alias metadata may avoid duplicate arrays; readers must preserve native/effective semantics",
+  "probability_meaning": "native gate distribution at this branch's actual input, including effects from earlier modified layers",
+  "combine_weights_source": "actual native and effective gate returns, never reconstructed from quantized probabilities after intervention",
+  "query_identity": ["run_id", "main_id", "event_id", "branch_id", "query_id", "request_id", "attempt_id"],
+  "request_execution": "serialize begin/infer/end within each model's request context; flush once per query",
+  "consumer_state": "preserve monitor history, action queue, RNG and query counter across storage blocks; restore from pre-query snapshot for branches",
+  "per_method_record": ["method_id", "profile_sha256", "score", "threshold", "ready", "trigger_now", "alarm_latched", "first_alarm_query"],
+  "queries_per_storage_block": 8,
+  "maximum_pending_blocks_per_worker": 2,
+  "snapshot_observations": "persist exact policy inputs and observable/RNG state at alarm points",
+  "multi_detector_snapshot_policy": "deduplicate equal main_id/query_id first alarms; retain method provenance and sampling probabilities",
+  "main_first_rule": "finish and durably commit the untouched main rollout before scheduling interventions",
+  "reference_isolation": "profiles remain checkpoint-specific and frozen; never fit or append reference points from the active evaluation rollout"
+}

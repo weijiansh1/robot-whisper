@@ -1,0 +1,1816 @@
+{
+  "status": "completed",
+  "protocol": "moe_control.repair_regulator.v3",
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "no switching: the VLA runs every chunk; a shared-control law edits each executed env step: u = (1 - a) u_VLA + a u_servo with a = 0 until the graspable-envelope gate blocks a closure (CLOSE commanded while neither the target (extent-based envelope) nor any other movable object (strict 0.07 m envelope) sits between the fingers: physical evidence of a phantom grasp); then a = 0.7 for 60 steps pulling the end effector above the nearest unsatisfied object; in hand the policy keeps authority unless the carry stalls 120 steps (pull toward the place point); OPEN executes only inside the goal region",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false,
+    "calibration": "closure envelope from 22 lifted closures in the v1 replays: horizontal <= 0.063 m, dz 0.00 to 0.10 m; gate uses max(0.07 m, object bounding radius + 0.02 m) and -0.03 to max(0.13 m, radius + 0.02 m) because handle grasps (moka pot) close farther from the body origin; a first always-on PI servo (kp 6, ki 0.3, u_max 0.5) was rejected in the smoke of 2026-09-09 because it edited every step and broke a success parent; gains fixed before the main run, not fitted to outcomes",
+    "fork_branches": "start at the v1 fork snapshots; twin = new_noise until the first modified env step",
+    "episodes": "full 520-step episodes from the parent's q0 snapshot: vla (replicate 0 must reproduce the parent bitwise), shared control always on, shared control engaged at the online kNN-20 first alarm",
+    "replay": "fork snapshots reused from the audited v1 run; no C0 replay"
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "supervisor": null,
+  "regulator": {
+    "law": "shared",
+    "alpha": 0.7,
+    "authority_steps": 60,
+    "kp_shared": 10.0,
+    "z_offset_m": 0.05,
+    "lifted_m": 0.02,
+    "carry_patience_steps": 120,
+    "close_gate_xy_m": 0.07,
+    "close_gate_dz_min_m": -0.03,
+    "close_gate_dz_max_m": 0.13,
+    "close_gate_extent_margin_m": 0.02,
+    "release_margin_xy_m": 0.02,
+    "release_margin_z_m": 0.1,
+    "body_region_radius_m": 0.06,
+    "body_region_height_m": 0.08
+  },
+  "main_id": "a97e2467b5341216d6b65d61",
+  "job_kind": "branches",
+  "variant": {
+    "benchmark": "plus",
+    "suite": "libero_10",
+    "registry": "libero_10",
+    "registry_index": 344,
+    "classification_id": 345,
+    "task_name": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket_view_0_0_100_0_0_initstate_282",
+    "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+    "category": "Robot Initial States",
+    "difficulty": 1,
+    "base_task_fold": 1,
+    "horizon_steps": 520,
+    "variant_id": "14a8d85b7ae5b5c67030a543"
+  },
+  "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/a97e2467b5341216d6b65d61",
+  "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+  "parent_manifest_sha256": "958e126966619e491f98cebe69ed7c3cb61dccf59a895d527175dc1d9d45d482",
+  "model": "long",
+  "model_metadata": {
+    "protocol": "himoe-libero-v1",
+    "protocol_version": 2,
+    "backend": "himoe-vla-libero-long",
+    "observation": {
+      "observation/image": [
+        224,
+        224,
+        3
+      ],
+      "observation/wrist_image": [
+        224,
+        224,
+        3
+      ],
+      "observation/state": [
+        8
+      ],
+      "prompt": "non-empty string",
+      "flow/noise": {
+        "shape": [
+          10,
+          24
+        ],
+        "optional": true
+      },
+      "routing/capture": {
+        "type": "bool",
+        "optional": true
+      }
+    },
+    "action": {
+      "actions": [
+        10,
+        7
+      ]
+    },
+    "flow_noise_ack": {
+      "key": "flow/noise_sha256",
+      "format": "sha256-f32-c-v1"
+    },
+    "routing": {
+      "optional": true,
+      "routing/expert_ids": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/expert_weights": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/layer_indices": [
+        8
+      ],
+      "routed_experts": 32,
+      "top_k": 4
+    },
+    "suite": "long",
+    "benchmark": "libero_10",
+    "train_config": "libero_10_no_noops_lerobot_finetune",
+    "dataset_config": "libero_10_no_noops_lerobot",
+    "normalization_asset": "libero_10_no_noops",
+    "checkpoint": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10",
+    "checkpoint_bytes": 8138322389,
+    "checkpoint_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256",
+    "flow_steps": 10,
+    "predicted_action_steps": 10,
+    "internal_action_dim": 24,
+    "normalization_stats_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/libero_10_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "71d6971888eddec4febec09f696bddbbba6f0007d7a32b41027d8db6d677abe0",
+    "normalization_stats_loaded": true,
+    "normalization_action_std": [
+      0.28262342306725324,
+      0.35866097261853397,
+      0.36932027826898967,
+      0.03787003293268508,
+      0.054570646977803616,
+      0.08749407288353883,
+      0.9963353419534117
+    ],
+    "libero_wrist_layout": "checkpoint-right",
+    "libero_wrist_layout_transform_anchor": "DropStateAndImage",
+    "cuda_visible_devices": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "routing_capture_supported": true,
+    "routing_hb_layer_indices": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "routing_experts": 32,
+    "routing_top_k": 4,
+    "himoe_upstream_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "himoe_patch_sha256": {
+      "himoe-fixed-noise.patch": "d4275c5908353c6a59c178eb25dd53861455892effa41c63202c4e09239dba56",
+      "himoe-runtime.patch": "6a37331c4a09402ee4f1f323055e90c51290584148732cb272a584e1dec05428",
+      "himoe-transformers-cache.patch": "4972e8ae67cb5ee696fb28811b8f70f234966e013a8c5ec664d70e20bb607463"
+    },
+    "himoe_patches_verified_applied": true,
+    "himoe_working_tree_dirty": true,
+    "himoe_working_tree_diff_sha256": "edf3a0f702d99fa6496ef3a5c3c1812eb97dbe3609b9d09616e727a3ad6abd2c",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_memory_allocated_bytes": 18413647360,
+    "checkpoint_load_audit": {
+      "mode": "torch_mmap_meta_assign",
+      "checkpoint_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/pytorch_model.pth",
+      "upstream_root": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA",
+      "train_config": "libero_10_no_noops_lerobot_finetune",
+      "target_device": "cuda:0",
+      "mmap": true,
+      "assign": true,
+      "strict": true,
+      "state_key_count": 1581,
+      "logical_tensor_bytes": 9191385168,
+      "target_tensor_bytes": 18382770336,
+      "staged_tensor_count": 1581,
+      "staging_chunk_bytes": 67108864,
+      "chunked_tensor_count": 2,
+      "staging_copy_count": 1643,
+      "aliased_tensor_count": 1581,
+      "reconstructed_nonpersistent_buffers": [
+        "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.vision_tower.vision_model.embeddings.position_ids"
+      ]
+    },
+    "bundle_schema": "himoe-vla-five-model-gpu-bundle/v1",
+    "bundle_model": "long",
+    "bundle_physical_gpu": 4,
+    "bundle_logical_gpu": 0,
+    "bundle_port": 9098,
+    "bundle_process_pid": 979887,
+    "isolated_process": true,
+    "isolated_models": [
+      "long"
+    ],
+    "isolated_gpu_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "cuda_memory_limit_mib": null,
+    "replica_index": 7,
+    "weights_owner_pid": 978993,
+    "shared_cuda_parameters": true,
+    "cuda_mps_pipe_directory": "/tmp/moe-control-mps-eitr7zy_",
+    "collection_full_hb_supported": true,
+    "collection_hidden_capture": false,
+    "collection_routing_mode": "request_scoped",
+    "collection_batch_size": 1,
+    "collection_full_as_supported": true,
+    "collection_as_layers": [
+      0,
+      1,
+      16,
+      17
+    ],
+    "collection_interventions": [
+      "native",
+      "swap1_near"
+    ],
+    "collection_probability_axes": [
+      "layer",
+      "denoise",
+      "suffix_token",
+      "expert"
+    ],
+    "collection_hb_layers": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "server_instance_id": "0a7b6a0d1b5c4409a699189e215ee8dc",
+    "server_pid": 979887,
+    "server_started_unix_ns": 1788924920151919373
+  },
+  "gpu": 4,
+  "render_gpu": 4,
+  "egl_device_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+  "seed": 2995109210,
+  "init_index": 0,
+  "hidden_capture": false,
+  "main_intervention": false,
+  "main_complete": true,
+  "reused_main": true,
+  "queries": 0,
+  "action_steps": 520,
+  "success": false,
+  "first_alarm_query": null,
+  "first_knn_alarm": 28,
+  "analysis_role": "perturbation",
+  "failed": true,
+  "c0": {
+    "status": "passed",
+    "compared_queries": 0,
+    "replay_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908/tasks/a97e2467b5341216d6b65d61/replay",
+    "replay_result_sha256": "6b61b265baeb8c8b7fe00f38b1da593e1f3a37762b0a4437ce498c733e221c03",
+    "replay_branch_sha256": "78703f1d0ed9b613f4f1dfae9c57e742d615631544ce80e50fcf315ddf6863dc"
+  },
+  "events": [
+    {
+      "event_id": "150e6b8bff698b7060b8ba93",
+      "timing": "mid",
+      "start_query": 29,
+      "alarm_query": 28,
+      "deployable": true,
+      "snapshot_manifest_sha256": "2eb306a11c8edea917ec3ea8bb6a0b28cd45d9fa9a4b182fb13d68392e54b403",
+      "action_steps_before": 290,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "physics_sha256": "1c7161495704639c6fd09915e5616960e590f7b692bb0d1bb9d1e483bb73ee35"
+    },
+    {
+      "event_id": "32ed49e15e17d840fb203a4f",
+      "timing": "late",
+      "start_query": 44,
+      "alarm_query": 28,
+      "deployable": false,
+      "snapshot_manifest_sha256": "e9a37690eea5c95c4505e7c95c372f157afc79cf420049e0d10504768f617294",
+      "action_steps_before": 440,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "physics_sha256": "c62f7b176e4dad2ed8d1844d315279367e8e2b76106c13544158810c834b31fd"
+    },
+    {
+      "event_id": "54098ccb3338c5346138941e",
+      "timing": "early",
+      "start_query": 14,
+      "alarm_query": -1,
+      "deployable": true,
+      "snapshot_manifest_sha256": "253204554003c7a3dd8abed603c2d08b7831c7ca1790d78dfcb555781c1db233",
+      "action_steps_before": 140,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "physics_sha256": "9219f4bdee70fb63dd910a90fac8895ecb9248a6f1514f9c68f0a8c66facf5d7"
+    }
+  ],
+  "branches": [
+    {
+      "status": "completed",
+      "arm": "gate_close",
+      "control": {
+        "features": [
+          "close_gate"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "150e6b8bff698b7060b8ba93",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 29,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "2eb306a11c8edea917ec3ea8bb6a0b28cd45d9fa9a4b182fb13d68392e54b403",
+      "fork_action_steps": 290,
+      "original_remaining_steps": 230,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 9,
+      "features": [
+        "close_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 137,
+      "gate_close_steps": 137,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "b1215100e932639b41e843e97338a531afca2c72e4ff60deaa9611af0c7dbd77",
+            "rows": 8,
+            "bytes": 496709,
+            "first_query": 29,
+            "last_query": 36
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "59dadaffa59b9681cd619802c75bca4799f035aebd016363a5998aaa4891abc5",
+            "rows": 8,
+            "bytes": 499414,
+            "first_query": 37,
+            "last_query": 44
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "262649fa67e423e3cda76a7ed8c5d643694bafcb9acbf57ced3d8d99da490105",
+            "rows": 8,
+            "bytes": 503199,
+            "first_query": 45,
+            "last_query": 52
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "dad38addac5c73a89fe7d71e277465f3867743774a1d77142407580fd1b52d9c",
+            "rows": 6,
+            "bytes": 378851,
+            "first_query": 53,
+            "last_query": 58
+          }
+        ],
+        "queries": 30,
+        "bytes": 1878173,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_approach",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "150e6b8bff698b7060b8ba93",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 29,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "2eb306a11c8edea917ec3ea8bb6a0b28cd45d9fa9a4b182fb13d68392e54b403",
+      "fork_action_steps": 290,
+      "original_remaining_steps": 230,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 9,
+      "features": [
+        "close_gate",
+        "shared"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 65,
+      "gate_close_steps": 5,
+      "gate_open_steps": 0,
+      "servo_effort": 10.34610167145729,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "48717eee3965c3bdce331b3071c3b3a8ea557f97f1b5294be372fda3ce2be630",
+            "rows": 8,
+            "bytes": 496710,
+            "first_query": 29,
+            "last_query": 36
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "9760685d5dc07fe615c8aa490bec70e9fa447214a2b52a551bfc810882255461",
+            "rows": 8,
+            "bytes": 500040,
+            "first_query": 37,
+            "last_query": 44
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "d971d9fa109623413dd8a200d8aac33b297a5e641df72760095ce04a16b29ecc",
+            "rows": 8,
+            "bytes": 494842,
+            "first_query": 45,
+            "last_query": 52
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "522fd9ff29e31c308a547db50ac531bf1986345dc525c93f4c266c5769c02069",
+            "rows": 6,
+            "bytes": 378824,
+            "first_query": 53,
+            "last_query": 58
+          }
+        ],
+        "queries": 30,
+        "bytes": 1870416,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "150e6b8bff698b7060b8ba93",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 29,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "2eb306a11c8edea917ec3ea8bb6a0b28cd45d9fa9a4b182fb13d68392e54b403",
+      "fork_action_steps": 290,
+      "original_remaining_steps": 230,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 9,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 68,
+      "gate_close_steps": 5,
+      "gate_open_steps": 3,
+      "servo_effort": 10.34610167145729,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "fe68d645bf25072017a2e8bf1b21a9df3b4968b8c2cd3619f9b0896791aaa462",
+            "rows": 8,
+            "bytes": 496707,
+            "first_query": 29,
+            "last_query": 36
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "c233c1410e969fafc637dcd090960c58aee550db6ec70c245e76e2655b6c0da5",
+            "rows": 8,
+            "bytes": 500043,
+            "first_query": 37,
+            "last_query": 44
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "2c122c33d213091ef3719e68779fdeab5762250cc2a44866f3996534ccd86204",
+            "rows": 8,
+            "bytes": 495143,
+            "first_query": 45,
+            "last_query": 52
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "a187b4fc4d3c450081b2dac3f51a78ff581d3e2cb1916cdfd0cf65632b062558",
+            "rows": 6,
+            "bytes": 379018,
+            "first_query": 53,
+            "last_query": 58
+          }
+        ],
+        "queries": 30,
+        "bytes": 1870911,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "gate_close",
+      "control": {
+        "features": [
+          "close_gate"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "150e6b8bff698b7060b8ba93",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 29,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "2eb306a11c8edea917ec3ea8bb6a0b28cd45d9fa9a4b182fb13d68392e54b403",
+      "fork_action_steps": 290,
+      "original_remaining_steps": 230,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 13,
+      "features": [
+        "close_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 113,
+      "gate_close_steps": 113,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "a2b1d8039618e2a939386d86fa1c5a0f304c41492777865523858c8161af219e",
+            "rows": 8,
+            "bytes": 502440,
+            "first_query": 29,
+            "last_query": 36
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "507d3fd5ab742bc4421979dccaa6004dad1bcbd0aa4b44e9c6e56f285b21bfb4",
+            "rows": 8,
+            "bytes": 494403,
+            "first_query": 37,
+            "last_query": 44
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "9f2d471d26f75651872a29c4e6a5cbf717dd5a6af603bf32fe9045a9f2726edc",
+            "rows": 8,
+            "bytes": 502116,
+            "first_query": 45,
+            "last_query": 52
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "dd2f7096a028af17610075a2a5859e43f4f7a1ddf3e377bd4934bca019474587",
+            "rows": 6,
+            "bytes": 379180,
+            "first_query": 53,
+            "last_query": 58
+          }
+        ],
+        "queries": 30,
+        "bytes": 1878139,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_approach",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "150e6b8bff698b7060b8ba93",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 29,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "2eb306a11c8edea917ec3ea8bb6a0b28cd45d9fa9a4b182fb13d68392e54b403",
+      "fork_action_steps": 290,
+      "original_remaining_steps": 230,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 13,
+      "features": [
+        "close_gate",
+        "shared"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 64,
+      "gate_close_steps": 4,
+      "gate_open_steps": 0,
+      "servo_effort": 10.976442337036133,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "79d9f7a8920338a1b2b1978a436b55d60cf03086e4aa93266d6ab230a252d6dc",
+            "rows": 8,
+            "bytes": 502443,
+            "first_query": 29,
+            "last_query": 36
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "4ef629c4230049c94ee462a9ccb8df0dec726f65df9cb8be51848487e88ec060",
+            "rows": 8,
+            "bytes": 496137,
+            "first_query": 37,
+            "last_query": 44
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "d3383861e4926f53cd3052a7464f865df3f558e968a78748b3bc3cb5c812029c",
+            "rows": 8,
+            "bytes": 501293,
+            "first_query": 45,
+            "last_query": 52
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "42a785b34f356b5c76f68c894e553863b80153ec7efd5ad81e6d6b2b43dc28e2",
+            "rows": 6,
+            "bytes": 372743,
+            "first_query": 53,
+            "last_query": 58
+          }
+        ],
+        "queries": 30,
+        "bytes": 1872616,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "150e6b8bff698b7060b8ba93",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 29,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "2eb306a11c8edea917ec3ea8bb6a0b28cd45d9fa9a4b182fb13d68392e54b403",
+      "fork_action_steps": 290,
+      "original_remaining_steps": 230,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 13,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 64,
+      "gate_close_steps": 4,
+      "gate_open_steps": 0,
+      "servo_effort": 10.976442337036133,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "29287ec11dc1649f3a00242ce694f0b28f18231576beb12679a08fed826f9b0b",
+            "rows": 8,
+            "bytes": 502438,
+            "first_query": 29,
+            "last_query": 36
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "0b0cbedc97b6d9dcb59255eb6dbe50f29bef8e48365f54e984562cb540189c4a",
+            "rows": 8,
+            "bytes": 496137,
+            "first_query": 37,
+            "last_query": 44
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "1556c68a101c8d455fed43b23e8299931fb7861febac6b1e2d4d733d0f52d349",
+            "rows": 8,
+            "bytes": 501289,
+            "first_query": 45,
+            "last_query": 52
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "99a8cf829bd2320d0cdf97c4062f66376c5263dcc79d37d9cf7f24ce9cf7662f",
+            "rows": 6,
+            "bytes": 372743,
+            "first_query": 53,
+            "last_query": 58
+          }
+        ],
+        "queries": 30,
+        "bytes": 1872607,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "gate_close",
+      "control": {
+        "features": [
+          "close_gate"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "32ed49e15e17d840fb203a4f",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "e9a37690eea5c95c4505e7c95c372f157afc79cf420049e0d10504768f617294",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 34,
+      "gate_close_steps": 34,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "fdf87cc001384cdc5833aec172bc43cddc40fa7e29c76d533e84993f8d3980d8",
+            "rows": 8,
+            "bytes": 493837,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "153a3d4c236454edc1ad02e3f1900f1492b3988150f5785dd7f02f20cc874b69",
+            "rows": 8,
+            "bytes": 485622,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "2a5526d98052155206959b17841ccf4f7d305bb07be9e6c1d63d5d7c1b683606",
+            "rows": 8,
+            "bytes": 492385,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "979c04c30f758a64869504921f7e20fdc1d8c33fe8c997d55128afe897c00464",
+            "rows": 6,
+            "bytes": 380693,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1852537,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_approach",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "32ed49e15e17d840fb203a4f",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "e9a37690eea5c95c4505e7c95c372f157afc79cf420049e0d10504768f617294",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 189,
+      "gate_close_steps": 9,
+      "gate_open_steps": 0,
+      "servo_effort": 28.317948013544083,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "b3d34c62269e71a4a2ff4d9c3f1d11ac0395c0305ef6259009e5eed29c5d422a",
+            "rows": 8,
+            "bytes": 496811,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "7ef17daf4754d9c16de218bb8c142aa24bfae9e2519cd77c6b66d998c98c4eed",
+            "rows": 8,
+            "bytes": 497772,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "47d640b23912e4efbb48f1133bb36aa597f82d1864d5861874108d92b0df559e",
+            "rows": 8,
+            "bytes": 495229,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "3b0d6a929f84b5f667b30d79cc4f5096d0355ab18fee9a73b7faa080b02c0166",
+            "rows": 6,
+            "bytes": 374200,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1864012,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "32ed49e15e17d840fb203a4f",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "e9a37690eea5c95c4505e7c95c372f157afc79cf420049e0d10504768f617294",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 192,
+      "gate_close_steps": 9,
+      "gate_open_steps": 3,
+      "servo_effort": 28.317948013544083,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "d73f5f3278df3217adc682d418ee8980cab19e8ed8b8e6acda32f62ca62e0659",
+            "rows": 8,
+            "bytes": 496810,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "a11cac95caba327d9a708ae14bd330c602d2a68109ed5c830ded2464d027a0a2",
+            "rows": 8,
+            "bytes": 497772,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "4b9a3c40f792efb5b4492648a6477c95ce367a2d831ccf018552ccdd8a647a0d",
+            "rows": 8,
+            "bytes": 495229,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "e179cf14227b48a9036dcf9fc5fa135fb0d49b13433086730ac51a99d1166b41",
+            "rows": 6,
+            "bytes": 374207,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1864018,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "gate_close",
+      "control": {
+        "features": [
+          "close_gate"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "32ed49e15e17d840fb203a4f",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "e9a37690eea5c95c4505e7c95c372f157afc79cf420049e0d10504768f617294",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 39,
+      "gate_close_steps": 39,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "47a7a30afd335fd5517ee345ae44d7416df143c1df739b7d3b038812352ef108",
+            "rows": 8,
+            "bytes": 491617,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "f5caa073e7eda020e5d6c46f8e30c0293e6274987aff29a16553602c2f5b9548",
+            "rows": 8,
+            "bytes": 490725,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "6e902128cf749a5b78924d96a0caec52aabbc8817c7a8462441c3ae4c4d92136",
+            "rows": 8,
+            "bytes": 487830,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "d4304304b4be8d233abbef2289b90304861cf8ac35137f91ba66040009b70089",
+            "rows": 6,
+            "bytes": 371473,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1841645,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_approach",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "32ed49e15e17d840fb203a4f",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "e9a37690eea5c95c4505e7c95c372f157afc79cf420049e0d10504768f617294",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 216,
+      "gate_close_steps": 8,
+      "gate_open_steps": 0,
+      "servo_effort": 37.594966009259224,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "1b402bb310d6dc2b48a95ce693d05bcdf3a532a1aaf4a557294e1dba4620faaf",
+            "rows": 8,
+            "bytes": 500076,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "09a1af3c0c88d5dd8a5707a03781888ca00f6f4db0b0304f9222e02769f64cda",
+            "rows": 8,
+            "bytes": 498756,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "26df83f242c5149f11137e6f3b05851e83554d76ecd2395ab02d1cee22a68dc9",
+            "rows": 8,
+            "bytes": 497895,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "cf51d5da55849cf4ec3b49d4956ba440bf9a608cf32c438de29e124d95ff178f",
+            "rows": 6,
+            "bytes": 375521,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1872248,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "32ed49e15e17d840fb203a4f",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "e9a37690eea5c95c4505e7c95c372f157afc79cf420049e0d10504768f617294",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 216,
+      "gate_close_steps": 8,
+      "gate_open_steps": 0,
+      "servo_effort": 37.594966009259224,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "7c57fe0fbc1a9c6d164570fcd0f16b7bf5f0630702314d2c815b0f8419196133",
+            "rows": 8,
+            "bytes": 500071,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "0672a7aeda95537add1478febad6b2872c811a8ec032631616abc77e673502ba",
+            "rows": 8,
+            "bytes": 498759,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "734466f09a7207c751fbcfe292094db9b0974519d3af3872f4075a0fcb393826",
+            "rows": 8,
+            "bytes": 497895,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "5ed3618015a75032086c8b9d4fb95316d45898b95608cd5c99fa497634bcbed4",
+            "rows": 6,
+            "bytes": 375523,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1872248,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "gate_close",
+      "control": {
+        "features": [
+          "close_gate"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "54098ccb3338c5346138941e",
+      "timing": "early",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "253204554003c7a3dd8abed603c2d08b7831c7ca1790d78dfcb555781c1db233",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 2,
+      "features": [
+        "close_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 32,
+      "gate_close_steps": 32,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "cca020f2f67acd20dad1389afd0532298425bfa18ea516fb0567dfa80a030952",
+            "rows": 8,
+            "bytes": 493842,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "484026b821b85c4478cd7e00b99a76eb29764a8923dc3dd35be1e6d9e6a0a155",
+            "rows": 8,
+            "bytes": 493543,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "db4b06ca6c3eb8afc0bf8cd526ee32bd875ba034010b3dc0c022a95c164a546a",
+            "rows": 8,
+            "bytes": 495602,
+            "first_query": 30,
+            "last_query": 37
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "da3d8c0ab0caef7651e7ee51f4bf0af830042a079a2e9353b15de1c6b117a93c",
+            "rows": 6,
+            "bytes": 372429,
+            "first_query": 38,
+            "last_query": 43
+          }
+        ],
+        "queries": 30,
+        "bytes": 1855416,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_approach",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "54098ccb3338c5346138941e",
+      "timing": "early",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "253204554003c7a3dd8abed603c2d08b7831c7ca1790d78dfcb555781c1db233",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 2,
+      "features": [
+        "close_gate",
+        "shared"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 234,
+      "gate_close_steps": 11,
+      "gate_open_steps": 0,
+      "servo_effort": 61.172653287649155,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "eff84180e40d190a534c896514813ef6366a586d8e5933f65cd1739dbcdccd05",
+            "rows": 8,
+            "bytes": 496774,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "35cf58b3759d5da5f717ae787905028454c75e302beaf41aaf1ad3393c4b1b0f",
+            "rows": 8,
+            "bytes": 494118,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "abfa257d37e67dab6c5452acf0283b554bb8bce66256c577bd866415532c860c",
+            "rows": 8,
+            "bytes": 496562,
+            "first_query": 30,
+            "last_query": 37
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "8dfc1596d5b05792c582d6f363fc2744584e6c8be2026450f7341f5eceabe649",
+            "rows": 6,
+            "bytes": 377977,
+            "first_query": 38,
+            "last_query": 43
+          }
+        ],
+        "queries": 30,
+        "bytes": 1865431,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "54098ccb3338c5346138941e",
+      "timing": "early",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "253204554003c7a3dd8abed603c2d08b7831c7ca1790d78dfcb555781c1db233",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 2,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 234,
+      "gate_close_steps": 11,
+      "gate_open_steps": 0,
+      "servo_effort": 61.172653287649155,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "0cb41f92aff393e05e179f9365e86f36607930ea3f232fe45b40aa93b2d4cd79",
+            "rows": 8,
+            "bytes": 496773,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "b2b98ac6c961289084b5527061802b2a4044401dfe4ea9824446629b1c66ffce",
+            "rows": 8,
+            "bytes": 494118,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "5d1bb1a3fc8a8a74f2bc7bc4bcb72a86432eb9293415f197f31aa0328668ecee",
+            "rows": 8,
+            "bytes": 496562,
+            "first_query": 30,
+            "last_query": 37
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "d57314c439fc9173bfb7a650b8b2245f036581be8ca1b7d6151718d20925ff91",
+            "rows": 6,
+            "bytes": 377976,
+            "first_query": 38,
+            "last_query": 43
+          }
+        ],
+        "queries": 30,
+        "bytes": 1865429,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "gate_close",
+      "control": {
+        "features": [
+          "close_gate"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "54098ccb3338c5346138941e",
+      "timing": "early",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "253204554003c7a3dd8abed603c2d08b7831c7ca1790d78dfcb555781c1db233",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 2,
+      "features": [
+        "close_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 39,
+      "gate_close_steps": 39,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "4cf3e055fc194978fa0f9af14c553e5a1e1b7d86d5dae87f6754b2fd16b601be",
+            "rows": 8,
+            "bytes": 491564,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "629a40b9f9f3e38c2dc2877d40b6cd710d8b8e9f16159835bb934baa4a659660",
+            "rows": 8,
+            "bytes": 495951,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "1f74b67a83fac56585ea0c0dcdeae0b2f6e944fa73e4dd0b96b2bd1b03b1f2f0",
+            "rows": 8,
+            "bytes": 490719,
+            "first_query": 30,
+            "last_query": 37
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "cf477b5a66a4757c4df097b2e7a1d98cc5e28092bcec0a41f98261791d1a600a",
+            "rows": 6,
+            "bytes": 376956,
+            "first_query": 38,
+            "last_query": 43
+          }
+        ],
+        "queries": 30,
+        "bytes": 1855190,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_approach",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "54098ccb3338c5346138941e",
+      "timing": "early",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "253204554003c7a3dd8abed603c2d08b7831c7ca1790d78dfcb555781c1db233",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 2,
+      "features": [
+        "close_gate",
+        "shared"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 189,
+      "gate_close_steps": 9,
+      "gate_open_steps": 0,
+      "servo_effort": 38.18136614561081,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "7a06983f955dc21b40daea3ef221390b103cfefe7ed2911a32427fab7d2880e6",
+            "rows": 8,
+            "bytes": 494081,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "348684dae44cccb18ba43744fb7af61315d254aff7bb6af44e00ad7fcd50d9f1",
+            "rows": 8,
+            "bytes": 493645,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "cba3f9c24b85673a724ac72140da15f1de8cd083d19e1d978818154b610e560b",
+            "rows": 8,
+            "bytes": 496613,
+            "first_query": 30,
+            "last_query": 37
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "4ccab9af07b2f602fd0e4f647e7046a3c19938f58d224b877ff2f779b576ad34",
+            "rows": 6,
+            "bytes": 381044,
+            "first_query": 38,
+            "last_query": 43
+          }
+        ],
+        "queries": 30,
+        "bytes": 1865383,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "54098ccb3338c5346138941e",
+      "timing": "early",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "untouched",
+      "target_name": "cream_cheese_1",
+      "parent_main_id": "a97e2467b5341216d6b65d61",
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "snapshot_manifest_sha256": "253204554003c7a3dd8abed603c2d08b7831c7ca1790d78dfcb555781c1db233",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 2,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 189,
+      "gate_close_steps": 9,
+      "gate_open_steps": 0,
+      "servo_effort": 38.18136614561081,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "966c53f696a471439d3a13a16a1b6fdff5ba018cbccabb503cd4ae4aec7083fe",
+            "rows": 8,
+            "bytes": 494079,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "27e9c547f448c1f733923901a01e36f7282dabbc5cff905198bd4d8109c30862",
+            "rows": 8,
+            "bytes": 493643,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "66aaee1e16d30b291fcb18ba9d16a006bd9e202befcef043734eebe1de63a95b",
+            "rows": 8,
+            "bytes": 496615,
+            "first_query": 30,
+            "last_query": 37
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "3b0fe306f145fcfc88d83786be31389adadbe87b0000e33673facd919a94070e",
+            "rows": 6,
+            "bytes": 381044,
+            "first_query": 38,
+            "last_query": 43
+          }
+        ],
+        "queries": 30,
+        "bytes": 1865381,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    }
+  ],
+  "invalid_pair": false,
+  "actual_model_queries": 540,
+  "candidate_queries": 0,
+  "reused_candidate_queries": 0,
+  "environment_pid": 1002205,
+  "worker_job_index": 1,
+  "elapsed_seconds": 563.3787393514067
+}

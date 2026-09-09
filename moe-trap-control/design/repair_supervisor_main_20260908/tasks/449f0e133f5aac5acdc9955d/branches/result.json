@@ -1,0 +1,862 @@
+{
+  "status": "completed",
+  "protocol": "moe_control.repair_supervisor.v2",
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "supervisory switching {VLA, RETRACT, PLACE}; physical guards evaluated every env step, switches at chunk boundaries; at most 3 interventions per suffix; no model call inside a primitive",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false,
+    "guards": "G0 veto: target lifted >= 0.02 m at the fork -> no first-stage repair; in-hand := closed aperture, target lifted >= 0.02 m above rest, within 0.20 m of the eef and moving with it; G2 phantom: closed aperture, target not in hand and unmoved since closure, eef departed >= 0.05 m or closure held >= 40 steps -> RETRACT above target, 0.05 m higher at each repeat; G3 carry: target in hand >= 120 consecutive steps without a goal predicate turning true -> PLACE: rise, transfer above the goal region, descend until contact, release, retreat; every primitive is cut at the 300-step window",
+    "first_stage": "identical to retract_above_target of moe_control.repair_recovery.v1 (same fork snapshot, same noise streams) so every branch is paired with its v1 twin up to the first extra intervention",
+    "replay": "fork snapshots and fork physics reused from the audited v1 run; no C0 replay"
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "supervisor": {
+    "max_interventions": 3,
+    "lifted_m": 0.02,
+    "phantom_departure_m": 0.05,
+    "phantom_hold_steps": 40,
+    "phantom_moved_m": 0.01,
+    "phantom_escalation_m": 0.05,
+    "carry_patience_steps": 120,
+    "place_height_m": 0.15,
+    "place_clearance_m": 0.02,
+    "place_rise_m": 0.08,
+    "place_rise_chunks": 3,
+    "place_transfer_chunks": 6,
+    "place_lower_chunks": 4,
+    "place_retreat_chunks": 2,
+    "place_tolerance_m": 0.02
+  },
+  "main_id": "449f0e133f5aac5acdc9955d",
+  "job_kind": "branches",
+  "variant": {
+    "benchmark": "plus",
+    "suite": "libero_10",
+    "registry": "libero_10",
+    "registry_index": 564,
+    "classification_id": 565,
+    "task_name": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate_view_0_0_100_0_0_initstate_477",
+    "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+    "category": "Robot Initial States",
+    "difficulty": 4,
+    "base_task_fold": 4,
+    "horizon_steps": 520,
+    "variant_id": "6bf81b435e38b115ffbe49ad"
+  },
+  "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/449f0e133f5aac5acdc9955d",
+  "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+  "parent_manifest_sha256": "a6a368f40ad21bfd4b101e544a7fef9bbe55b13b7c8611d3b63b86fc1cf46de6",
+  "model": "long",
+  "model_metadata": {
+    "protocol": "himoe-libero-v1",
+    "protocol_version": 2,
+    "backend": "himoe-vla-libero-long",
+    "observation": {
+      "observation/image": [
+        224,
+        224,
+        3
+      ],
+      "observation/wrist_image": [
+        224,
+        224,
+        3
+      ],
+      "observation/state": [
+        8
+      ],
+      "prompt": "non-empty string",
+      "flow/noise": {
+        "shape": [
+          10,
+          24
+        ],
+        "optional": true
+      },
+      "routing/capture": {
+        "type": "bool",
+        "optional": true
+      }
+    },
+    "action": {
+      "actions": [
+        10,
+        7
+      ]
+    },
+    "flow_noise_ack": {
+      "key": "flow/noise_sha256",
+      "format": "sha256-f32-c-v1"
+    },
+    "routing": {
+      "optional": true,
+      "routing/expert_ids": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/expert_weights": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/layer_indices": [
+        8
+      ],
+      "routed_experts": 32,
+      "top_k": 4
+    },
+    "suite": "long",
+    "benchmark": "libero_10",
+    "train_config": "libero_10_no_noops_lerobot_finetune",
+    "dataset_config": "libero_10_no_noops_lerobot",
+    "normalization_asset": "libero_10_no_noops",
+    "checkpoint": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10",
+    "checkpoint_bytes": 8138322389,
+    "checkpoint_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256",
+    "flow_steps": 10,
+    "predicted_action_steps": 10,
+    "internal_action_dim": 24,
+    "normalization_stats_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/libero_10_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "71d6971888eddec4febec09f696bddbbba6f0007d7a32b41027d8db6d677abe0",
+    "normalization_stats_loaded": true,
+    "normalization_action_std": [
+      0.28262342306725324,
+      0.35866097261853397,
+      0.36932027826898967,
+      0.03787003293268508,
+      0.054570646977803616,
+      0.08749407288353883,
+      0.9963353419534117
+    ],
+    "libero_wrist_layout": "checkpoint-right",
+    "libero_wrist_layout_transform_anchor": "DropStateAndImage",
+    "cuda_visible_devices": "GPU-edb83895-466c-d978-5d20-e647e8f6bee6",
+    "routing_capture_supported": true,
+    "routing_hb_layer_indices": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "routing_experts": 32,
+    "routing_top_k": 4,
+    "himoe_upstream_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "himoe_patch_sha256": {
+      "himoe-fixed-noise.patch": "d4275c5908353c6a59c178eb25dd53861455892effa41c63202c4e09239dba56",
+      "himoe-runtime.patch": "6a37331c4a09402ee4f1f323055e90c51290584148732cb272a584e1dec05428",
+      "himoe-transformers-cache.patch": "4972e8ae67cb5ee696fb28811b8f70f234966e013a8c5ec664d70e20bb607463"
+    },
+    "himoe_patches_verified_applied": true,
+    "himoe_working_tree_dirty": true,
+    "himoe_working_tree_diff_sha256": "edf3a0f702d99fa6496ef3a5c3c1812eb97dbe3609b9d09616e727a3ad6abd2c",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_memory_allocated_bytes": 18413647360,
+    "checkpoint_load_audit": {
+      "mode": "torch_mmap_meta_assign",
+      "checkpoint_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/pytorch_model.pth",
+      "upstream_root": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA",
+      "train_config": "libero_10_no_noops_lerobot_finetune",
+      "target_device": "cuda:0",
+      "mmap": true,
+      "assign": true,
+      "strict": true,
+      "state_key_count": 1581,
+      "logical_tensor_bytes": 9191385168,
+      "target_tensor_bytes": 18382770336,
+      "staged_tensor_count": 1581,
+      "staging_chunk_bytes": 67108864,
+      "chunked_tensor_count": 2,
+      "staging_copy_count": 1643,
+      "aliased_tensor_count": 1581,
+      "reconstructed_nonpersistent_buffers": [
+        "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.vision_tower.vision_model.embeddings.position_ids"
+      ]
+    },
+    "bundle_schema": "himoe-vla-five-model-gpu-bundle/v1",
+    "bundle_model": "long",
+    "bundle_physical_gpu": 5,
+    "bundle_logical_gpu": 0,
+    "bundle_port": 9128,
+    "bundle_process_pid": 842433,
+    "isolated_process": true,
+    "isolated_models": [
+      "long"
+    ],
+    "isolated_gpu_uuid": "GPU-edb83895-466c-d978-5d20-e647e8f6bee6",
+    "cuda_memory_limit_mib": null,
+    "replica_index": 5,
+    "weights_owner_pid": 842234,
+    "shared_cuda_parameters": true,
+    "cuda_mps_pipe_directory": "/tmp/moe-control-mps-hyzrfk7d",
+    "collection_full_hb_supported": true,
+    "collection_hidden_capture": false,
+    "collection_routing_mode": "request_scoped",
+    "collection_batch_size": 1,
+    "collection_full_as_supported": true,
+    "collection_as_layers": [
+      0,
+      1,
+      16,
+      17
+    ],
+    "collection_interventions": [
+      "native",
+      "swap1_near"
+    ],
+    "collection_probability_axes": [
+      "layer",
+      "denoise",
+      "suffix_token",
+      "expert"
+    ],
+    "collection_hb_layers": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "server_instance_id": "e4d7985bb80e446cac318e94c30efd99",
+    "server_pid": 842433,
+    "server_started_unix_ns": 1788893908579672389
+  },
+  "gpu": 5,
+  "render_gpu": 5,
+  "egl_device_uuid": "GPU-edb83895-466c-d978-5d20-e647e8f6bee6",
+  "seed": 2479254461,
+  "init_index": 0,
+  "hidden_capture": false,
+  "main_intervention": false,
+  "main_complete": true,
+  "reused_main": true,
+  "queries": 0,
+  "action_steps": 243,
+  "success": true,
+  "first_alarm_query": null,
+  "first_knn_alarm": 9,
+  "analysis_role": "perturbation",
+  "failed": false,
+  "c0": {
+    "status": "passed",
+    "compared_queries": 0,
+    "replay_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908/tasks/449f0e133f5aac5acdc9955d/replay",
+    "replay_result_sha256": "f02fbc81f79521381e737aa94f72261738f10208d31280a524a28343855f5b14",
+    "replay_branch_sha256": "221e5fa76647d5671581cdd1109bf140b5ffc721d25b00c6a9773f0f19c24f91"
+  },
+  "events": [
+    {
+      "event_id": "9cfd9210c3c449f6b8cf7619",
+      "timing": "mid",
+      "start_query": 10,
+      "alarm_query": 9,
+      "deployable": true,
+      "snapshot_manifest_sha256": "1f17ed8d1a62ef3e525b26419d25d12cf2149a0ef9a64286f55c50d3185b57d0",
+      "action_steps_before": 100,
+      "physical_class": "displaced_reachable",
+      "target_name": "porcelain_mug_1",
+      "physics_sha256": "1199f52aa22a780efed232c8e99173003ffbff92152cb5ef6f72bf2ba17d2c33"
+    }
+  ],
+  "branches": [
+    {
+      "status": "completed",
+      "arm": "supervisor_regrasp_guard",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "9cfd9210c3c449f6b8cf7619",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 10,
+      "physical_class": "displaced_reachable",
+      "target_name": "porcelain_mug_1",
+      "parent_main_id": "449f0e133f5aac5acdc9955d",
+      "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+      "snapshot_manifest_sha256": "1f17ed8d1a62ef3e525b26419d25d12cf2149a0ef9a64286f55c50d3185b57d0",
+      "fork_action_steps": 100,
+      "original_remaining_steps": 420,
+      "window_steps": 300,
+      "queries": 16,
+      "action_steps": 154,
+      "success": true,
+      "success_step": 154,
+      "success_within_original": true,
+      "deployment_model_queries": 16,
+      "handback_step": 0,
+      "interventions": [
+        {
+          "guard": "G0",
+          "kind": "veto",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 0,
+          "reason": "lifted_at_fork"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G2"
+      ],
+      "repair_kind": "veto",
+      "repair_target": null,
+      "twin": "new_noise",
+      "shards_repair": {
+        "blocks": [],
+        "queries": 0,
+        "bytes": 0,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 0,
+      "repair_chunks": 0,
+      "repair_reason": "lifted_at_fork",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "e1039f7cb392d0f12a353a6703706e4127c6866b185283a51d4507d555c9f9c5",
+            "rows": 8,
+            "bytes": 467749,
+            "first_query": 10,
+            "last_query": 17
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "48c9483a67c00656c6d25fd7517310db797c7186e49b945fedc977171d0f3a3e",
+            "rows": 8,
+            "bytes": 476944,
+            "first_query": 18,
+            "last_query": 25
+          }
+        ],
+        "queries": 16,
+        "bytes": 944693,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_place_assist",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G3"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "9cfd9210c3c449f6b8cf7619",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 10,
+      "physical_class": "displaced_reachable",
+      "target_name": "porcelain_mug_1",
+      "parent_main_id": "449f0e133f5aac5acdc9955d",
+      "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+      "snapshot_manifest_sha256": "1f17ed8d1a62ef3e525b26419d25d12cf2149a0ef9a64286f55c50d3185b57d0",
+      "fork_action_steps": 100,
+      "original_remaining_steps": 420,
+      "window_steps": 300,
+      "queries": 16,
+      "action_steps": 154,
+      "success": true,
+      "success_step": 154,
+      "success_within_original": true,
+      "deployment_model_queries": 16,
+      "handback_step": 0,
+      "interventions": [
+        {
+          "guard": "G0",
+          "kind": "veto",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 0,
+          "reason": "lifted_at_fork"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G3"
+      ],
+      "repair_kind": "veto",
+      "repair_target": null,
+      "twin": "new_noise",
+      "shards_repair": {
+        "blocks": [],
+        "queries": 0,
+        "bytes": 0,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 0,
+      "repair_chunks": 0,
+      "repair_reason": "lifted_at_fork",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "f430216c91b2d0512594f6aae395ee99cfc35bc08da38de7257e1e347daad026",
+            "rows": 8,
+            "bytes": 467748,
+            "first_query": 10,
+            "last_query": 17
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "3a879f494714c46ec6df4f29b5ffb9f40f396ce9a8e753657c16c7a76b536209",
+            "rows": 8,
+            "bytes": 476944,
+            "first_query": 18,
+            "last_query": 25
+          }
+        ],
+        "queries": 16,
+        "bytes": 944692,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_full",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2",
+          "G3"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "9cfd9210c3c449f6b8cf7619",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 10,
+      "physical_class": "displaced_reachable",
+      "target_name": "porcelain_mug_1",
+      "parent_main_id": "449f0e133f5aac5acdc9955d",
+      "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+      "snapshot_manifest_sha256": "1f17ed8d1a62ef3e525b26419d25d12cf2149a0ef9a64286f55c50d3185b57d0",
+      "fork_action_steps": 100,
+      "original_remaining_steps": 420,
+      "window_steps": 300,
+      "queries": 16,
+      "action_steps": 154,
+      "success": true,
+      "success_step": 154,
+      "success_within_original": true,
+      "deployment_model_queries": 16,
+      "handback_step": 0,
+      "interventions": [
+        {
+          "guard": "G0",
+          "kind": "veto",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 0,
+          "reason": "lifted_at_fork"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G2",
+        "G3"
+      ],
+      "repair_kind": "veto",
+      "repair_target": null,
+      "twin": "new_noise",
+      "shards_repair": {
+        "blocks": [],
+        "queries": 0,
+        "bytes": 0,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 0,
+      "repair_chunks": 0,
+      "repair_reason": "lifted_at_fork",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "c05bc39ecae2e1a4e3cbda3c9118ce778d000f85e37f044285da32c96f200627",
+            "rows": 8,
+            "bytes": 467751,
+            "first_query": 10,
+            "last_query": 17
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "d41bb35696c76a633f4a2c8fe5949ac813284e0f562676b8da1a5fae59a45a7c",
+            "rows": 8,
+            "bytes": 476945,
+            "first_query": 18,
+            "last_query": 25
+          }
+        ],
+        "queries": 16,
+        "bytes": 944696,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_regrasp_guard",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "9cfd9210c3c449f6b8cf7619",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 10,
+      "physical_class": "displaced_reachable",
+      "target_name": "porcelain_mug_1",
+      "parent_main_id": "449f0e133f5aac5acdc9955d",
+      "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+      "snapshot_manifest_sha256": "1f17ed8d1a62ef3e525b26419d25d12cf2149a0ef9a64286f55c50d3185b57d0",
+      "fork_action_steps": 100,
+      "original_remaining_steps": 420,
+      "window_steps": 300,
+      "queries": 14,
+      "action_steps": 143,
+      "success": true,
+      "success_step": 143,
+      "success_within_original": true,
+      "deployment_model_queries": 14,
+      "handback_step": 0,
+      "interventions": [
+        {
+          "guard": "G0",
+          "kind": "veto",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 0,
+          "reason": "lifted_at_fork"
+        },
+        {
+          "guard": "G2",
+          "kind": "retract",
+          "query_index": 14,
+          "start_step": 140,
+          "steps": 3,
+          "reason": "phantom_departed",
+          "target": [
+            0.1752167230642755,
+            -0.0011479126827007213,
+            0.5440741758838405
+          ],
+          "phase_reason": null
+        }
+      ],
+      "first_extra_intervention_query": 14,
+      "guards": [
+        "G0",
+        "G2"
+      ],
+      "repair_kind": "veto",
+      "repair_target": null,
+      "twin": "new_noise",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "b97def99a48c37403d45f86e8b19fc6d99b8ce81283f27545b5c7324bffb42df",
+            "rows": 1,
+            "bytes": 3844,
+            "first_query": 0,
+            "last_query": 0
+          }
+        ],
+        "queries": 1,
+        "bytes": 3844,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 3,
+      "repair_chunks": 1,
+      "repair_reason": "lifted_at_fork",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "8c8f7c15ac0bb93cede0c9f0218addad563efc61f2757d9f4dbb0ee5790d7988",
+            "rows": 8,
+            "bytes": 466243,
+            "first_query": 10,
+            "last_query": 17
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "e4979caee1071e464ee4dcc3cec4cd4b9b7513fb2b89d87bf82494c3825c56db",
+            "rows": 6,
+            "bytes": 356311,
+            "first_query": 18,
+            "last_query": 23
+          }
+        ],
+        "queries": 14,
+        "bytes": 822554,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_place_assist",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G3"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "9cfd9210c3c449f6b8cf7619",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 10,
+      "physical_class": "displaced_reachable",
+      "target_name": "porcelain_mug_1",
+      "parent_main_id": "449f0e133f5aac5acdc9955d",
+      "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+      "snapshot_manifest_sha256": "1f17ed8d1a62ef3e525b26419d25d12cf2149a0ef9a64286f55c50d3185b57d0",
+      "fork_action_steps": 100,
+      "original_remaining_steps": 420,
+      "window_steps": 300,
+      "queries": 15,
+      "action_steps": 144,
+      "success": true,
+      "success_step": 144,
+      "success_within_original": true,
+      "deployment_model_queries": 15,
+      "handback_step": 0,
+      "interventions": [
+        {
+          "guard": "G0",
+          "kind": "veto",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 0,
+          "reason": "lifted_at_fork"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G3"
+      ],
+      "repair_kind": "veto",
+      "repair_target": null,
+      "twin": "new_noise",
+      "shards_repair": {
+        "blocks": [],
+        "queries": 0,
+        "bytes": 0,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 0,
+      "repair_chunks": 0,
+      "repair_reason": "lifted_at_fork",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "2978bc07ff629d7135005cd14fa8b1e3dcd0cbfe19000f03f9894939207f1d52",
+            "rows": 8,
+            "bytes": 466241,
+            "first_query": 10,
+            "last_query": 17
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "9879382c450f24b12508f41069bb76f4ed60c6f649c328d231c5da20ac882fa3",
+            "rows": 7,
+            "bytes": 415634,
+            "first_query": 18,
+            "last_query": 24
+          }
+        ],
+        "queries": 15,
+        "bytes": 881875,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_full",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2",
+          "G3"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "9cfd9210c3c449f6b8cf7619",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 10,
+      "physical_class": "displaced_reachable",
+      "target_name": "porcelain_mug_1",
+      "parent_main_id": "449f0e133f5aac5acdc9955d",
+      "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+      "snapshot_manifest_sha256": "1f17ed8d1a62ef3e525b26419d25d12cf2149a0ef9a64286f55c50d3185b57d0",
+      "fork_action_steps": 100,
+      "original_remaining_steps": 420,
+      "window_steps": 300,
+      "queries": 14,
+      "action_steps": 143,
+      "success": true,
+      "success_step": 143,
+      "success_within_original": true,
+      "deployment_model_queries": 14,
+      "handback_step": 0,
+      "interventions": [
+        {
+          "guard": "G0",
+          "kind": "veto",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 0,
+          "reason": "lifted_at_fork"
+        },
+        {
+          "guard": "G2",
+          "kind": "retract",
+          "query_index": 14,
+          "start_step": 140,
+          "steps": 3,
+          "reason": "phantom_departed",
+          "target": [
+            0.1752167230642755,
+            -0.0011479126827007213,
+            0.5440741758838405
+          ],
+          "phase_reason": null
+        }
+      ],
+      "first_extra_intervention_query": 14,
+      "guards": [
+        "G0",
+        "G2",
+        "G3"
+      ],
+      "repair_kind": "veto",
+      "repair_target": null,
+      "twin": "new_noise",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "b97def99a48c37403d45f86e8b19fc6d99b8ce81283f27545b5c7324bffb42df",
+            "rows": 1,
+            "bytes": 3844,
+            "first_query": 0,
+            "last_query": 0
+          }
+        ],
+        "queries": 1,
+        "bytes": 3844,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 3,
+      "repair_chunks": 1,
+      "repair_reason": "lifted_at_fork",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "e9d1a5798d81d2a6ad33f3950807a34bc6d7bacaf5db4e4e0af7ff8f47147e71",
+            "rows": 8,
+            "bytes": 466239,
+            "first_query": 10,
+            "last_query": 17
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "a8a677f6e861acf6467765bb4723ad1381ad19c7d848c2420e5f2f0fac1b48bb",
+            "rows": 6,
+            "bytes": 356311,
+            "first_query": 18,
+            "last_query": 23
+          }
+        ],
+        "queries": 14,
+        "bytes": 822550,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    }
+  ],
+  "invalid_pair": false,
+  "actual_model_queries": 91,
+  "candidate_queries": 0,
+  "reused_candidate_queries": 0,
+  "environment_pid": 842620,
+  "worker_job_index": 1,
+  "elapsed_seconds": 126.33057043328881
+}

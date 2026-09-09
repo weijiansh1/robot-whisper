@@ -1,0 +1,1759 @@
+{
+  "protocol": "moe_control.repair_regulator.v3",
+  "model": "long",
+  "stage": "regulator",
+  "arms": [
+    "gate_close",
+    "shared_approach",
+    "shared_full"
+  ],
+  "arms_registry": {
+    "gate_close": {
+      "features": [
+        "close_gate"
+      ]
+    },
+    "shared_approach": {
+      "features": [
+        "close_gate",
+        "shared"
+      ]
+    },
+    "shared_full": {
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ]
+    }
+  },
+  "episode_arms": [],
+  "episode_arms_registry": {
+    "vla": {
+      "features": [],
+      "engage": "never"
+    },
+    "shared_full": {
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "engage": "always"
+    },
+    "shared_full_alarmed": {
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "engage": "knn_alarm"
+    }
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "supervisor": null,
+  "regulator": {
+    "law": "shared",
+    "alpha": 0.7,
+    "authority_steps": 60,
+    "kp_shared": 10.0,
+    "z_offset_m": 0.05,
+    "lifted_m": 0.02,
+    "carry_patience_steps": 120,
+    "close_gate_xy_m": 0.07,
+    "close_gate_dz_min_m": -0.03,
+    "close_gate_dz_max_m": 0.13,
+    "close_gate_extent_margin_m": 0.02,
+    "release_margin_xy_m": 0.02,
+    "release_margin_z_m": 0.1,
+    "body_region_radius_m": 0.06,
+    "body_region_height_m": 0.08
+  },
+  "replicates": 2,
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "no switching: the VLA runs every chunk; a shared-control law edits each executed env step: u = (1 - a) u_VLA + a u_servo with a = 0 until the graspable-envelope gate blocks a closure (CLOSE commanded while neither the target (extent-based envelope) nor any other movable object (strict 0.07 m envelope) sits between the fingers: physical evidence of a phantom grasp); then a = 0.7 for 60 steps pulling the end effector above the nearest unsatisfied object; in hand the policy keeps authority unless the carry stalls 120 steps (pull toward the place point); OPEN executes only inside the goal region",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false,
+    "calibration": "closure envelope from 22 lifted closures in the v1 replays: horizontal <= 0.063 m, dz 0.00 to 0.10 m; gate uses max(0.07 m, object bounding radius + 0.02 m) and -0.03 to max(0.13 m, radius + 0.02 m) because handle grasps (moka pot) close farther from the body origin; a first always-on PI servo (kp 6, ki 0.3, u_max 0.5) was rejected in the smoke of 2026-09-09 because it edited every step and broke a success parent; gains fixed before the main run, not fitted to outcomes",
+    "fork_branches": "start at the v1 fork snapshots; twin = new_noise until the first modified env step",
+    "episodes": "full 520-step episodes from the parent's q0 snapshot: vla (replicate 0 must reproduce the parent bitwise), shared control always on, shared control engaged at the online kNN-20 first alarm",
+    "replay": "fork snapshots reused from the audited v1 run; no C0 replay"
+  },
+  "timings": [
+    "early",
+    "mid",
+    "late"
+  ],
+  "replay_run": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908",
+  "replay_audit": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_audit_20260908.json",
+  "selection": "every parent of the audited v1 run (main); fork snapshots and physics reused; no outcome read",
+  "source_sha256": {
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908/plan.json": "953bac54dcaa1ab45c3a5f2c62340ae48e94f3e4b73de29590284f429fa9ed34",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_audit_20260908.json": "aae6fac6ca245f66ec8add471409360f260e461811b1eb9469463cd9c08afa4e",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/frozen_alarm_comparison_20260908/profiles/global_reference.npz": "e8076c132610be0288c0d7435902c1238751c17bf1fcc1dfb6991aa97350b581",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/frozen_alarm_comparison_20260908/profiles/parameters.json": "f4e65d359411309756b008423d14d8f3e5d6bf604ee71b63ae8a7e510c5f8216",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/repair_control.py": "91150cd30575e99fd7740dcd715e190a5a95b249f4748edcc2d24e699c1f1670",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/repair_controller.py": "5ba5d1b6308d7bd8704d38f96ee7db123ecf267370846f7e45e0ff097d61e350",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/collect_repair_control.py": "357bf5096d9fd6436531e5e474987f21bebe125348fafb2738c73a8e407ee9e0",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/prepare_repair_experiment.py": "78834fb8caccadd8fa89375d29ed3127a1288cf6931dca61f8788b793b218b10"
+  },
+  "frozen_parameters_sha256": "f4e65d359411309756b008423d14d8f3e5d6bf604ee71b63ae8a7e510c5f8216",
+  "tasks": [
+    {
+      "main_id": "0090f12ce80992adbd8f4613",
+      "variant_id": "05cd83be871819943b0e7b20",
+      "benchmark": "plus",
+      "category": "Sensor Noise",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/0090f12ce80992adbd8f4613",
+      "parent_queries": 52,
+      "parent_commit_sha256": "fe2aa039a86de8207ebe2968388bb43e2c89f6830101bbbcef3683781208f6c7",
+      "parent_manifest_sha256": "b21c7a81829327288b2c55e6f40e7ca7de037d96fcdd9d4dcfb7634373641c84",
+      "noise_seed": 2636728989,
+      "init_index": 0,
+      "first_alarm": 21,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "bcccc263089b705dbdbaab51",
+          "timing": "mid",
+          "start_query": 22,
+          "alarm_query": 21,
+          "deployable": true
+        },
+        {
+          "event_id": "4004ef26aabc0c61d950d664",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 21,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "f30465c7d39039144d381adb",
+      "variant_id": "ad6f4fbd00c63aedd54ef187",
+      "benchmark": "plus",
+      "category": "Sensor Noise",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/f30465c7d39039144d381adb",
+      "parent_queries": 52,
+      "parent_commit_sha256": "8352972e9e63a7c9cb17f5dc6aa610f0b2bfe7d6a8da09dd9743a71cddfbfd96",
+      "parent_manifest_sha256": "dd421f438940d46db9f2437aef20592141be07c5d7e77fbeffc4d095659dd610",
+      "noise_seed": 2489198790,
+      "init_index": 0,
+      "first_alarm": 44,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "dfeac6e29f4382699242334c",
+          "timing": "mid",
+          "start_query": 45,
+          "alarm_query": 44,
+          "deployable": true
+        },
+        {
+          "event_id": "c911aa7ac99fbdd72ff7c53b",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 44,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "2ee5fa30529f832851a07198",
+      "variant_id": "c5a751f1139b87e23d614546",
+      "benchmark": "plus",
+      "category": "Sensor Noise",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/2ee5fa30529f832851a07198",
+      "parent_queries": 52,
+      "parent_commit_sha256": "b1c6301e21c32f513dfda88c1a66eb530282e4c5b5aa28441da4ce2ac0dfb667",
+      "parent_manifest_sha256": "b0a57853de1576828429676cd6712b4158a01f4577e07abe243b1a44180164eb",
+      "noise_seed": 548586738,
+      "init_index": 0,
+      "first_alarm": 35,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "2131d7c98c57c9565dae0f37",
+          "timing": "mid",
+          "start_query": 36,
+          "alarm_query": 35,
+          "deployable": true
+        },
+        {
+          "event_id": "76ac0756c134b79ffe59258b",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 35,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "75a8280295c26427df1d6f27",
+      "variant_id": "561c081c2288fd67f60c294e",
+      "benchmark": "pro",
+      "category": "Semantic",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/75a8280295c26427df1d6f27",
+      "parent_queries": 52,
+      "parent_commit_sha256": "ac4bbdb40d27596e745227018fb1f2389ce307cf3a3d582e9574dccfbbcb9cba",
+      "parent_manifest_sha256": "0f8f6561cedb9c1903b6ee48f34d7bba7c423b4315aea8576d424ec461c0b7b4",
+      "noise_seed": 1590799338,
+      "init_index": 3,
+      "first_alarm": 30,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "b982ad911ea66841e59d21de",
+          "timing": "mid",
+          "start_query": 31,
+          "alarm_query": 30,
+          "deployable": true
+        },
+        {
+          "event_id": "e65267f70e0adc3b72646032",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 30,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "41a51d866c05253cf3b29dfd",
+      "variant_id": "37c6d94cbeb039cb9f8dd54f",
+      "benchmark": "pro",
+      "category": "Position",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/41a51d866c05253cf3b29dfd",
+      "parent_queries": 52,
+      "parent_commit_sha256": "cbc27cd8e0f87f50c75bc4ce5ff96dd956f8c8b9da9aaf9408c8672a67bd790e",
+      "parent_manifest_sha256": "d6535ef6461899ff446943f7b0a9f4c55ca4cb73230d7433eebc5b14c9896b25",
+      "noise_seed": 3415698374,
+      "init_index": 4,
+      "first_alarm": 17,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "9f1ebf2b289d1a8437bebde1",
+          "timing": "mid",
+          "start_query": 18,
+          "alarm_query": 17,
+          "deployable": true
+        },
+        {
+          "event_id": "6802f9776772c543e8ea101f",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 17,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "60d419e1f2f8d2ca59422be8",
+      "variant_id": "c29c7125bc6d81097c13a049",
+      "benchmark": "plus",
+      "category": "Camera Viewpoints",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/60d419e1f2f8d2ca59422be8",
+      "parent_queries": 52,
+      "parent_commit_sha256": "be0c5c254b948c214303babe2b1f93e752eb16e880b3d3e37c14964c0711bc62",
+      "parent_manifest_sha256": "046111660a2fe7017d6c9a8b69e50c3387b11335e12e811d313e4c43eba7ee0a",
+      "noise_seed": 3070618163,
+      "init_index": 0,
+      "first_alarm": 31,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "22a603bb572ead858df2a220",
+          "timing": "mid",
+          "start_query": 32,
+          "alarm_query": 31,
+          "deployable": true
+        },
+        {
+          "event_id": "5305e656e88170b49b8a2cd4",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 31,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "ea40cec54e925f93ce4bdde9",
+      "variant_id": "66f2b4303abdad8d87bf78f0",
+      "benchmark": "plus",
+      "category": "Background Textures",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/ea40cec54e925f93ce4bdde9",
+      "parent_queries": 37,
+      "parent_commit_sha256": "b060b5c9ffd8fa41c6c78e3240842f36333161aa2c82f8d0ebca7a6419ec9af8",
+      "parent_manifest_sha256": "efb3952c544816c9b08de8f7a9e6cd5e9a3fb7227d96dd228cdbbbb38a13a163",
+      "noise_seed": 808199701,
+      "init_index": 0,
+      "first_alarm": 11,
+      "failed": false,
+      "events": [
+        {
+          "event_id": "91c5f125e8548dcfe29d4bd3",
+          "timing": "mid",
+          "start_query": 12,
+          "alarm_query": 11,
+          "deployable": true
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "8a7cb159fe6112c33d5c9160",
+      "variant_id": "a51339da75619bd9e7f45011",
+      "benchmark": "plus",
+      "category": "Light Conditions",
+      "analysis_role": "perturbation",
+      "base_task": "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/8a7cb159fe6112c33d5c9160",
+      "parent_queries": 39,
+      "parent_commit_sha256": "25cfddb431241a27cb7a2a736afd83702c975f61e05c32d46e04932ce2fe3458",
+      "parent_manifest_sha256": "276023ebf080a0e3455dea3c8cb5eccd7c0403ea7b9673b03b18f41d7872ff92",
+      "noise_seed": 4273570331,
+      "init_index": 0,
+      "first_alarm": 18,
+      "failed": false,
+      "events": [
+        {
+          "event_id": "c2a9e711a5cbd7b16412a061",
+          "timing": "mid",
+          "start_query": 19,
+          "alarm_query": 18,
+          "deployable": true
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "46aa17bd0b8c72762ca30603",
+      "variant_id": "2df03798c1d43a8a2a5b7db1",
+      "benchmark": "plus",
+      "category": "Objects Layout",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/46aa17bd0b8c72762ca30603",
+      "parent_queries": 52,
+      "parent_commit_sha256": "336fcb786f28b3b202fa36cbe67ecdd42d0001be0c0a66303edf335a9a055b2f",
+      "parent_manifest_sha256": "87a4825b85f5c7a28b7084d4c8ae3bf0c2b05755a2ea0d8ff2556b88849c3719",
+      "noise_seed": 1075792737,
+      "init_index": 0,
+      "first_alarm": 13,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "38179638bbb0967acc3c4aa5",
+          "timing": "mid",
+          "start_query": 14,
+          "alarm_query": 13,
+          "deployable": true
+        },
+        {
+          "event_id": "c7cd0e417f267056b51eb41a",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 13,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "64f84f7361cd2d37d96f5271",
+      "variant_id": "00a81276b4690c5063cbdac6",
+      "benchmark": "plus",
+      "category": "Objects Layout",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/64f84f7361cd2d37d96f5271",
+      "parent_queries": 52,
+      "parent_commit_sha256": "6fe9fe5976c3ad54e43c10f5919400a7b9d9a2bb4530341ecac4d0feeb9a702e",
+      "parent_manifest_sha256": "3f85d8a02a1c4c44d5ff344a7b6a541948bd67c535a339d3b335574152e6a17b",
+      "noise_seed": 1363944789,
+      "init_index": 0,
+      "first_alarm": 24,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "f57bd663199e7ef4237adde1",
+          "timing": "mid",
+          "start_query": 25,
+          "alarm_query": 24,
+          "deployable": true
+        },
+        {
+          "event_id": "f6e09392914aede9b38c40a8",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 24,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "c84f432ff57dc50e5a34bd3b",
+      "variant_id": "ed53a02f8d50f131411cac20",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/c84f432ff57dc50e5a34bd3b",
+      "parent_queries": 52,
+      "parent_commit_sha256": "b35edeb7e41693f59efb1a825827efa5f4755d9c07496d532635c0eec1148380",
+      "parent_manifest_sha256": "8f47c6fad65c46039140d88c5ba4af731c36f515d5b785d22dc522f19a6af3a0",
+      "noise_seed": 1261662645,
+      "init_index": 0,
+      "first_alarm": 33,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "a7f0ae21dbeb435b7d2e292d",
+          "timing": "mid",
+          "start_query": 34,
+          "alarm_query": 33,
+          "deployable": true
+        },
+        {
+          "event_id": "9bd7cfbaa4a55f5da52c43f5",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 33,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "e54fc6400ec4760576613b24",
+      "variant_id": "308129584ba76a7e490c3040",
+      "benchmark": "pro",
+      "category": "Task",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/e54fc6400ec4760576613b24",
+      "parent_queries": 52,
+      "parent_commit_sha256": "6ae6b7c008fc47c13255be5b9cbb1fe11d2e02b368bf4005985f2ac1d0fa101f",
+      "parent_manifest_sha256": "da83915509bcf7c88f58b658077a0e0a8e8945fce7db95a6733048bacb9abddb",
+      "noise_seed": 1577007095,
+      "init_index": 0,
+      "first_alarm": 28,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "dd8f03448fc0511fc587b747",
+          "timing": "mid",
+          "start_query": 29,
+          "alarm_query": 28,
+          "deployable": true
+        },
+        {
+          "event_id": "9240806d414aded43bd9ec6c",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 28,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "c160bf544a107e2e14557a42",
+      "variant_id": "308129584ba76a7e490c3040",
+      "benchmark": "pro",
+      "category": "Task",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/c160bf544a107e2e14557a42",
+      "parent_queries": 52,
+      "parent_commit_sha256": "be43b8c2e8e42be864ec53548695093488f2ccde97ffb39fa5fccca89895bcac",
+      "parent_manifest_sha256": "595285b2eddf020feb7c742932e736a8e51affb74aa258cfc9f4649bf1315ff1",
+      "noise_seed": 1723050523,
+      "init_index": 4,
+      "first_alarm": 33,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "bb0176c2e1b9fa1a26672456",
+          "timing": "mid",
+          "start_query": 34,
+          "alarm_query": 33,
+          "deployable": true
+        },
+        {
+          "event_id": "c49428f68c246b225f2c06e2",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 33,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "a57e6c1376ad60d45b89da03",
+      "variant_id": "dc7298aab23584b16d6137a3",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/a57e6c1376ad60d45b89da03",
+      "parent_queries": 52,
+      "parent_commit_sha256": "8c79532db2e5a1bfb0f0098b0e3f2415ec25e08ad6ef814253ae9b3c304156c5",
+      "parent_manifest_sha256": "274a581622d3f70ca9cc547e631897267cb48306ba4a03875bf2780783fc3def",
+      "noise_seed": 2930958983,
+      "init_index": 0,
+      "first_alarm": 24,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "f65d89953fc1b91ceffa25f9",
+          "timing": "mid",
+          "start_query": 25,
+          "alarm_query": 24,
+          "deployable": true
+        },
+        {
+          "event_id": "339f83a24df86542ef212692",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 24,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "3e6466b66694b7b6325fa52e",
+      "variant_id": "d884e11886fb28bd0f374cf2",
+      "benchmark": "plus",
+      "category": "Objects Layout",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/3e6466b66694b7b6325fa52e",
+      "parent_queries": 52,
+      "parent_commit_sha256": "3f919f2e900c499e79a6906c2205aae195b31ab5d2da917aa1d64757fe8664a2",
+      "parent_manifest_sha256": "8a1b27738278b316cfd2a5971c2c936ae37209b935c0314ef0257385e2b8d7c8",
+      "noise_seed": 2036535593,
+      "init_index": 0,
+      "first_alarm": 18,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "b2bbd67399b4ee704088b06e",
+          "timing": "mid",
+          "start_query": 19,
+          "alarm_query": 18,
+          "deployable": true
+        },
+        {
+          "event_id": "b2e3beb82a6d458170f7fb8e",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 18,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "baf735f8d5fac5f51ee9e77e",
+      "variant_id": "66fdf556cb27a0bc0209109a",
+      "benchmark": "plus",
+      "category": "Camera Viewpoints",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/baf735f8d5fac5f51ee9e77e",
+      "parent_queries": 52,
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "parent_manifest_sha256": "404def966e010f5430eae53340faea31d75d48ef4d12800d63d7dd8cafb183f2",
+      "noise_seed": 759992255,
+      "init_index": 0,
+      "first_alarm": 13,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "9a73d9aecb66e8d51c110567",
+          "timing": "mid",
+          "start_query": 14,
+          "alarm_query": 13,
+          "deployable": true
+        },
+        {
+          "event_id": "5f045f3935377ec274c0faaa",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 13,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "b4b4b5f994a0fe81751b44aa",
+      "variant_id": "75448d47ef1e43dc6cbbbb02",
+      "benchmark": "plus",
+      "category": "Sensor Noise",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/b4b4b5f994a0fe81751b44aa",
+      "parent_queries": 52,
+      "parent_commit_sha256": "c735023193f1877abd2141b162453c28481cc47cf25319c7c9a005f8c97e9bd6",
+      "parent_manifest_sha256": "9da2b3bdf108cc1c570502daf44ecf2cb0b897c74f87a8e66f70212ec611f248",
+      "noise_seed": 3962350877,
+      "init_index": 0,
+      "first_alarm": 30,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "ea3d75ab91d45f5a69ff0b3f",
+          "timing": "mid",
+          "start_query": 31,
+          "alarm_query": 30,
+          "deployable": true
+        },
+        {
+          "event_id": "6cdd9dff43fc5ca97ee73951",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 30,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "121e84fc58a0dd3b4f398731",
+      "variant_id": "f194e6c5fd88a75c20d4c2fc",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/121e84fc58a0dd3b4f398731",
+      "parent_queries": 52,
+      "parent_commit_sha256": "26001370153431cd5a1d42bc884888afb6a4eb2cd1857155c988e765433f1941",
+      "parent_manifest_sha256": "471497292765d85b5ad844c3aaebc10f89ffc16f4ef9719aadad6839b6aec7b3",
+      "noise_seed": 1624197364,
+      "init_index": 0,
+      "first_alarm": 13,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "37beb3ffb722be4f245abf10",
+          "timing": "mid",
+          "start_query": 14,
+          "alarm_query": 13,
+          "deployable": true
+        },
+        {
+          "event_id": "4ba4d0a2034f9c0421e0366b",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 13,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "ebcc1af39aae99b4e286b8cd",
+      "variant_id": "649c639a0f1d6879a94d8e36",
+      "benchmark": "pro",
+      "category": "Task",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/ebcc1af39aae99b4e286b8cd",
+      "parent_queries": 52,
+      "parent_commit_sha256": "803055dc05db31293f659bd441cc4a8e5c8e96ee220e8d715f2219acb47e9a2e",
+      "parent_manifest_sha256": "a1198bc3bfc7ac12c08db7f459cd6ef9e1452e5b908dfd75cc41f5ec357c90b3",
+      "noise_seed": 4118499470,
+      "init_index": 0,
+      "first_alarm": 40,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "b24c58cd1696aa00a57e36f6",
+          "timing": "mid",
+          "start_query": 41,
+          "alarm_query": 40,
+          "deployable": true
+        },
+        {
+          "event_id": "0b56522354fc2e24a62a31eb",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 40,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "684d02b81d7b0f9e173d2080",
+      "variant_id": "b734cc215fdb2dc6f17a45e3",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/684d02b81d7b0f9e173d2080",
+      "parent_queries": 52,
+      "parent_commit_sha256": "feccd1807032878a2b6e71e963ccfc288a44b4cf5801c11b1493282b9cbcf676",
+      "parent_manifest_sha256": "8d01301689a8cc660b15537b36b9e8eb9042694f7f63a5714f3ccaee7667be3a",
+      "noise_seed": 1255982967,
+      "init_index": 0,
+      "first_alarm": 11,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "5dea8bb1db7aabc8d689d4ba",
+          "timing": "mid",
+          "start_query": 12,
+          "alarm_query": 11,
+          "deployable": true
+        },
+        {
+          "event_id": "2a1082d037b346ac0c6dbcdc",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 11,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "8353120bf0d822eb880f7328",
+      "variant_id": "56378d64d35f570500ee2cfc",
+      "benchmark": "plus",
+      "category": "Objects Layout",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/8353120bf0d822eb880f7328",
+      "parent_queries": 39,
+      "parent_commit_sha256": "729308afa0aea5a148ebdd2cb2e4006f9ad1eb68eaf3c4c064d6d7200f05f789",
+      "parent_manifest_sha256": "11d99be286e61b23cf79ee6154d9445cf16ec331dc09594ebaa12a6295106d7a",
+      "noise_seed": 1085698593,
+      "init_index": 0,
+      "first_alarm": 15,
+      "failed": false,
+      "events": [
+        {
+          "event_id": "d7e330b335787971845f5a32",
+          "timing": "mid",
+          "start_query": 16,
+          "alarm_query": 15,
+          "deployable": true
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "a09e67c5d3889b61401f57c9",
+      "variant_id": "09f67fbbbc86f3a3404a0356",
+      "benchmark": "plus",
+      "category": "Language Instructions",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/a09e67c5d3889b61401f57c9",
+      "parent_queries": 25,
+      "parent_commit_sha256": "0a64ab7db86a35f2c8d89824bea366d812204bc96a38c24cc4a34366511b02d6",
+      "parent_manifest_sha256": "a22aa2f424c3322ce069177d930f4891f071e1053377531ead1e28314a708e96",
+      "noise_seed": 1293212338,
+      "init_index": 0,
+      "first_alarm": 24,
+      "failed": false,
+      "events": [],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "5668eade328ccdc00feb05fb",
+      "variant_id": "fa4c019b23ae4d3cde8b9bc7",
+      "benchmark": "pro",
+      "category": "Position",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/5668eade328ccdc00feb05fb",
+      "parent_queries": 52,
+      "parent_commit_sha256": "cffd39d0c50075c0bb8a8b60276869883e76ec6b7bf9e711b2349d6785ad24d2",
+      "parent_manifest_sha256": "b514a25c078dad6278b96c63a8a5ad24de24752f8664879cdd2b30d951994a5c",
+      "noise_seed": 3905484919,
+      "init_index": 0,
+      "first_alarm": 8,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "10db4cddc38d4c85315faaf8",
+          "timing": "mid",
+          "start_query": 9,
+          "alarm_query": 8,
+          "deployable": true
+        },
+        {
+          "event_id": "51947bbadf3cdc7755aebc73",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 8,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "31ef8731d245196447af6a5a",
+      "variant_id": "36a28cdb9fac168a021aad39",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/31ef8731d245196447af6a5a",
+      "parent_queries": 52,
+      "parent_commit_sha256": "04044f8681955907992c9d02ebaf5761f956efb85eddb3712a7ae2530bec6935",
+      "parent_manifest_sha256": "caec985e2d04a000c1259652eb33c3da7ff1a6b37206c3e027a66ae9934c3b78",
+      "noise_seed": 924967385,
+      "init_index": 0,
+      "first_alarm": 17,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "81b063cb499f84db8c7c731a",
+          "timing": "mid",
+          "start_query": 18,
+          "alarm_query": 17,
+          "deployable": true
+        },
+        {
+          "event_id": "d48f9c272382cd435871ff9a",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 17,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "a97e2467b5341216d6b65d61",
+      "variant_id": "14a8d85b7ae5b5c67030a543",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/a97e2467b5341216d6b65d61",
+      "parent_queries": 52,
+      "parent_commit_sha256": "02f904ae7c2a11f7e8ac47569a53a7b9961d4f21c10aa5794549a7b173c43a08",
+      "parent_manifest_sha256": "958e126966619e491f98cebe69ed7c3cb61dccf59a895d527175dc1d9d45d482",
+      "noise_seed": 2995109210,
+      "init_index": 0,
+      "first_alarm": 28,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "150e6b8bff698b7060b8ba93",
+          "timing": "mid",
+          "start_query": 29,
+          "alarm_query": 28,
+          "deployable": true
+        },
+        {
+          "event_id": "32ed49e15e17d840fb203a4f",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 28,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "d9bd4d12d8cbd5d0585ff587",
+      "variant_id": "4450ca052af5bdbc074a9ac9",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/d9bd4d12d8cbd5d0585ff587",
+      "parent_queries": 52,
+      "parent_commit_sha256": "95e8ae3d4884b94a7451624a59581fe54743e3d4b4874e095e6448f55afce7d8",
+      "parent_manifest_sha256": "e9769080183e711365f2aded763304b4115a6e8f7c052954958e9dfda526a331",
+      "noise_seed": 3285075454,
+      "init_index": 0,
+      "first_alarm": 31,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "2e31c775ef0b70c68a54a442",
+          "timing": "mid",
+          "start_query": 32,
+          "alarm_query": 31,
+          "deployable": true
+        },
+        {
+          "event_id": "2deff139c2dacb4a53a4a823",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 31,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "05bfb423c472cbc0803ce0b6",
+      "variant_id": "be8ca35e8e90aaaeca7a87c2",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/05bfb423c472cbc0803ce0b6",
+      "parent_queries": 52,
+      "parent_commit_sha256": "9a8da2843a45d52f39ab2ae2a9bc93f2eb47f9fb1bd1329792b147a34849a2e7",
+      "parent_manifest_sha256": "73ee33a82e25e02e80291e8f5d3ba7812990f3861ba2ecde454c35c68bd84319",
+      "noise_seed": 3440936997,
+      "init_index": 0,
+      "first_alarm": 10,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "3004f5803c59724e0182525f",
+          "timing": "mid",
+          "start_query": 11,
+          "alarm_query": 10,
+          "deployable": true
+        },
+        {
+          "event_id": "9c2fb9df9463f0257412273f",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 10,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "6ad77d7dbdf2dee4483a9cb4",
+      "variant_id": "6437ff579aa61268fa7a87b5",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/6ad77d7dbdf2dee4483a9cb4",
+      "parent_queries": 52,
+      "parent_commit_sha256": "931b3a50d93d52576973619411f47a553dc029bdaa4ee9a1402274480264b290",
+      "parent_manifest_sha256": "8aeb1772b154b7edf79fbe3c00bcbc976ac9266229c2a53a38d892b3bc376f3e",
+      "noise_seed": 4232868169,
+      "init_index": 0,
+      "first_alarm": 35,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "7d175b9131a4a81be5132f72",
+          "timing": "mid",
+          "start_query": 36,
+          "alarm_query": 35,
+          "deployable": true
+        },
+        {
+          "event_id": "e7029bda1e4b65ef2dc25bc7",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 35,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "7cbdf5e7f41be5897d6de997",
+      "variant_id": "696e678ed8db1e6c6a6d378d",
+      "benchmark": "plus",
+      "category": "Objects Layout",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/7cbdf5e7f41be5897d6de997",
+      "parent_queries": 30,
+      "parent_commit_sha256": "3305665d329589570b02a62aa3eb86d68336b6244a8e81b535bf13a487120380",
+      "parent_manifest_sha256": "4136d769fd9cfcb5cbcf80b2c2e50852d9ff5dbf4c6c6b9ae9c99d611f06fe07",
+      "noise_seed": 995754787,
+      "init_index": 0,
+      "first_alarm": 9,
+      "failed": false,
+      "events": [
+        {
+          "event_id": "dc12d57f55dd97677aa649db",
+          "timing": "mid",
+          "start_query": 10,
+          "alarm_query": 9,
+          "deployable": true
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "2581e264e7a153e025f34a5e",
+      "variant_id": "32409a5bac8858b2e505c8e1",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/2581e264e7a153e025f34a5e",
+      "parent_queries": 52,
+      "parent_commit_sha256": "f642af910fc11d3a7a161f15f5db90670708c8486f6f0461b055dce62fea92c9",
+      "parent_manifest_sha256": "2a16cdbc89523a9dd2a1dadb9ef6a1ff470e18ac2c6245d9ab1d659bb5d03845",
+      "noise_seed": 745074313,
+      "init_index": 0,
+      "first_alarm": 16,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "b8f5573369fdaf8d4e9ceea1",
+          "timing": "mid",
+          "start_query": 17,
+          "alarm_query": 16,
+          "deployable": true
+        },
+        {
+          "event_id": "f0b2cc653be52f5081fe18fc",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 16,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "387d484d4fa94f9ac3120ffa",
+      "variant_id": "6dbc2b2f5d900cec66564186",
+      "benchmark": "pro",
+      "category": "Position",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/387d484d4fa94f9ac3120ffa",
+      "parent_queries": 52,
+      "parent_commit_sha256": "177e011f8d40b9108f962cb6777736e527207821ccbe0b0ac43c358b4de949ca",
+      "parent_manifest_sha256": "87e20aefd88c9132fa4a74b52dd00aa3e414a9a33db1a565ffa870b64d56c7ac",
+      "noise_seed": 819143321,
+      "init_index": 3,
+      "first_alarm": 30,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "47eaa636b286efade41707bb",
+          "timing": "mid",
+          "start_query": 31,
+          "alarm_query": 30,
+          "deployable": true
+        },
+        {
+          "event_id": "4aa261378ea47ad75b35bca8",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 30,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "bb86f0cfa4b982f8592f194b",
+      "variant_id": "4a60c281bbb2eec0c750f6b5",
+      "benchmark": "plus",
+      "category": "Camera Viewpoints",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/bb86f0cfa4b982f8592f194b",
+      "parent_queries": 52,
+      "parent_commit_sha256": "e3f01cce2b1c0d54ae5bfc5f7ba713de7b9cbef73b5819288d891d1275e22b6d",
+      "parent_manifest_sha256": "c9003ef97fbece172dfffac62b92bcef78a0a56eba325ba8fe4704dfc4c8f9da",
+      "noise_seed": 1230552201,
+      "init_index": 0,
+      "first_alarm": 41,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "075a6d4d6aa60d1c98409b8e",
+          "timing": "mid",
+          "start_query": 42,
+          "alarm_query": 41,
+          "deployable": true
+        },
+        {
+          "event_id": "4e65c55ec9465e149d616cd7",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 41,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "2e83532f4ae0322b37a394fe",
+      "variant_id": "79969d7ed8e1a467af4c9ef7",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/2e83532f4ae0322b37a394fe",
+      "parent_queries": 52,
+      "parent_commit_sha256": "a86b59a5eaa37d62156d6273cd9a4018970a6010800baec74d83bd28b9adde41",
+      "parent_manifest_sha256": "86483b33e91b3b14395bb4cb3314e985805c7ea7e47e643e6f64eac7535b8f6b",
+      "noise_seed": 1489770086,
+      "init_index": 0,
+      "first_alarm": 21,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "b92d1b0e319066a696433e14",
+          "timing": "mid",
+          "start_query": 22,
+          "alarm_query": 21,
+          "deployable": true
+        },
+        {
+          "event_id": "e38ce7d480a0c299198dde9b",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 21,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "98a0e941e0da967a0d3c710d",
+      "variant_id": "1dd8f1e249140c3a2e3e3a55",
+      "benchmark": "pro",
+      "category": "Task",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/98a0e941e0da967a0d3c710d",
+      "parent_queries": 52,
+      "parent_commit_sha256": "bf026b91c726b6ce98bb9ba68c2e9de4fc1ee35cd1ff0c5b65a8525b5615e8e6",
+      "parent_manifest_sha256": "a821dc3d051d36b08b3aac60eedd65c41d2e640cb31aa215f6a1168b46d01753",
+      "noise_seed": 947718692,
+      "init_index": 1,
+      "first_alarm": 32,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "b6fdde3c6c6bb742c519fbb4",
+          "timing": "mid",
+          "start_query": 33,
+          "alarm_query": 32,
+          "deployable": true
+        },
+        {
+          "event_id": "5eb55ff57f5309eba5501bed",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 32,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "93a1b0caef39ebbf1041c473",
+      "variant_id": "745b959f155368fc6c8637a3",
+      "benchmark": "plus",
+      "category": "Light Conditions",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/93a1b0caef39ebbf1041c473",
+      "parent_queries": 52,
+      "parent_commit_sha256": "4892f4d42db11a99f9865818a03a04747dabd6b602da7085792099580ab8a1d5",
+      "parent_manifest_sha256": "a94d9a5315b286811e87c55fb40afa03429c8391e6bbc1685315792c1b7515d4",
+      "noise_seed": 1435808907,
+      "init_index": 0,
+      "first_alarm": 31,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "0356fa7ce121e4ddeae37b3d",
+          "timing": "mid",
+          "start_query": 32,
+          "alarm_query": 31,
+          "deployable": true
+        },
+        {
+          "event_id": "76f100e5b59c4660708258fe",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 31,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "50c371fbf0ed6693136c3f64",
+      "variant_id": "91f8705baec81c468e128d0d",
+      "benchmark": "pro",
+      "category": "Task",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/50c371fbf0ed6693136c3f64",
+      "parent_queries": 52,
+      "parent_commit_sha256": "4d5c937b2b46bc2edafd8e8b7cf33effaedd2e76d6b75beadb4f172e86e89e45",
+      "parent_manifest_sha256": "51f9577229058b147330bfb9c7bc0bbad52f5812f0c565f40b9da3abd7843016",
+      "noise_seed": 3870298020,
+      "init_index": 4,
+      "first_alarm": 28,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "d0bbfea801742f14c5ae4b3a",
+          "timing": "mid",
+          "start_query": 29,
+          "alarm_query": 28,
+          "deployable": true
+        },
+        {
+          "event_id": "d8b10bef7cdb0eafbb8565d0",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 28,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "9280f2fd11eae200674fad6d",
+      "variant_id": "2c0f8ac057946730040aa369",
+      "benchmark": "plus",
+      "category": "Sensor Noise",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/9280f2fd11eae200674fad6d",
+      "parent_queries": 52,
+      "parent_commit_sha256": "b945b31aa9d4dc10d40eacc0427c64ff31ada31d5bf1e658e044407606c00124",
+      "parent_manifest_sha256": "81c50848192bad48c07226ce549aa0d008dd9e635e6591668ed24c96294f1b30",
+      "noise_seed": 1081690100,
+      "init_index": 0,
+      "first_alarm": 37,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "1cfc04216d5f6f5b7d284a03",
+          "timing": "mid",
+          "start_query": 38,
+          "alarm_query": 37,
+          "deployable": true
+        },
+        {
+          "event_id": "49f0f86ef523ca3f22d5612c",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 37,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "b0006f82189c5a0f9d5b9bac",
+      "variant_id": "0261ec673c6e9767f4fc1004",
+      "benchmark": "pro",
+      "category": "Position",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/b0006f82189c5a0f9d5b9bac",
+      "parent_queries": 52,
+      "parent_commit_sha256": "f3a6149d02f96b38ab4e7c5cd9d906c356c9900848167787a2765b2701135e8b",
+      "parent_manifest_sha256": "3a39f059474b1456c7d73930e3bcf8382a13e92306fa3ca4f1fb50d2ee375eed",
+      "noise_seed": 3364354158,
+      "init_index": 3,
+      "first_alarm": 33,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "c7fef665994f37deac352c1e",
+          "timing": "mid",
+          "start_query": 34,
+          "alarm_query": 33,
+          "deployable": true
+        },
+        {
+          "event_id": "b25011d8142e5610fb900d78",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 33,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "4d508b57d7e87837b989ec87",
+      "variant_id": "f276415274dcd5eed5bd25fd",
+      "benchmark": "plus",
+      "category": "Objects Layout",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/4d508b57d7e87837b989ec87",
+      "parent_queries": 52,
+      "parent_commit_sha256": "edb9f9d3749a5ec08b9fc642b48144393c45eae03f5ef09e880eb850e35eb659",
+      "parent_manifest_sha256": "9d61a2df26a5f8df89adf404e458b2cea1ecf241800ce34a2b8d2106dc6be4c9",
+      "noise_seed": 3488175074,
+      "init_index": 0,
+      "first_alarm": 16,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "ff9e5bd219c60c28ecaad6a5",
+          "timing": "mid",
+          "start_query": 17,
+          "alarm_query": 16,
+          "deployable": true
+        },
+        {
+          "event_id": "2fa3f86bd144cc90cd083527",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 16,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "e831f1facba2b32dc0dcaed1",
+      "variant_id": "dac7fd84c2576c475ce5e0c8",
+      "benchmark": "plus",
+      "category": "Light Conditions",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/e831f1facba2b32dc0dcaed1",
+      "parent_queries": 52,
+      "parent_commit_sha256": "f1797ae76d35b2a578d8bd1cba708b9aa438e7647f0878d54277b9360edd119a",
+      "parent_manifest_sha256": "10b3a248990ad32546a776fdee299382fbf298192b4e025831b073102c9bf772",
+      "noise_seed": 3425092645,
+      "init_index": 0,
+      "first_alarm": 27,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "48045173c5aafc92f16e80c5",
+          "timing": "mid",
+          "start_query": 28,
+          "alarm_query": 27,
+          "deployable": true
+        },
+        {
+          "event_id": "9ec5d47acfd42a0c852c5a0d",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 27,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "b9508583916967f0260c06d1",
+      "variant_id": "f73a9583dff26cbaec2967b0",
+      "benchmark": "plus",
+      "category": "Background Textures",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/b9508583916967f0260c06d1",
+      "parent_queries": 52,
+      "parent_commit_sha256": "c5b95c0207fe7a4273c302b6813e568a53a940280ff80b45449df14d3a02c44c",
+      "parent_manifest_sha256": "2bef27ffdec218243faebc2625fc7e88ca8260cdadbf5b663b693ef02ee119f5",
+      "noise_seed": 558243662,
+      "init_index": 0,
+      "first_alarm": 31,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "7ded41ec2299f7f21ecf21e6",
+          "timing": "mid",
+          "start_query": 32,
+          "alarm_query": 31,
+          "deployable": true
+        },
+        {
+          "event_id": "ff4deb39c333d8b8e31eeb06",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 31,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "449f0e133f5aac5acdc9955d",
+      "variant_id": "6bf81b435e38b115ffbe49ad",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/449f0e133f5aac5acdc9955d",
+      "parent_queries": 25,
+      "parent_commit_sha256": "0a04aa783854d765d1c96938421745ab7ff9711d3b4e64b2d0c1c22cf8a31469",
+      "parent_manifest_sha256": "a6a368f40ad21bfd4b101e544a7fef9bbe55b13b7c8611d3b63b86fc1cf46de6",
+      "noise_seed": 2479254461,
+      "init_index": 0,
+      "first_alarm": 9,
+      "failed": false,
+      "events": [
+        {
+          "event_id": "9cfd9210c3c449f6b8cf7619",
+          "timing": "mid",
+          "start_query": 10,
+          "alarm_query": 9,
+          "deployable": true
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "ab02d2c13b7b919fd9626111",
+      "variant_id": "29396404c4d0c44748657ecb",
+      "benchmark": "pro",
+      "category": "Object",
+      "analysis_role": "perturbation",
+      "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/ab02d2c13b7b919fd9626111",
+      "parent_queries": 25,
+      "parent_commit_sha256": "6bb9ec60c2a261c49a4c5c7d8494019f6720cbc5d2e6eb83fe56b244a8500ea8",
+      "parent_manifest_sha256": "bcff8a0d786062d727bc1e50832e19f26c51ff37deac2fe3d824cfefa8eb3995",
+      "noise_seed": 3079596979,
+      "init_index": 4,
+      "first_alarm": 15,
+      "failed": false,
+      "events": [
+        {
+          "event_id": "4384a7a07e207d5b5ca6ffa2",
+          "timing": "mid",
+          "start_query": 16,
+          "alarm_query": 15,
+          "deployable": true
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "3a82645233116606ab67128b",
+      "variant_id": "c90d3be370859006ff244f5a",
+      "benchmark": "pro",
+      "category": "Environment",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/3a82645233116606ab67128b",
+      "parent_queries": 52,
+      "parent_commit_sha256": "8bd9f387f6476f043694676879e752a366d0913d04bcc92c91be83fa448d91de",
+      "parent_manifest_sha256": "4fb984001f839ca3a4097a6af0683b4c824c00aaf23fd49e5b97423c13a99f06",
+      "noise_seed": 453525077,
+      "init_index": 0,
+      "first_alarm": 14,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "1442631b9dfb91b5f2408a6f",
+          "timing": "mid",
+          "start_query": 15,
+          "alarm_query": 14,
+          "deployable": true
+        },
+        {
+          "event_id": "881b830dc314a31dba726080",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 14,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "d4319f25106583f3d9750737",
+      "variant_id": "aab2c9d4175ba9ed18b9d725",
+      "benchmark": "pro",
+      "category": "Task",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/d4319f25106583f3d9750737",
+      "parent_queries": 52,
+      "parent_commit_sha256": "18a269791a997b2847134e0736a5530cbdf6c07f9ec7b11b1fa60a988e57a325",
+      "parent_manifest_sha256": "08c88b245e1f6171abdfecc757841fa1a03b71fedc305b0e4076ca9f51184d15",
+      "noise_seed": 2570926153,
+      "init_index": 0,
+      "first_alarm": 26,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "0d5e56f5d0e1db5ad7700297",
+          "timing": "mid",
+          "start_query": 27,
+          "alarm_query": 26,
+          "deployable": true
+        },
+        {
+          "event_id": "c35be65e529f7759340f0cd8",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 26,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "9d87870d2ffb3532e6ada0eb",
+      "variant_id": "20504c36b939e4eb4ac33c27",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/9d87870d2ffb3532e6ada0eb",
+      "parent_queries": 52,
+      "parent_commit_sha256": "e64828e537101ce1260b6fab5d706177b2691f951b68ea048d6a900c8ed0c1d0",
+      "parent_manifest_sha256": "1504941d3f6e324cdf883f54528593cc77035d23a0ba6e0a91156c9771fe57e9",
+      "noise_seed": 863288506,
+      "init_index": 0,
+      "first_alarm": 16,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "10e213c4b46949b6c39232db",
+          "timing": "mid",
+          "start_query": 17,
+          "alarm_query": 16,
+          "deployable": true
+        },
+        {
+          "event_id": "8c599903badb20bf5c2dae25",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 16,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "dc023fc9af087d13686f6930",
+      "variant_id": "c90d3be370859006ff244f5a",
+      "benchmark": "pro",
+      "category": "Environment",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/dc023fc9af087d13686f6930",
+      "parent_queries": 52,
+      "parent_commit_sha256": "99f7283f1f02386e9dd82e8141f2cc7daa86685e1cccd8c8a91fcadd453060fe",
+      "parent_manifest_sha256": "0fbbe61b86875b6dabaabae9e7da16e15bcb3b83e1d7efe82c4c26817c5aee47",
+      "noise_seed": 128323407,
+      "init_index": 3,
+      "first_alarm": 27,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "51defd03f0e4d0b255b82b0c",
+          "timing": "mid",
+          "start_query": 28,
+          "alarm_query": 27,
+          "deployable": true
+        },
+        {
+          "event_id": "87861153c6a17edd4c57be1b",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 27,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "9f2376260f4168064d059e12",
+      "variant_id": "69331391dda5df78f2d23fcb",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/9f2376260f4168064d059e12",
+      "parent_queries": 52,
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "parent_manifest_sha256": "65629d1fdfbc01790000fdd4d3ffd148f9269a76b88d08d9f49eb9e821aeda39",
+      "noise_seed": 2214951692,
+      "init_index": 0,
+      "first_alarm": 35,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "2279adfeb1471ee1fc130c2b",
+          "timing": "mid",
+          "start_query": 36,
+          "alarm_query": 35,
+          "deployable": true
+        },
+        {
+          "event_id": "f599c5b2e3d6d615f1b84430",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 35,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "e12434af1be4ebdd228100a5",
+      "variant_id": "c90d3be370859006ff244f5a",
+      "benchmark": "pro",
+      "category": "Environment",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/e12434af1be4ebdd228100a5",
+      "parent_queries": 52,
+      "parent_commit_sha256": "3a6b72f2a9c2f52501954034d8054918a43a5dcfd38251dec8dbde965e4d0352",
+      "parent_manifest_sha256": "df14c4c28397226fa847609b17053817534655ed06c5cb6a89ab3962645d9008",
+      "noise_seed": 3170624788,
+      "init_index": 1,
+      "first_alarm": 13,
+      "failed": true,
+      "events": [
+        {
+          "event_id": "e7a058678b1c079adcabf782",
+          "timing": "mid",
+          "start_query": 14,
+          "alarm_query": 13,
+          "deployable": true
+        },
+        {
+          "event_id": "5493c5c547625b9ed1023751",
+          "timing": "late",
+          "start_query": 44,
+          "alarm_query": 13,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "c745d188b4ee4ec7dd2dfcae",
+      "variant_id": "16d553f366d1e1d54ed0af02",
+      "benchmark": "plus",
+      "category": "Background Textures",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/c745d188b4ee4ec7dd2dfcae",
+      "parent_queries": 26,
+      "parent_commit_sha256": "9d5ad07dcfc9e942d56d681bfece3bf11cb5a4d10f3274c4ede254e200cecdcd",
+      "parent_manifest_sha256": "ba7aec2a7de6c96dce81a6ab38b0cf2d5a8b3f4d706bab62a6e8f7041fb43002",
+      "noise_seed": 3306019653,
+      "init_index": 0,
+      "first_alarm": 25,
+      "failed": false,
+      "events": [],
+      "max_output_bytes": 0
+    },
+    {
+      "main_id": "b9033af8891b723d3dbfe8aa",
+      "variant_id": "23cabdb2b2c320d924fc37c6",
+      "benchmark": "plus",
+      "category": "Robot Initial States",
+      "analysis_role": "perturbation",
+      "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/b9033af8891b723d3dbfe8aa",
+      "parent_queries": 27,
+      "parent_commit_sha256": "38a645624624156b3c73261be4952fe11cf92a714cc132ddd5dd4ea5b260f2bf",
+      "parent_manifest_sha256": "a0280dc687a99fdd3eb3dbe145fdb8e11a054a637fccd34629411496b3326999",
+      "noise_seed": 627521966,
+      "init_index": 0,
+      "first_alarm": 23,
+      "failed": false,
+      "events": [
+        {
+          "event_id": "97240d3597a8c1e94ff5ff7e",
+          "timing": "mid",
+          "start_query": 24,
+          "alarm_query": 23,
+          "deployable": true
+        }
+      ],
+      "max_output_bytes": 0
+    }
+  ],
+  "allowed_gpus": [
+    4,
+    5
+  ],
+  "render_gpus": [
+    4,
+    5
+  ],
+  "replicas_per_gpu": 8,
+  "workers_per_gpu": 8,
+  "mps": true,
+  "parameter_fitting": false,
+  "training": false,
+  "base_task_counts": {
+    "KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": 8,
+    "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket": 6,
+    "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket": 8,
+    "LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket": 7,
+    "LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate": 6,
+    "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate": 8,
+    "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy": 8
+  },
+  "failed_parents": 42,
+  "success_parents": 9,
+  "planned_events": 91,
+  "maximum_output_bytes": 2759098368,
+  "storage_quota_gib": 9,
+  "disk_floor_gib": 8
+}

@@ -1,0 +1,924 @@
+{
+  "status": "completed",
+  "protocol": "moe_control.identified_recovery_mpc.v1",
+  "contract": {
+    "timing": "first trigger q, execute native q, intervene before q+1; no effective trigger retains native outcome",
+    "random_stream": "original policy RNG indexed by query; exact C0 environment RNG by absolute action step; unchanged deterministic extension beyond native terminal",
+    "recovery": "once, same 8 lift plus 8 retreat steps and last gripper sign; total520 budget; fixed P, constrained MPC and disturbance-compensated MPC; hold and native controls",
+    "module": {
+      "lift_m": 0.04,
+      "retreat_max_m": 0.04,
+      "target_history_queries": 3,
+      "phase_steps": 8,
+      "max_translation_step_m": 0.01,
+      "rotation_delta": 0.0,
+      "gripper": "last executed command sign",
+      "horizon": 520,
+      "chunk": 10
+    },
+    "behavior_trigger": {
+      "window_queries": 6,
+      "maximum_position_diameter_m": 0.005,
+      "first_query": 7
+    },
+    "hidden_capture": false,
+    "threshold_fitting": false,
+    "mpc_settings": {
+      "horizon": 6,
+      "position_weight": 1.0,
+      "velocity_weight": 0.25,
+      "input_weight": 0.15,
+      "input_radius_cm": 1.0,
+      "disturbance_filter": 0.5,
+      "disturbance_radius_cm": 0.5,
+      "solver": "scipy.optimize.SLSQP",
+      "solver_ftol": 1e-09,
+      "solver_maxiter": 120,
+      "projected_gradient_tolerance": 0.0002,
+      "target": "same frozen 8-step lift and 8-step retreat",
+      "state_units": "position cm; displacement cm/environment-step; input Cartesian delta cm"
+    },
+    "dynamics_model": "/home/jovyan/work/himoe-vla/moe-trap-control/design/recovery_dynamics_20260908.json",
+    "dynamics_sha256": "53d1a371e3213494411d5cd10dafd9fca39d47100218081668e063c294c8b81e"
+  },
+  "main_id": "a582d69861a90b595ba3c351",
+  "job_kind": "fixed_branches",
+  "variant": {
+    "benchmark": "pro",
+    "suite": "libero_10",
+    "registry": "libero_10_task",
+    "registry_index": 2,
+    "classification_id": null,
+    "task_name": "KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it",
+    "base_task": "KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it",
+    "category": "Task",
+    "difficulty": null,
+    "base_task_fold": 0,
+    "horizon_steps": 520,
+    "variant_id": "80286581b92483eccf1c0050"
+  },
+  "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/a582d69861a90b595ba3c351",
+  "parent_commit_sha256": "be97e023f73ae678821d23b9d1fb67cdf47373795847be64a8afb4d22be71a9a",
+  "parent_manifest_sha256": "bf6e27c0da54a297052fc118a07ad3068d913fe11d54494f938549cef950ee96",
+  "model": "long",
+  "model_metadata": {
+    "protocol": "himoe-libero-v1",
+    "protocol_version": 2,
+    "backend": "himoe-vla-libero-long",
+    "observation": {
+      "observation/image": [
+        224,
+        224,
+        3
+      ],
+      "observation/wrist_image": [
+        224,
+        224,
+        3
+      ],
+      "observation/state": [
+        8
+      ],
+      "prompt": "non-empty string",
+      "flow/noise": {
+        "shape": [
+          10,
+          24
+        ],
+        "optional": true
+      },
+      "routing/capture": {
+        "type": "bool",
+        "optional": true
+      }
+    },
+    "action": {
+      "actions": [
+        10,
+        7
+      ]
+    },
+    "flow_noise_ack": {
+      "key": "flow/noise_sha256",
+      "format": "sha256-f32-c-v1"
+    },
+    "routing": {
+      "optional": true,
+      "routing/expert_ids": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/expert_weights": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/layer_indices": [
+        8
+      ],
+      "routed_experts": 32,
+      "top_k": 4
+    },
+    "suite": "long",
+    "benchmark": "libero_10",
+    "train_config": "libero_10_no_noops_lerobot_finetune",
+    "dataset_config": "libero_10_no_noops_lerobot",
+    "normalization_asset": "libero_10_no_noops",
+    "checkpoint": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10",
+    "checkpoint_bytes": 8138322389,
+    "checkpoint_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256",
+    "flow_steps": 10,
+    "predicted_action_steps": 10,
+    "internal_action_dim": 24,
+    "normalization_stats_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/libero_10_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "71d6971888eddec4febec09f696bddbbba6f0007d7a32b41027d8db6d677abe0",
+    "normalization_stats_loaded": true,
+    "normalization_action_std": [
+      0.28262342306725324,
+      0.35866097261853397,
+      0.36932027826898967,
+      0.03787003293268508,
+      0.054570646977803616,
+      0.08749407288353883,
+      0.9963353419534117
+    ],
+    "libero_wrist_layout": "checkpoint-right",
+    "libero_wrist_layout_transform_anchor": "DropStateAndImage",
+    "cuda_visible_devices": "GPU-fd381129-72cd-3036-0c2c-66f6bc30ac80",
+    "routing_capture_supported": true,
+    "routing_hb_layer_indices": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "routing_experts": 32,
+    "routing_top_k": 4,
+    "himoe_upstream_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "himoe_patch_sha256": {
+      "himoe-fixed-noise.patch": "d4275c5908353c6a59c178eb25dd53861455892effa41c63202c4e09239dba56",
+      "himoe-runtime.patch": "6a37331c4a09402ee4f1f323055e90c51290584148732cb272a584e1dec05428",
+      "himoe-transformers-cache.patch": "4972e8ae67cb5ee696fb28811b8f70f234966e013a8c5ec664d70e20bb607463"
+    },
+    "himoe_patches_verified_applied": true,
+    "himoe_working_tree_dirty": true,
+    "himoe_working_tree_diff_sha256": "edf3a0f702d99fa6496ef3a5c3c1812eb97dbe3609b9d09616e727a3ad6abd2c",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_memory_allocated_bytes": 18413647360,
+    "checkpoint_load_audit": {
+      "mode": "torch_mmap_meta_assign",
+      "checkpoint_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/pytorch_model.pth",
+      "upstream_root": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA",
+      "train_config": "libero_10_no_noops_lerobot_finetune",
+      "target_device": "cuda:0",
+      "mmap": true,
+      "assign": true,
+      "strict": true,
+      "state_key_count": 1581,
+      "logical_tensor_bytes": 9191385168,
+      "target_tensor_bytes": 18382770336,
+      "staged_tensor_count": 1581,
+      "staging_chunk_bytes": 67108864,
+      "chunked_tensor_count": 2,
+      "staging_copy_count": 1643,
+      "aliased_tensor_count": 1581,
+      "reconstructed_nonpersistent_buffers": [
+        "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.vision_tower.vision_model.embeddings.position_ids"
+      ]
+    },
+    "bundle_schema": "himoe-vla-five-model-gpu-bundle/v1",
+    "bundle_model": "long",
+    "bundle_physical_gpu": 1,
+    "bundle_logical_gpu": 0,
+    "bundle_port": 12063,
+    "bundle_process_pid": 755228,
+    "isolated_process": true,
+    "isolated_models": [
+      "long"
+    ],
+    "isolated_gpu_uuid": "GPU-fd381129-72cd-3036-0c2c-66f6bc30ac80",
+    "cuda_memory_limit_mib": null,
+    "replica_index": 4,
+    "weights_owner_pid": 754899,
+    "shared_cuda_parameters": true,
+    "cuda_mps_pipe_directory": "/tmp/moe-control-mps-r6n_kdsw",
+    "collection_full_hb_supported": true,
+    "collection_hidden_capture": false,
+    "collection_routing_mode": "request_scoped",
+    "collection_batch_size": 1,
+    "collection_full_as_supported": true,
+    "collection_as_layers": [
+      0,
+      1,
+      16,
+      17
+    ],
+    "collection_interventions": [
+      "native",
+      "swap1_near"
+    ],
+    "collection_probability_axes": [
+      "layer",
+      "denoise",
+      "suffix_token",
+      "expert"
+    ],
+    "collection_hb_layers": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "v8_feature_protocol": "moe_control.v8_feature.v1",
+    "v8_feature_bias_supported": true,
+    "server_instance_id": "172bede3d4ec4798b4ac4580572bbb4a",
+    "server_pid": 755228,
+    "server_started_unix_ns": 1788886402411464229
+  },
+  "gpu": 1,
+  "render_gpu": 0,
+  "egl_device_uuid": "GPU-2336e106-aac0-7beb-a945-8ad14bf89a18",
+  "seed": 4055730755,
+  "init_index": 0,
+  "hidden_capture": false,
+  "main_intervention": false,
+  "main_complete": true,
+  "reused_main": true,
+  "queries": 0,
+  "action_steps": 520,
+  "success": false,
+  "first_alarm_query": 38,
+  "first_knn_alarm": 37,
+  "analysis_role": "perturbation",
+  "c0": {
+    "status": "passed",
+    "replay_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/mpc_recovery_experiment_20260908/replays/a582d69861a90b595ba3c351",
+    "replay_result_sha256": "ae4f0c9b8641fa6c447b6251463839630cd7e9bf20d4d0eee23af0353c113ef4",
+    "replay_branch_sha256": "15e21aa266b16ed37bbf2321f1f97ddc8621dac1778da7c54e7a54c1a40b6efd"
+  },
+  "events": [
+    {
+      "event_id": "7022f8a215773c4fab514e15",
+      "start_query": 16,
+      "alarm_query": 15,
+      "methods": [
+        "random_time"
+      ],
+      "deployable": true,
+      "snapshot_manifest_sha256": "3caea6a546d04bf640f059d0ae73e26b87bd309753f730060356c96e00815253",
+      "action_steps_before": 160
+    }
+  ],
+  "branches": [
+    {
+      "status": "completed",
+      "arm": "native",
+      "start_query": 16,
+      "event_id": "7022f8a215773c4fab514e15",
+      "starts_after_main_complete": true,
+      "starts_after_c0": true,
+      "queries": 36,
+      "recovery_steps": 0,
+      "action_steps": 360,
+      "success": false,
+      "actual_model_queries": 36,
+      "initial_action_steps": 160,
+      "recovery_targets": [
+        [
+          0.04372145507764381,
+          -0.05836041561289117,
+          1.1984526725743068
+        ],
+        [
+          0.013672750681601571,
+          -0.031958230776797165,
+          1.1984526725743068
+        ]
+      ],
+      "controller_translation_scale": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "initial_eef": [
+        0.04372145507764381,
+        -0.05836041561289117,
+        1.1584526725743067
+      ],
+      "last_native_gripper": -1.0011558532714844,
+      "inference_seconds": 25.20352864637971,
+      "environment_seconds": 8.253267163410783,
+      "controller_seconds": 0.0,
+      "optimizer_fallbacks": 0,
+      "initial_velocity_cm": [
+        0.624345530970053,
+        -0.3751119702084348,
+        -0.09662824061130282
+      ],
+      "dynamics_sha256": "53d1a371e3213494411d5cd10dafd9fca39d47100218081668e063c294c8b81e",
+      "after_recovery_eef": [
+        0.04372145507764381,
+        -0.05836041561289117,
+        1.1584526725743067
+      ],
+      "success_during_recovery": false,
+      "elapsed_seconds": 33.71539659611881,
+      "final_action_steps": 520,
+      "physical_shards": {
+        "blocks": [],
+        "queries": 0,
+        "bytes": 0,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      },
+      "suffix_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "6fa97a046ddfe7af312d3001c15efed6c248f717c2867a5e6af36c615a4670e4",
+            "rows": 8,
+            "bytes": 461535,
+            "first_query": 16,
+            "last_query": 23
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "bb7c1cadbd0b67bc84238d87c454906e18086762497a8592c4573d1e1876a610",
+            "rows": 8,
+            "bytes": 469926,
+            "first_query": 24,
+            "last_query": 31
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "d301f4947594e93d65c6c2420d7d6d46e4c6424cab0d294a3c234a0038f7b48f",
+            "rows": 8,
+            "bytes": 476450,
+            "first_query": 32,
+            "last_query": 39
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "8b33064a2e03b3d7ed435ba77c3538e2eefaa1f63be5ba11c3a342dc04a6e2c8",
+            "rows": 8,
+            "bytes": 481676,
+            "first_query": 40,
+            "last_query": 47
+          },
+          {
+            "path": "block_00004.npz",
+            "sha256": "74179815ed5566d941fa9f54115b501f9fd42d6bb53698e1ae50a2a0ece15690",
+            "rows": 4,
+            "bytes": 249539,
+            "first_query": 48,
+            "last_query": 51
+          }
+        ],
+        "queries": 36,
+        "bytes": 2139126,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "hold",
+      "start_query": 16,
+      "event_id": "7022f8a215773c4fab514e15",
+      "starts_after_main_complete": true,
+      "starts_after_c0": true,
+      "queries": 35,
+      "recovery_steps": 16,
+      "action_steps": 360,
+      "success": false,
+      "actual_model_queries": 35,
+      "initial_action_steps": 160,
+      "recovery_targets": [
+        [
+          0.04372145507764381,
+          -0.05836041561289117,
+          1.1984526725743068
+        ],
+        [
+          0.013672750681601571,
+          -0.031958230776797165,
+          1.1984526725743068
+        ]
+      ],
+      "controller_translation_scale": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "initial_eef": [
+        0.04372145507764381,
+        -0.05836041561289117,
+        1.1584526725743067
+      ],
+      "last_native_gripper": -1.0011558532714844,
+      "inference_seconds": 29.443370942026377,
+      "environment_seconds": 9.443074204027653,
+      "controller_seconds": 0.00025060586631298065,
+      "optimizer_fallbacks": 0,
+      "initial_velocity_cm": [
+        0.624345530970053,
+        -0.3751119702084348,
+        -0.09662824061130282
+      ],
+      "dynamics_sha256": "53d1a371e3213494411d5cd10dafd9fca39d47100218081668e063c294c8b81e",
+      "after_recovery_eef": [
+        0.06130570543779827,
+        -0.06979046963052264,
+        1.1686133815360926
+      ],
+      "success_during_recovery": false,
+      "elapsed_seconds": 39.10248092748225,
+      "final_action_steps": 520,
+      "physical_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "3654d202c02706d5d025e55f903fb5a5b258579e17d2a6d3b0ebc2649e95dbd0",
+            "rows": 8,
+            "bytes": 13418,
+            "first_query": 0,
+            "last_query": 7
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "1c28c69e3a80a7fb48bd539b1c66dc7834d2bdf6227502ef7c5d0e6b59701103",
+            "rows": 8,
+            "bytes": 13477,
+            "first_query": 8,
+            "last_query": 15
+          }
+        ],
+        "queries": 16,
+        "bytes": 26895,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      },
+      "suffix_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "16b6423e56efd696606cfa97000230b74050d05cee929453a166ffad5103b66a",
+            "rows": 8,
+            "bytes": 463071,
+            "first_query": 16,
+            "last_query": 23
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "9f0965511364c3fd822d49522ecd9c7bacb98087ed7201579a7bec31541b188a",
+            "rows": 8,
+            "bytes": 465652,
+            "first_query": 24,
+            "last_query": 31
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "83f3b80f5bdca35c84b799ee546188ce5381360c5c3f2165af96c55b61b29725",
+            "rows": 8,
+            "bytes": 470700,
+            "first_query": 32,
+            "last_query": 39
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "14ddf666bc7dfaab576526892af327c007ea0de8901a885ad94a7b602dbb671c",
+            "rows": 8,
+            "bytes": 479765,
+            "first_query": 40,
+            "last_query": 47
+          },
+          {
+            "path": "block_00004.npz",
+            "sha256": "74a719abecaf243c040d2a2dc1d05bbcd4f8c3ecb06f61b5bda9e69995df8b7e",
+            "rows": 3,
+            "bytes": 188129,
+            "first_query": 48,
+            "last_query": 50
+          }
+        ],
+        "queries": 35,
+        "bytes": 2067317,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "withdraw",
+      "start_query": 16,
+      "event_id": "7022f8a215773c4fab514e15",
+      "starts_after_main_complete": true,
+      "starts_after_c0": true,
+      "queries": 35,
+      "recovery_steps": 16,
+      "action_steps": 360,
+      "success": false,
+      "actual_model_queries": 35,
+      "initial_action_steps": 160,
+      "recovery_targets": [
+        [
+          0.04372145507764381,
+          -0.05836041561289117,
+          1.1984526725743068
+        ],
+        [
+          0.013672750681601571,
+          -0.031958230776797165,
+          1.1984526725743068
+        ]
+      ],
+      "controller_translation_scale": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "initial_eef": [
+        0.04372145507764381,
+        -0.05836041561289117,
+        1.1584526725743067
+      ],
+      "last_native_gripper": -1.0011558532714844,
+      "inference_seconds": 28.97287175990641,
+      "environment_seconds": 8.656890930607915,
+      "controller_seconds": 0.0006017200648784637,
+      "optimizer_fallbacks": 0,
+      "initial_velocity_cm": [
+        0.624345530970053,
+        -0.3751119702084348,
+        -0.09662824061130282
+      ],
+      "dynamics_sha256": "53d1a371e3213494411d5cd10dafd9fca39d47100218081668e063c294c8b81e",
+      "after_recovery_eef": [
+        0.047866422843867454,
+        -0.05773260098843201,
+        1.1968907448067214
+      ],
+      "success_during_recovery": false,
+      "elapsed_seconds": 37.84611455537379,
+      "final_action_steps": 520,
+      "physical_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "1e43cf89a789ecb881056456837a6ae5a3431c146514abbf94133fd4205f4054",
+            "rows": 8,
+            "bytes": 13790,
+            "first_query": 0,
+            "last_query": 7
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "901234589a72301dfa65624aff89daa0f78a7d71f281a2c42c3f6a505f024840",
+            "rows": 8,
+            "bytes": 13926,
+            "first_query": 8,
+            "last_query": 15
+          }
+        ],
+        "queries": 16,
+        "bytes": 27716,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      },
+      "suffix_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "f69d20ff30f84ec9d5dc6404aa4cb42bdfa8df2973f01bd2adfde07b1825f341",
+            "rows": 8,
+            "bytes": 463909,
+            "first_query": 16,
+            "last_query": 23
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "1132905af1f88ff661047dd264411102eb1c27383c1a88a53ce735e4a09d70d2",
+            "rows": 8,
+            "bytes": 469499,
+            "first_query": 24,
+            "last_query": 31
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "301aa948dab01c500453663c1fb02d04b2ef28c046bb1b53cf9a506a8d81e36c",
+            "rows": 8,
+            "bytes": 472950,
+            "first_query": 32,
+            "last_query": 39
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "b653582bb6f25298c4b6e7946748ed066afd4726a76bd4d9edbb60a3aeee091f",
+            "rows": 8,
+            "bytes": 477450,
+            "first_query": 40,
+            "last_query": 47
+          },
+          {
+            "path": "block_00004.npz",
+            "sha256": "86c08fd9b5d5433d24dd9cdc75fcbe042754bd72191b80550b5f43c170434f53",
+            "rows": 3,
+            "bytes": 191134,
+            "first_query": 48,
+            "last_query": 50
+          }
+        ],
+        "queries": 35,
+        "bytes": 2074942,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "mpc",
+      "start_query": 16,
+      "event_id": "7022f8a215773c4fab514e15",
+      "starts_after_main_complete": true,
+      "starts_after_c0": true,
+      "queries": 35,
+      "recovery_steps": 16,
+      "action_steps": 360,
+      "success": false,
+      "actual_model_queries": 35,
+      "initial_action_steps": 160,
+      "recovery_targets": [
+        [
+          0.04372145507764381,
+          -0.05836041561289117,
+          1.1984526725743068
+        ],
+        [
+          0.013672750681601571,
+          -0.031958230776797165,
+          1.1984526725743068
+        ]
+      ],
+      "controller_translation_scale": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "initial_eef": [
+        0.04372145507764381,
+        -0.05836041561289117,
+        1.1584526725743067
+      ],
+      "last_native_gripper": -1.0011558532714844,
+      "inference_seconds": 28.08560126274824,
+      "environment_seconds": 9.026097759604454,
+      "controller_seconds": 0.035139646381139755,
+      "optimizer_fallbacks": 0,
+      "initial_velocity_cm": [
+        0.624345530970053,
+        -0.3751119702084348,
+        -0.09662824061130282
+      ],
+      "dynamics_sha256": "53d1a371e3213494411d5cd10dafd9fca39d47100218081668e063c294c8b81e",
+      "after_recovery_eef": [
+        0.04606220887434572,
+        -0.05646671400687228,
+        1.1961774634875346
+      ],
+      "success_during_recovery": false,
+      "elapsed_seconds": 37.35918485932052,
+      "final_action_steps": 520,
+      "physical_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "ed89cded565228bf3bf5e9ebdb0ff6cc8b832ec1b41ccc1d3f3704a69a4b30df",
+            "rows": 8,
+            "bytes": 17349,
+            "first_query": 0,
+            "last_query": 7
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "2b0391cbee0639786753964e39cde8c6c416aaa79e872de9f35e9835f84a4d36",
+            "rows": 8,
+            "bytes": 17448,
+            "first_query": 8,
+            "last_query": 15
+          }
+        ],
+        "queries": 16,
+        "bytes": 34797,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      },
+      "suffix_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "dd338f3d3b393a585a7bcd9dfd3470e030e463c5942cfeff18ad1947b6e681f7",
+            "rows": 8,
+            "bytes": 463730,
+            "first_query": 16,
+            "last_query": 23
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "5587389cc74240f2fb0121094a7f059117672f4e6c86f1499eae92e79aa4d5d0",
+            "rows": 8,
+            "bytes": 469153,
+            "first_query": 24,
+            "last_query": 31
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "17e567cc4d9f4aa308f065c1fec5ddad70f2481dff5584915e1eae5ca06403eb",
+            "rows": 8,
+            "bytes": 473421,
+            "first_query": 32,
+            "last_query": 39
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "591c5914c6d1f15110213f6678525175dd2dfc0e2280c1dc9b8400584f6145ab",
+            "rows": 8,
+            "bytes": 475969,
+            "first_query": 40,
+            "last_query": 47
+          },
+          {
+            "path": "block_00004.npz",
+            "sha256": "ab46ca0bb385d74bd8c72aa231d4ef15bdcb1e324bf651ac192f88ed4161581a",
+            "rows": 3,
+            "bytes": 189236,
+            "first_query": 48,
+            "last_query": 50
+          }
+        ],
+        "queries": 35,
+        "bytes": 2071509,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "mpc_disturbance",
+      "start_query": 16,
+      "event_id": "7022f8a215773c4fab514e15",
+      "starts_after_main_complete": true,
+      "starts_after_c0": true,
+      "queries": 35,
+      "recovery_steps": 16,
+      "action_steps": 360,
+      "success": false,
+      "actual_model_queries": 35,
+      "initial_action_steps": 160,
+      "recovery_targets": [
+        [
+          0.04372145507764381,
+          -0.05836041561289117,
+          1.1984526725743068
+        ],
+        [
+          0.013672750681601571,
+          -0.031958230776797165,
+          1.1984526725743068
+        ]
+      ],
+      "controller_translation_scale": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "initial_eef": [
+        0.04372145507764381,
+        -0.05836041561289117,
+        1.1584526725743067
+      ],
+      "last_native_gripper": -1.0011558532714844,
+      "inference_seconds": 24.13274339772761,
+      "environment_seconds": 8.167162304744124,
+      "controller_seconds": 0.035310547798871994,
+      "optimizer_fallbacks": 0,
+      "initial_velocity_cm": [
+        0.624345530970053,
+        -0.3751119702084348,
+        -0.09662824061130282
+      ],
+      "dynamics_sha256": "53d1a371e3213494411d5cd10dafd9fca39d47100218081668e063c294c8b81e",
+      "after_recovery_eef": [
+        0.04625445743985039,
+        -0.05540264227418129,
+        1.1943832926414146
+      ],
+      "success_during_recovery": false,
+      "elapsed_seconds": 32.54171225242317,
+      "final_action_steps": 520,
+      "physical_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "3c2d475fa29cbe9fef0297321edb3994f41dc5c7040232d699801c55c8bd998c",
+            "rows": 8,
+            "bytes": 17535,
+            "first_query": 0,
+            "last_query": 7
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "d4252c2f002119e23bacad4a6379d778c5955944e854173addb4705c79919ed0",
+            "rows": 8,
+            "bytes": 17640,
+            "first_query": 8,
+            "last_query": 15
+          }
+        ],
+        "queries": 16,
+        "bytes": 35175,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      },
+      "suffix_shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "c020acc1dadfdda9e3fcdc8a88b658c5f809c205a28abc6708169653ea4c0ba3",
+            "rows": 8,
+            "bytes": 463188,
+            "first_query": 16,
+            "last_query": 23
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "1a3a84711be979724769915cf1651df042f920f69778192abea5a616fe1ec19a",
+            "rows": 8,
+            "bytes": 470230,
+            "first_query": 24,
+            "last_query": 31
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "c63828c3ed7dbd21d5270edab57a88ed756554a30d0d0b720ca133c9fadf746e",
+            "rows": 8,
+            "bytes": 473533,
+            "first_query": 32,
+            "last_query": 39
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "7a9451cc5eac8c0b79c994a001f22f18b34e751e043aa3b5655ab9c6130f605e",
+            "rows": 8,
+            "bytes": 480227,
+            "first_query": 40,
+            "last_query": 47
+          },
+          {
+            "path": "block_00004.npz",
+            "sha256": "1b53560ff724b6281a25d609bf24799e23e41505d8e95adbc0deb4d7b8fe9cf8",
+            "rows": 3,
+            "bytes": 189691,
+            "first_query": 48,
+            "last_query": 50
+          }
+        ],
+        "queries": 35,
+        "bytes": 2076869,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    }
+  ],
+  "invalid_pair": false,
+  "actual_model_queries": 176,
+  "candidate_queries": 0,
+  "reused_candidate_queries": 0,
+  "environment_pid": 757364,
+  "worker_job_index": 1,
+  "first_alarms": {
+    "v7_frozen": 38,
+    "v8_frozen": 38,
+    "knn20": 37,
+    "knn_euclidean_OR_cosine": 37,
+    "behavior_stall": -1,
+    "random_time": 15
+  },
+  "native_success": false,
+  "rng_tape_sha256": "63c8606e5da1f561fdf75bbdc7eceecb085bc1be751915e6974df0af40dd6f71",
+  "all_native_suffixes_exact": true,
+  "dynamics_sha256": "53d1a371e3213494411d5cd10dafd9fca39d47100218081668e063c294c8b81e",
+  "elapsed_seconds": 199.9831853080541
+}

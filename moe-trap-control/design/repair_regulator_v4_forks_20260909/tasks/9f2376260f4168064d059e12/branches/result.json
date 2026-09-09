@@ -1,0 +1,1027 @@
+{
+  "status": "completed",
+  "protocol": "moe_control.repair_regulator.v3",
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "no switching: the VLA runs every chunk; a shared-control law edits each executed env step: u = (1 - a) u_VLA + a u_servo with a = 0 until the graspable-envelope gate blocks a closure (CLOSE commanded while neither the target (extent-based envelope) nor any other movable object (strict 0.07 m envelope) sits between the fingers: physical evidence of a phantom grasp; an already closed empty gripper counts the same way because the policy keeps commanding CLOSE); then a = 0.7 (alpha1 arms: 1.0) for 60 steps pulling the end effector above the nearest unsatisfied object; in hand the policy keeps authority unless the carry stalls 120 steps (pull toward the place point); OPEN executes only inside the goal region",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false,
+    "calibration": "closure envelope from 22 lifted closures in the v1 replays: horizontal <= 0.063 m, dz 0.00 to 0.10 m; gate uses max(0.07 m, object bounding radius + 0.02 m) and -0.03 to max(0.13 m, radius + 0.02 m) because handle grasps (moka pot) close farther from the body origin; a first always-on PI servo (kp 6, ki 0.3, u_max 0.5) was rejected in the smoke of 2026-09-09 because it edited every step and broke a success parent; gains fixed before the main run, not fitted to outcomes",
+    "fork_branches": "start at the v1 fork snapshots; twin = new_noise until the first modified env step",
+    "episodes": "full 520-step episodes from the parent's q0 snapshot: vla (replicate 0 must reproduce the parent bitwise), shared control always on, shared control engaged at the online kNN-20 first alarm",
+    "replay": "fork snapshots reused from the audited v1 run; no C0 replay"
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "supervisor": null,
+  "regulator": {
+    "law": "shared",
+    "alpha": 0.7,
+    "authority_steps": 60,
+    "kp_shared": 10.0,
+    "z_offset_m": 0.05,
+    "lifted_m": 0.02,
+    "carry_patience_steps": 120,
+    "close_gate_xy_m": 0.07,
+    "close_gate_dz_min_m": -0.03,
+    "close_gate_dz_max_m": 0.13,
+    "close_gate_extent_margin_m": 0.02,
+    "fully_closed_m": 0.012,
+    "stall_far_m": 0.15,
+    "stall_steps": 120,
+    "carry_fast_patience_steps": 60,
+    "release_margin_z_fast_m": 0.05,
+    "close_assist_xy_m": 0.03,
+    "close_assist_dz_max_m": 0.1,
+    "close_assist_steps": 20,
+    "close_assist_hold_steps": 10,
+    "release_margin_xy_m": 0.02,
+    "release_margin_z_m": 0.1,
+    "body_region_radius_m": 0.06,
+    "body_region_height_m": 0.08
+  },
+  "main_id": "9f2376260f4168064d059e12",
+  "job_kind": "branches",
+  "variant": {
+    "benchmark": "plus",
+    "suite": "libero_10",
+    "registry": "libero_10",
+    "registry_index": 514,
+    "classification_id": 515,
+    "task_name": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy_view_0_0_100_0_0_initstate_376",
+    "base_task": "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy",
+    "category": "Robot Initial States",
+    "difficulty": 3,
+    "base_task_fold": 3,
+    "horizon_steps": 520,
+    "variant_id": "69331391dda5df78f2d23fcb"
+  },
+  "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/9f2376260f4168064d059e12",
+  "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+  "parent_manifest_sha256": "65629d1fdfbc01790000fdd4d3ffd148f9269a76b88d08d9f49eb9e821aeda39",
+  "model": "long",
+  "model_metadata": {
+    "protocol": "himoe-libero-v1",
+    "protocol_version": 2,
+    "backend": "himoe-vla-libero-long",
+    "observation": {
+      "observation/image": [
+        224,
+        224,
+        3
+      ],
+      "observation/wrist_image": [
+        224,
+        224,
+        3
+      ],
+      "observation/state": [
+        8
+      ],
+      "prompt": "non-empty string",
+      "flow/noise": {
+        "shape": [
+          10,
+          24
+        ],
+        "optional": true
+      },
+      "routing/capture": {
+        "type": "bool",
+        "optional": true
+      }
+    },
+    "action": {
+      "actions": [
+        10,
+        7
+      ]
+    },
+    "flow_noise_ack": {
+      "key": "flow/noise_sha256",
+      "format": "sha256-f32-c-v1"
+    },
+    "routing": {
+      "optional": true,
+      "routing/expert_ids": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/expert_weights": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/layer_indices": [
+        8
+      ],
+      "routed_experts": 32,
+      "top_k": 4
+    },
+    "suite": "long",
+    "benchmark": "libero_10",
+    "train_config": "libero_10_no_noops_lerobot_finetune",
+    "dataset_config": "libero_10_no_noops_lerobot",
+    "normalization_asset": "libero_10_no_noops",
+    "checkpoint": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10",
+    "checkpoint_bytes": 8138322389,
+    "checkpoint_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256",
+    "flow_steps": 10,
+    "predicted_action_steps": 10,
+    "internal_action_dim": 24,
+    "normalization_stats_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/libero_10_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "71d6971888eddec4febec09f696bddbbba6f0007d7a32b41027d8db6d677abe0",
+    "normalization_stats_loaded": true,
+    "normalization_action_std": [
+      0.28262342306725324,
+      0.35866097261853397,
+      0.36932027826898967,
+      0.03787003293268508,
+      0.054570646977803616,
+      0.08749407288353883,
+      0.9963353419534117
+    ],
+    "libero_wrist_layout": "checkpoint-right",
+    "libero_wrist_layout_transform_anchor": "DropStateAndImage",
+    "cuda_visible_devices": "GPU-edb83895-466c-d978-5d20-e647e8f6bee6",
+    "routing_capture_supported": true,
+    "routing_hb_layer_indices": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "routing_experts": 32,
+    "routing_top_k": 4,
+    "himoe_upstream_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "himoe_patch_sha256": {
+      "himoe-fixed-noise.patch": "d4275c5908353c6a59c178eb25dd53861455892effa41c63202c4e09239dba56",
+      "himoe-runtime.patch": "6a37331c4a09402ee4f1f323055e90c51290584148732cb272a584e1dec05428",
+      "himoe-transformers-cache.patch": "4972e8ae67cb5ee696fb28811b8f70f234966e013a8c5ec664d70e20bb607463"
+    },
+    "himoe_patches_verified_applied": true,
+    "himoe_working_tree_dirty": true,
+    "himoe_working_tree_diff_sha256": "edf3a0f702d99fa6496ef3a5c3c1812eb97dbe3609b9d09616e727a3ad6abd2c",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_memory_allocated_bytes": 18413647360,
+    "checkpoint_load_audit": {
+      "mode": "torch_mmap_meta_assign",
+      "checkpoint_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/pytorch_model.pth",
+      "upstream_root": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA",
+      "train_config": "libero_10_no_noops_lerobot_finetune",
+      "target_device": "cuda:0",
+      "mmap": true,
+      "assign": true,
+      "strict": true,
+      "state_key_count": 1581,
+      "logical_tensor_bytes": 9191385168,
+      "target_tensor_bytes": 18382770336,
+      "staged_tensor_count": 1581,
+      "staging_chunk_bytes": 67108864,
+      "chunked_tensor_count": 2,
+      "staging_copy_count": 1643,
+      "aliased_tensor_count": 1581,
+      "reconstructed_nonpersistent_buffers": [
+        "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.vision_tower.vision_model.embeddings.position_ids"
+      ]
+    },
+    "bundle_schema": "himoe-vla-five-model-gpu-bundle/v1",
+    "bundle_model": "long",
+    "bundle_physical_gpu": 5,
+    "bundle_logical_gpu": 0,
+    "bundle_port": 9108,
+    "bundle_process_pid": 1094281,
+    "isolated_process": true,
+    "isolated_models": [
+      "long"
+    ],
+    "isolated_gpu_uuid": "GPU-edb83895-466c-d978-5d20-e647e8f6bee6",
+    "cuda_memory_limit_mib": null,
+    "replica_index": 1,
+    "weights_owner_pid": 1094197,
+    "shared_cuda_parameters": true,
+    "cuda_mps_pipe_directory": "/tmp/moe-control-mps-2nho252a",
+    "collection_full_hb_supported": true,
+    "collection_hidden_capture": false,
+    "collection_routing_mode": "request_scoped",
+    "collection_batch_size": 1,
+    "collection_full_as_supported": true,
+    "collection_as_layers": [
+      0,
+      1,
+      16,
+      17
+    ],
+    "collection_interventions": [
+      "native",
+      "swap1_near"
+    ],
+    "collection_probability_axes": [
+      "layer",
+      "denoise",
+      "suffix_token",
+      "expert"
+    ],
+    "collection_hb_layers": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "server_instance_id": "10ab79bb8f4f42cd8e1e98fec6a5c5e0",
+    "server_pid": 1094281,
+    "server_started_unix_ns": 1788939937740505186
+  },
+  "gpu": 5,
+  "render_gpu": 5,
+  "egl_device_uuid": "GPU-edb83895-466c-d978-5d20-e647e8f6bee6",
+  "seed": 2214951692,
+  "init_index": 0,
+  "hidden_capture": false,
+  "main_intervention": false,
+  "main_complete": true,
+  "reused_main": true,
+  "queries": 0,
+  "action_steps": 520,
+  "success": false,
+  "first_alarm_query": null,
+  "first_knn_alarm": 35,
+  "analysis_role": "perturbation",
+  "failed": true,
+  "c0": {
+    "status": "passed",
+    "compared_queries": 0,
+    "replay_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908/tasks/9f2376260f4168064d059e12/replay",
+    "replay_result_sha256": "f9be02ad09283ae29d7b6b8662a6e33624632d78d6094153bd46a4e1f9e4195d",
+    "replay_branch_sha256": "379e19b1bccde0fec2370b0e7df1f31c547c8bdd6f393da98532d72a9c404d93"
+  },
+  "events": [
+    {
+      "event_id": "2279adfeb1471ee1fc130c2b",
+      "timing": "mid",
+      "start_query": 36,
+      "alarm_query": 35,
+      "deployable": true,
+      "snapshot_manifest_sha256": "33853225f3c5b9413430398ef95cf5041958bb0c5b76d5cb5f1d0fb9e516846d",
+      "action_steps_before": 360,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "physics_sha256": "0eed9e6b9a3d459bd60ec00e885fbe110cde8cc4f9b560e254e8d4e546811302"
+    },
+    {
+      "event_id": "f599c5b2e3d6d615f1b84430",
+      "timing": "late",
+      "start_query": 44,
+      "alarm_query": 35,
+      "deployable": false,
+      "snapshot_manifest_sha256": "1fb3d5616efc7f85f910868514b57a5a17831db3756a9e358e28b4c709d359dd",
+      "action_steps_before": 440,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "physics_sha256": "ada9918550343f5aa37eeac7e8a006cb4690716b118ca22d5b89832f7c97d4c9"
+    }
+  ],
+  "branches": [
+    {
+      "status": "completed",
+      "arm": "vla_fork",
+      "control": {
+        "features": []
+      },
+      "replicate": 2,
+      "event_id": "2279adfeb1471ee1fc130c2b",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 36,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "33853225f3c5b9413430398ef95cf5041958bb0c5b76d5cb5f1d0fb9e516846d",
+      "fork_action_steps": 360,
+      "original_remaining_steps": 160,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": null,
+      "features": [],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 0,
+      "gate_close_steps": 0,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "8ef19f2645ad29a39ce78d9067dd0156ecddcb8b4562e91bcc62e5db0644f4d8",
+            "rows": 8,
+            "bytes": 497297,
+            "first_query": 36,
+            "last_query": 43
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "4ce5b45cfc4227be6b64b6627cc5d62f9a3802765b69c1d66d7be1e850ed0f83",
+            "rows": 8,
+            "bytes": 494048,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "c3f6fd03c7ee3e6ba47ab89e13837c8a41bbde22d524d1ea4b6b039539bfa670",
+            "rows": 8,
+            "bytes": 493802,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "fbda1627cf3b7f32ac346e70ee9483259c0bfef8f54fa41fe6bf5b0f6f5b61c9",
+            "rows": 6,
+            "bytes": 373091,
+            "first_query": 60,
+            "last_query": 65
+          }
+        ],
+        "queries": 30,
+        "bytes": 1858238,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full_z10",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 2,
+      "event_id": "2279adfeb1471ee1fc130c2b",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 36,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "33853225f3c5b9413430398ef95cf5041958bb0c5b76d5cb5f1d0fb9e516846d",
+      "fork_action_steps": 360,
+      "original_remaining_steps": 160,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 183,
+      "gate_close_steps": 44,
+      "gate_open_steps": 0,
+      "servo_effort": 98.4435877352953,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "fda04e38ccaf8660425bc4cedbc33d6ab75f184a903230fe574ee8580a9873f6",
+            "rows": 8,
+            "bytes": 498167,
+            "first_query": 36,
+            "last_query": 43
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "e12c04f7fe1cfe544693add1dcfc4ea7653e83c7584a187322ca886525ed2a35",
+            "rows": 8,
+            "bytes": 486728,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "2f9ac03659eae83f8d3b7363ac400a43094000d30eaa5aef174bdcc9b051b7c1",
+            "rows": 8,
+            "bytes": 482848,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "bc887b0f5d4b1af5ee294eafd3eb37d1cbee9a95ab218d5d17f6bd4939d7fbe4",
+            "rows": 6,
+            "bytes": 377475,
+            "first_query": 60,
+            "last_query": 65
+          }
+        ],
+        "queries": 30,
+        "bytes": 1845218,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_v4a",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate",
+          "stall",
+          "hold_gate",
+          "carry_fast"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 2,
+      "event_id": "2279adfeb1471ee1fc130c2b",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 36,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "33853225f3c5b9413430398ef95cf5041958bb0c5b76d5cb5f1d0fb9e516846d",
+      "fork_action_steps": 360,
+      "original_remaining_steps": 160,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate",
+        "stall",
+        "hold_gate",
+        "carry_fast"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 183,
+      "gate_close_steps": 44,
+      "gate_open_steps": 0,
+      "servo_effort": 98.4435877352953,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "a8c03afce66fe1bb05a0244d2e59814ce1e406b0171bb08a24c895c552e07d8f",
+            "rows": 8,
+            "bytes": 498170,
+            "first_query": 36,
+            "last_query": 43
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "3c677619b17e88055c97da8591b3b8bd788720c68aab4f63c045e21a292d2af3",
+            "rows": 8,
+            "bytes": 486729,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "33a5b41c37175ae45ed2872ca99821dee8168acadb1d5aaf1629a0c43a51c699",
+            "rows": 8,
+            "bytes": 482847,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "00c9d806e4e283e38a6df6c2293471ca6568cedcf6ec380efc989006197e1187",
+            "rows": 6,
+            "bytes": 377474,
+            "first_query": 60,
+            "last_query": 65
+          }
+        ],
+        "queries": 30,
+        "bytes": 1845220,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_v4b",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate",
+          "stall",
+          "hold_gate",
+          "carry_fast",
+          "close_assist"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 2,
+      "event_id": "2279adfeb1471ee1fc130c2b",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 36,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "33853225f3c5b9413430398ef95cf5041958bb0c5b76d5cb5f1d0fb9e516846d",
+      "fork_action_steps": 360,
+      "original_remaining_steps": 160,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate",
+        "stall",
+        "hold_gate",
+        "carry_fast",
+        "close_assist"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 183,
+      "gate_close_steps": 44,
+      "gate_open_steps": 0,
+      "servo_effort": 98.4435877352953,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "a2b413404770b105c93c0b66e5fcc75af57d444c4baf48fe01f06acac1962b96",
+            "rows": 8,
+            "bytes": 498168,
+            "first_query": 36,
+            "last_query": 43
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "1eebeda94a76f29ec06e02068830226fb4eb6643db173144e355ab790e975be2",
+            "rows": 8,
+            "bytes": 486727,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "7fabbb18fef0eaa579281f5b03581f33cb43a3498f0783d1820e8192307f7a3c",
+            "rows": 8,
+            "bytes": 482845,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "28b1dfcc08b4618e156669402f8ceb4553f1a6805c804f9051617a2f33e49be1",
+            "rows": 6,
+            "bytes": 377472,
+            "first_query": 60,
+            "last_query": 65
+          }
+        ],
+        "queries": 30,
+        "bytes": 1845212,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "vla_fork",
+      "control": {
+        "features": []
+      },
+      "replicate": 2,
+      "event_id": "f599c5b2e3d6d615f1b84430",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "1fb3d5616efc7f85f910868514b57a5a17831db3756a9e358e28b4c709d359dd",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": null,
+      "features": [],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 0,
+      "gate_close_steps": 0,
+      "gate_open_steps": 0,
+      "servo_effort": 0.0,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "679c384ddbf08c5b395a60c95a7bc7007074da2e118008c9ff6ea294348431f1",
+            "rows": 8,
+            "bytes": 495180,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "935dff4c8425e9069d60705b5a620f59fc7345e2a5c65320d2003b6d9d2a5bcd",
+            "rows": 8,
+            "bytes": 493440,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "4e61d062626f4e0cbff39f91c77215d740513955e41690696c325ea17f66f85f",
+            "rows": 8,
+            "bytes": 495077,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "f787a43c087fefac40ef51486a9e27875590f9c5371e4a56a450bf7b719f78be",
+            "rows": 6,
+            "bytes": 373839,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1857536,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full_z10",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 2,
+      "event_id": "f599c5b2e3d6d615f1b84430",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "1fb3d5616efc7f85f910868514b57a5a17831db3756a9e358e28b4c709d359dd",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 171,
+      "gate_close_steps": 55,
+      "gate_open_steps": 0,
+      "servo_effort": 112.29188251495361,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "abee1d7f7ba5d898d9f0d6a8e9649eb1344d8bb9e65cbd35a2ee3b18c35c8143",
+            "rows": 8,
+            "bytes": 500396,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "d187495160cab3614c5ce9ffee2f4cd04e52f72b17c76c5f8555b8cb40a1bea9",
+            "rows": 8,
+            "bytes": 492277,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "dd73e2fae6cf7e472f9b83aafbf42d335fef2c0bef9b74cc697bf44841156820",
+            "rows": 8,
+            "bytes": 481230,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "1d4a75d5c7c9f4749875caadb5da8004381ff0f34fddc3cb0839d7553a1420b9",
+            "rows": 6,
+            "bytes": 367939,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1841842,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_v4a",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate",
+          "stall",
+          "hold_gate",
+          "carry_fast"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 2,
+      "event_id": "f599c5b2e3d6d615f1b84430",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "1fb3d5616efc7f85f910868514b57a5a17831db3756a9e358e28b4c709d359dd",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate",
+        "stall",
+        "hold_gate",
+        "carry_fast"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 171,
+      "gate_close_steps": 55,
+      "gate_open_steps": 0,
+      "servo_effort": 112.29188251495361,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "ea88f2cfef8e0c61330ec7e861fb02172c048b604c753ce1e29baac02ea40d8e",
+            "rows": 8,
+            "bytes": 500396,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "eb9e63dc13f411bc490d14f900a967c2ed1ed1dc3055f8f34e6e60534cda7240",
+            "rows": 8,
+            "bytes": 492275,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "361cc99f676b1673863e4625f166e6b44dadbd2c093db5e3ea4963079a3d7fbd",
+            "rows": 8,
+            "bytes": 481235,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "783f0942ea68178a32f2ee806dd1602d8d17cf7abfdffde4144eb5b62b559035",
+            "rows": 6,
+            "bytes": 367935,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1841841,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_v4b",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate",
+          "stall",
+          "hold_gate",
+          "carry_fast",
+          "close_assist"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 2,
+      "event_id": "f599c5b2e3d6d615f1b84430",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "black_book_1",
+      "parent_main_id": "9f2376260f4168064d059e12",
+      "parent_commit_sha256": "e36f4f4dee71cd334246eefd7ffe9bee34a50ffc4b9103263a165b698055a537",
+      "snapshot_manifest_sha256": "1fb3d5616efc7f85f910868514b57a5a17831db3756a9e358e28b4c709d359dd",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": null,
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate",
+        "stall",
+        "hold_gate",
+        "carry_fast",
+        "close_assist"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 171,
+      "gate_close_steps": 55,
+      "gate_open_steps": 0,
+      "servo_effort": 112.29188251495361,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "3a9df48b02e2933d98120373af5e18f43a1f364c76585f513c7da21c6f297f6f",
+            "rows": 8,
+            "bytes": 500394,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "439924b7b4e0f9093e1100d6e798197874244f8b4050db272f7c43de158f5502",
+            "rows": 8,
+            "bytes": 492275,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "86ee91bea8981aa2d781134602ad0a46463a757d2ddf57a431a97b286b722fd9",
+            "rows": 8,
+            "bytes": 481226,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "6d8f86bf6ee657e730c48360a7a05ee42730fae47c6bd0aad593693e4869ec0f",
+            "rows": 6,
+            "bytes": 367939,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1841834,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    }
+  ],
+  "invalid_pair": false,
+  "actual_model_queries": 240,
+  "candidate_queries": 0,
+  "reused_candidate_queries": 0,
+  "environment_pid": 1094552,
+  "worker_job_index": 2,
+  "elapsed_seconds": 278.0957249235362
+}

@@ -1,0 +1,279 @@
+{
+  "protocol": "moe_control.route_recovery.v1",
+  "model": "long",
+  "stage": "smoke",
+  "arms": [
+    "candidate0",
+    "candidate1",
+    "candidate2",
+    "candidate3",
+    "short2_once",
+    "short2_5",
+    "short5_5",
+    "short2_20",
+    "center5_5",
+    "edge5_5",
+    "knn5_5",
+    "guarded_knn5_5"
+  ],
+  "arms_registry": {
+    "candidate0": {
+      "selector": "fixed",
+      "candidate": 0,
+      "chunk": 10,
+      "duration": 1
+    },
+    "candidate1": {
+      "selector": "fixed",
+      "candidate": 1,
+      "chunk": 10,
+      "duration": 1
+    },
+    "candidate2": {
+      "selector": "fixed",
+      "candidate": 2,
+      "chunk": 10,
+      "duration": 1
+    },
+    "candidate3": {
+      "selector": "fixed",
+      "candidate": 3,
+      "chunk": 10,
+      "duration": 1
+    },
+    "short2_once": {
+      "selector": "fixed",
+      "candidate": 0,
+      "chunk": 2,
+      "duration": 1
+    },
+    "short2_5": {
+      "selector": "fixed",
+      "candidate": 0,
+      "chunk": 2,
+      "duration": 5
+    },
+    "short5_5": {
+      "selector": "fixed",
+      "candidate": 0,
+      "chunk": 5,
+      "duration": 5
+    },
+    "short2_20": {
+      "selector": "fixed",
+      "candidate": 0,
+      "chunk": 2,
+      "duration": 20
+    },
+    "center5_5": {
+      "selector": "center",
+      "candidate": 0,
+      "chunk": 5,
+      "duration": 5
+    },
+    "edge5_5": {
+      "selector": "edge",
+      "candidate": 0,
+      "chunk": 5,
+      "duration": 5
+    },
+    "knn5_5": {
+      "selector": "knn",
+      "candidate": 0,
+      "chunk": 5,
+      "duration": 5
+    },
+    "guarded_knn5_5": {
+      "selector": "guarded_knn",
+      "candidate": 0,
+      "chunk": 5,
+      "duration": 5
+    }
+  },
+  "replicates": 2,
+  "candidates": 4,
+  "diagnostic": true,
+  "contract": {
+    "alarm": "unchanged global Euclidean kNN-20; first q>=7 with distance > frozen threshold",
+    "causal_timing": "q+1, after executing the native alarm query",
+    "diagnostic_timing": "max(0,q-5); retrospectively placed, never a deployable trigger",
+    "candidate_pool": "four iid N(0,1) [10,24] arrays, batch=1, all full forwards counted",
+    "ranking": "same-observation candidates only; no suffix, outcome, task identity or simulator progress",
+    "knn": "minimum frozen 10D successful-reference distance; relative ranking after shortened chunks is not calibrated failure probability",
+    "guard": "candidate 0 is always eligible; same first gripper sign and live-action RMS <= pool median relative to candidate 0",
+    "center_edge": "mean pairwise Hellinger on HB back four layers, first three flow steps, action tokens",
+    "recovery": "fixed finite query burst, then native chunk=10 and one random candidate",
+    "random_stream": "policy paired by branch-relative query across times/arms; environment paired by absolute action step",
+    "restore": "complete exact C0 before any branch; main committed before replay",
+    "labels": "all four first candidates receive complete suffix labels; oracle is diagnostic only",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false
+  },
+  "selection": "fixed hash within benchmark/category; development conditions on an eligible alarm, never on outcome; validation includes unalarmed parents",
+  "selection_record": null,
+  "parent_audit": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_audit_20260908.json",
+  "alarm_table": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_alarm_comparison_20260908/first_alarms.csv",
+  "alarm_verification": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_alarm_comparison_20260908/verification.json",
+  "alarm_contract": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_alarm_comparison_20260908/contract.json",
+  "source_sha256": {
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_audit_20260908.json": "b59ffadba5a508989993a7dddc728e1dd2e0ef3ed4d09405e0fa48153feebff6",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_alarm_comparison_20260908/first_alarms.csv": "3a4e5b90f52cc1cf5f411b6130c7402f27a39e4b63a1b7ce6538547d73466dd0",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_alarm_comparison_20260908/verification.json": "a5fb01ff8c1b434b0f6762706675b60a62d7733df83ece2d14bd9d067a537bc1",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_alarm_comparison_20260908/contract.json": "8d340b19b635a3f8721b50c7bfe30c31c13e7c91c91e2950c743e1cd2f99c6bb",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/frozen_alarm_comparison_20260908/profiles/global_reference.npz": "e8076c132610be0288c0d7435902c1238751c17bf1fcc1dfb6991aa97350b581",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/design/frozen_alarm_comparison_20260908/profiles/parameters.json": "f4e65d359411309756b008423d14d8f3e5d6bf604ee71b63ae8a7e510c5f8216",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/adaptive_control.py": "8de726f35fa6259b4bb17bee0fd6cd9ed885498c06ccb66d32f33b38271a4d1c",
+    "/home/jovyan/work/himoe-vla/moe-trap-control/prepare_adaptive_control.py": "335583ea20ab800aadeb197c5fa751a549666111744705ce9f81823dbe48c857"
+  },
+  "frozen_parameters_sha256": "f4e65d359411309756b008423d14d8f3e5d6bf604ee71b63ae8a7e510c5f8216",
+  "tasks": [
+    {
+      "main_id": "7439f716b39583c51883cb66",
+      "variant_id": "139559343fe821cb5af0d9f9",
+      "benchmark": "plus",
+      "category": "Background Textures",
+      "analysis_role": "perturbation",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/7439f716b39583c51883cb66",
+      "parent_queries": 52,
+      "parent_commit_sha256": "c68138be1495b04382321901c05c92074d3e998e2a24241415b9f5739367c805",
+      "parent_manifest_sha256": "2b134d4785103de6384f20270547998d7c4fb71a163cff26548c524aa6945bbc",
+      "noise_seed": 875303799,
+      "init_index": 0,
+      "first_alarm": 25,
+      "events": [
+        {
+          "event_id": "44b60fb041b6e69dff0de58f",
+          "timing": "after_alarm",
+          "start_query": 26,
+          "alarm_query": 25,
+          "deployable": true
+        },
+        {
+          "event_id": "63a49b3350103f8824046848",
+          "timing": "before_alarm_diagnostic",
+          "start_query": 20,
+          "alarm_query": 25,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 13262848
+    },
+    {
+      "main_id": "1f824f3c7973780f3b2341aa",
+      "variant_id": "9ff933a542f7075f98dee3f4",
+      "benchmark": "plus",
+      "category": "Background Textures",
+      "analysis_role": "perturbation",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/1f824f3c7973780f3b2341aa",
+      "parent_queries": 26,
+      "parent_commit_sha256": "5461f38c25a281d698ec73d2bac989a18c47d2e4b94a4ca9667247e89a5580f0",
+      "parent_manifest_sha256": "c51e1a5cac1acdfc59234f945707cb0f07ef958d7f9d4a6ce9318129198e5e28",
+      "noise_seed": 664013779,
+      "init_index": 0,
+      "first_alarm": 24,
+      "events": [
+        {
+          "event_id": "a8366fd7f01c832892b5cef1",
+          "timing": "after_alarm",
+          "start_query": 25,
+          "alarm_query": 24,
+          "deployable": true
+        },
+        {
+          "event_id": "99d21f748e63073a895052f4",
+          "timing": "before_alarm_diagnostic",
+          "start_query": 19,
+          "alarm_query": 24,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 8204288
+    },
+    {
+      "main_id": "85533a0031e41f76bca7ccab",
+      "variant_id": "4688a1109fdebb822fb8685e",
+      "benchmark": "pro",
+      "category": "Environment",
+      "analysis_role": "unchanged_scene_control",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/85533a0031e41f76bca7ccab",
+      "parent_queries": 52,
+      "parent_commit_sha256": "87207151793fb542c9da64d900f53c1aad352b5a9261f8b5ca62e09b3046c3fa",
+      "parent_manifest_sha256": "dac767970a3b3cac166c9ca5cb787c171d2591ca3cc9af9acf20314f09c57297",
+      "noise_seed": 3497542573,
+      "init_index": 0,
+      "first_alarm": 40,
+      "events": [
+        {
+          "event_id": "397c0de648e152a6a7fa613b",
+          "timing": "after_alarm",
+          "start_query": 41,
+          "alarm_query": 40,
+          "deployable": true
+        },
+        {
+          "event_id": "70483dc77641fed07404c16d",
+          "timing": "before_alarm_diagnostic",
+          "start_query": 35,
+          "alarm_query": 40,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 13262848
+    },
+    {
+      "main_id": "52507fbcd264c9821c29e4c6",
+      "variant_id": "c20c0890d46d4947f1da50e7",
+      "benchmark": "pro",
+      "category": "Task",
+      "analysis_role": "perturbation",
+      "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_batch1_20260908/tasks/52507fbcd264c9821c29e4c6",
+      "parent_queries": 52,
+      "parent_commit_sha256": "b88efd45a30fb9edbd2094f9a0cc817db3e6eb086b1e033553a938c05a74bba7",
+      "parent_manifest_sha256": "97306b2d09c3eda3b5b206bb2e4e0a1709c86d4420af80a090ab75a906f2ec98",
+      "noise_seed": 4040335425,
+      "init_index": 0,
+      "first_alarm": 32,
+      "events": [
+        {
+          "event_id": "eada4d47bbe48646032d514b",
+          "timing": "after_alarm",
+          "start_query": 33,
+          "alarm_query": 32,
+          "deployable": true
+        },
+        {
+          "event_id": "4a031107e3e98f41491fec59",
+          "timing": "before_alarm_diagnostic",
+          "start_query": 27,
+          "alarm_query": 32,
+          "deployable": false
+        }
+      ],
+      "max_output_bytes": 13262848
+    }
+  ],
+  "allowed_gpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "render_gpus": [
+    0,
+    3
+  ],
+  "replicas_per_gpu": 4,
+  "workers_per_gpu": 4,
+  "mps": true,
+  "parameter_fitting": false,
+  "repeated_parents_not_new_coverage": true,
+  "benchmark_counts": {
+    "plus": 2,
+    "pro": 2
+  },
+  "event_states": 8,
+  "maximum_output_bytes": 1242681344,
+  "storage_quota_gib": 14,
+  "disk_floor_gib": 8
+}

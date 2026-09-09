@@ -1,0 +1,85 @@
+{
+  "schema": "moe_control.design.v1",
+  "status": "design_only_not_a_runnable_collector_config",
+  "runtime": {
+    "allowed_physical_gpus": [0, 1, 2, 3, 4, 5, 7],
+    "excluded_physical_gpus": [6],
+    "reuse_preloaded_matrix": true,
+    "matrix_gpu_order": [0, 1, 2, 3, 4, 5, 7],
+    "physical_to_logical": {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "7": 6},
+    "libero_endpoint_port": "8800 + 10 * physical_gpu + model_offset",
+    "model_offsets": {"goal": 0, "spatial": 1, "object": 2, "long": 3},
+    "render_gpu_selection": "explicit physical/EGL device mapping; never choose physical GPU 6",
+    "note": "Logical cuda:6 inside this matrix is physical GPU 7. Standalone --gpu arguments may instead mean physical GPU and must be checked."
+  },
+  "alarm": {
+    "name": "IntrinsicGuardMonitor_v7",
+    "profile_sha256": "a92c9d1103487ddf62e4b369c7f23b6637127730dffa8780f54423cf580e3054",
+    "calibrate_on_pro_or_plus": false,
+    "primary_event": "first false-to-true transition per main trajectory",
+    "shadow_detector": "history-only K=4, optional"
+  },
+  "main": {
+    "intervention": "none",
+    "action_chunk_steps": 10,
+    "snapshot_boundary": "before inference at the alarm query; before its actions execute",
+    "branch_eligibility": "only after main terminal record is durable",
+    "select_using_final_success": false,
+    "snapshot_dtype": "float64",
+    "capture_hidden": false,
+    "per_step_rgb_or_video": false
+  },
+  "arms": [
+    {"id": "C0", "name": "same_noise_replay", "replicates": 1, "routing": "native", "noise": "exact main continuation"},
+    {"id": "C1", "name": "noise_only", "replicates": 4, "routing": "native", "noise": "paired fresh stream per replicate"},
+    {
+      "id": "T1", "name": "noise_plus_swap1_near", "replicates": 4,
+      "noise": "same fresh stream as C1 for that replicate",
+      "layers": [12, 13, 14, 15], "suffix_tokens": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      "denoise_iterations": "all 10, first query only",
+      "replacement": "lowest-probability member of returned native top-4 -> highest-probability unselected expert",
+      "tie_break": "lowest expert id",
+      "effective_combine_weights": "preserve the native returned slot weights exactly",
+      "after_first_query": "native routing; no second intervention"
+    }
+  ],
+  "branch": {
+    "max_expanded_events_per_main": 1,
+    "remaining_environment_steps": "suite_horizon - executed_main_steps_before_alarm",
+    "noise_common_random_numbers": true,
+    "same_snapshot_for_all_arms": true,
+    "parent_prefix": "main queries [0, alarm_query); current query recomputed in suffix",
+    "branch_descendants": false,
+    "fidelity_failure": "retain data with invalid_pair flag; report counts; do not silently count as success or policy failure"
+  },
+  "storage": {
+    "queries_per_block": 8,
+    "pending_blocks_per_worker": 2,
+    "full_router_probabilities": "all main and collected suffix queries, float16",
+    "record_native_and_effective_routes": true,
+    "record_actual_returned_combine_weights": true,
+    "snapshot_policy": "one durable primary alarm snapshot; ephemeral pre-inference snapshot overwritten otherwise",
+    "atomic_commit": "temporary shard -> checksum validation -> rename -> manifest entry",
+    "planned_data_quota_gib": 25,
+    "actual_quota": "min(planned quota, available after assets minus 5 GiB)"
+  },
+  "sampling": {
+    "screen": {"pro_main": 1000, "plus_main": 2800, "expand": "all first alarms"},
+    "coverage_alternative": {"pro_main": 4000, "plus_main": 10030, "expand_alarm_states_per_benchmark": 300},
+    "budget_warning": "Screen all-alarm and capped coverage are alternative branch budgets. Previously executed screen branches cannot be removed from the cumulative coverage budget.",
+    "plus_trials_per_variant": 1,
+    "pro_initial_indices": "screen 0..4; expansion 0..9; must validate availability before collection",
+    "pro_noise_repeats": "screen 1; expansion 2",
+    "official_task_order_index": 0,
+    "cross_benchmark_base_task_fold": "same original task uses same fold in both benchmarks"
+  },
+  "preflight_required": [
+    "task BDDL/init/assets hashes and lengths",
+    "per-suite checkpoint, action normalization and observation mapping",
+    "restoration in a fresh simulator after original main has terminated",
+    "sensor-noise and camera/light/object perturbation restoration",
+    "C0 trace and final-outcome agreement",
+    "actual intervention and combine-weight capture",
+    "measured aggregate throughput, allocated bytes, snapshot size and alarm fraction"
+  ]
+}

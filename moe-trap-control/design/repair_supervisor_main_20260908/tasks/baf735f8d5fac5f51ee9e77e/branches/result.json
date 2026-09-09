@@ -1,0 +1,1742 @@
+{
+  "status": "completed",
+  "protocol": "moe_control.repair_supervisor.v2",
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "supervisory switching {VLA, RETRACT, PLACE}; physical guards evaluated every env step, switches at chunk boundaries; at most 3 interventions per suffix; no model call inside a primitive",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false,
+    "guards": "G0 veto: target lifted >= 0.02 m at the fork -> no first-stage repair; in-hand := closed aperture, target lifted >= 0.02 m above rest, within 0.20 m of the eef and moving with it; G2 phantom: closed aperture, target not in hand and unmoved since closure, eef departed >= 0.05 m or closure held >= 40 steps -> RETRACT above target, 0.05 m higher at each repeat; G3 carry: target in hand >= 120 consecutive steps without a goal predicate turning true -> PLACE: rise, transfer above the goal region, descend until contact, release, retreat; every primitive is cut at the 300-step window",
+    "first_stage": "identical to retract_above_target of moe_control.repair_recovery.v1 (same fork snapshot, same noise streams) so every branch is paired with its v1 twin up to the first extra intervention",
+    "replay": "fork snapshots and fork physics reused from the audited v1 run; no C0 replay"
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "supervisor": {
+    "max_interventions": 3,
+    "lifted_m": 0.02,
+    "phantom_departure_m": 0.05,
+    "phantom_hold_steps": 40,
+    "phantom_moved_m": 0.01,
+    "phantom_escalation_m": 0.05,
+    "carry_patience_steps": 120,
+    "place_height_m": 0.15,
+    "place_clearance_m": 0.02,
+    "place_rise_m": 0.08,
+    "place_rise_chunks": 3,
+    "place_transfer_chunks": 6,
+    "place_lower_chunks": 4,
+    "place_retreat_chunks": 2,
+    "place_tolerance_m": 0.02
+  },
+  "main_id": "baf735f8d5fac5f51ee9e77e",
+  "job_kind": "branches",
+  "variant": {
+    "benchmark": "plus",
+    "suite": "libero_10",
+    "registry": "libero_10",
+    "registry_index": 698,
+    "classification_id": 699,
+    "task_name": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket_view_12_15_100_0_0_initstate_0",
+    "base_task": "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
+    "category": "Camera Viewpoints",
+    "difficulty": 2,
+    "base_task_fold": 4,
+    "horizon_steps": 520,
+    "variant_id": "66fdf556cb27a0bc0209109a"
+  },
+  "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/baf735f8d5fac5f51ee9e77e",
+  "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+  "parent_manifest_sha256": "404def966e010f5430eae53340faea31d75d48ef4d12800d63d7dd8cafb183f2",
+  "model": "long",
+  "model_metadata": {
+    "protocol": "himoe-libero-v1",
+    "protocol_version": 2,
+    "backend": "himoe-vla-libero-long",
+    "observation": {
+      "observation/image": [
+        224,
+        224,
+        3
+      ],
+      "observation/wrist_image": [
+        224,
+        224,
+        3
+      ],
+      "observation/state": [
+        8
+      ],
+      "prompt": "non-empty string",
+      "flow/noise": {
+        "shape": [
+          10,
+          24
+        ],
+        "optional": true
+      },
+      "routing/capture": {
+        "type": "bool",
+        "optional": true
+      }
+    },
+    "action": {
+      "actions": [
+        10,
+        7
+      ]
+    },
+    "flow_noise_ack": {
+      "key": "flow/noise_sha256",
+      "format": "sha256-f32-c-v1"
+    },
+    "routing": {
+      "optional": true,
+      "routing/expert_ids": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/expert_weights": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/layer_indices": [
+        8
+      ],
+      "routed_experts": 32,
+      "top_k": 4
+    },
+    "suite": "long",
+    "benchmark": "libero_10",
+    "train_config": "libero_10_no_noops_lerobot_finetune",
+    "dataset_config": "libero_10_no_noops_lerobot",
+    "normalization_asset": "libero_10_no_noops",
+    "checkpoint": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10",
+    "checkpoint_bytes": 8138322389,
+    "checkpoint_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256",
+    "flow_steps": 10,
+    "predicted_action_steps": 10,
+    "internal_action_dim": 24,
+    "normalization_stats_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/libero_10_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "71d6971888eddec4febec09f696bddbbba6f0007d7a32b41027d8db6d677abe0",
+    "normalization_stats_loaded": true,
+    "normalization_action_std": [
+      0.28262342306725324,
+      0.35866097261853397,
+      0.36932027826898967,
+      0.03787003293268508,
+      0.054570646977803616,
+      0.08749407288353883,
+      0.9963353419534117
+    ],
+    "libero_wrist_layout": "checkpoint-right",
+    "libero_wrist_layout_transform_anchor": "DropStateAndImage",
+    "cuda_visible_devices": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "routing_capture_supported": true,
+    "routing_hb_layer_indices": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "routing_experts": 32,
+    "routing_top_k": 4,
+    "himoe_upstream_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "himoe_patch_sha256": {
+      "himoe-fixed-noise.patch": "d4275c5908353c6a59c178eb25dd53861455892effa41c63202c4e09239dba56",
+      "himoe-runtime.patch": "6a37331c4a09402ee4f1f323055e90c51290584148732cb272a584e1dec05428",
+      "himoe-transformers-cache.patch": "4972e8ae67cb5ee696fb28811b8f70f234966e013a8c5ec664d70e20bb607463"
+    },
+    "himoe_patches_verified_applied": true,
+    "himoe_working_tree_dirty": true,
+    "himoe_working_tree_diff_sha256": "edf3a0f702d99fa6496ef3a5c3c1812eb97dbe3609b9d09616e727a3ad6abd2c",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_memory_allocated_bytes": 18413647360,
+    "checkpoint_load_audit": {
+      "mode": "torch_mmap_meta_assign",
+      "checkpoint_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/pytorch_model.pth",
+      "upstream_root": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA",
+      "train_config": "libero_10_no_noops_lerobot_finetune",
+      "target_device": "cuda:0",
+      "mmap": true,
+      "assign": true,
+      "strict": true,
+      "state_key_count": 1581,
+      "logical_tensor_bytes": 9191385168,
+      "target_tensor_bytes": 18382770336,
+      "staged_tensor_count": 1581,
+      "staging_chunk_bytes": 67108864,
+      "chunked_tensor_count": 2,
+      "staging_copy_count": 1643,
+      "aliased_tensor_count": 1581,
+      "reconstructed_nonpersistent_buffers": [
+        "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.vision_tower.vision_model.embeddings.position_ids"
+      ]
+    },
+    "bundle_schema": "himoe-vla-five-model-gpu-bundle/v1",
+    "bundle_model": "long",
+    "bundle_physical_gpu": 4,
+    "bundle_logical_gpu": 0,
+    "bundle_port": 9078,
+    "bundle_process_pid": 842362,
+    "isolated_process": true,
+    "isolated_models": [
+      "long"
+    ],
+    "isolated_gpu_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "cuda_memory_limit_mib": null,
+    "replica_index": 3,
+    "weights_owner_pid": 842226,
+    "shared_cuda_parameters": true,
+    "cuda_mps_pipe_directory": "/tmp/moe-control-mps-qon7x2bx",
+    "collection_full_hb_supported": true,
+    "collection_hidden_capture": false,
+    "collection_routing_mode": "request_scoped",
+    "collection_batch_size": 1,
+    "collection_full_as_supported": true,
+    "collection_as_layers": [
+      0,
+      1,
+      16,
+      17
+    ],
+    "collection_interventions": [
+      "native",
+      "swap1_near"
+    ],
+    "collection_probability_axes": [
+      "layer",
+      "denoise",
+      "suffix_token",
+      "expert"
+    ],
+    "collection_hb_layers": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "server_instance_id": "59fe0b194ae84afa8d967259cac78f91",
+    "server_pid": 842362,
+    "server_started_unix_ns": 1788893895895183192
+  },
+  "gpu": 4,
+  "render_gpu": 4,
+  "egl_device_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+  "seed": 759992255,
+  "init_index": 0,
+  "hidden_capture": false,
+  "main_intervention": false,
+  "main_complete": true,
+  "reused_main": true,
+  "queries": 0,
+  "action_steps": 520,
+  "success": false,
+  "first_alarm_query": null,
+  "first_knn_alarm": 13,
+  "analysis_role": "perturbation",
+  "failed": true,
+  "c0": {
+    "status": "passed",
+    "compared_queries": 0,
+    "replay_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908/tasks/baf735f8d5fac5f51ee9e77e/replay",
+    "replay_result_sha256": "ba46165178cfe3837c4398e4c43bb84bf8fe83ecb59947dbddd861fda814aac5",
+    "replay_branch_sha256": "90c2a6b4ae88d0e7009e8d215416ea7121ede9ad833280d61eaa5206bcece9df"
+  },
+  "events": [
+    {
+      "event_id": "9a73d9aecb66e8d51c110567",
+      "timing": "mid",
+      "start_query": 14,
+      "alarm_query": 13,
+      "deployable": true,
+      "snapshot_manifest_sha256": "7ccad6a7b96a65fcecc9423710d5576b3b217df11f769c1bf6f69e483fe7847d",
+      "action_steps_before": 140,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "physics_sha256": "444fc14bce7c42a4bb0b69d1ca3e1605757f9f2c8e6549e8ee32c3d9195094b4"
+    },
+    {
+      "event_id": "5f045f3935377ec274c0faaa",
+      "timing": "late",
+      "start_query": 44,
+      "alarm_query": 13,
+      "deployable": false,
+      "snapshot_manifest_sha256": "45854214b943eff7409663281ccb9955586125999d88bc80cfb7ba80f62a85c8",
+      "action_steps_before": 440,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "physics_sha256": "8cc7f1a9606486f348d33bd2b2c2f865c9a373884863a2235401b095b4f471d0"
+    }
+  ],
+  "branches": [
+    {
+      "status": "completed",
+      "arm": "supervisor_regrasp_guard",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "9a73d9aecb66e8d51c110567",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "7ccad6a7b96a65fcecc9423710d5576b3b217df11f769c1bf6f69e483fe7847d",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 20,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 20,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        },
+        {
+          "guard": "G2",
+          "kind": "retract",
+          "query_index": 18,
+          "start_step": 230,
+          "steps": 50,
+          "reason": "phantom_departed",
+          "target": [
+            -0.013150929318566347,
+            0.2692746946807683,
+            0.5921698842331989
+          ],
+          "phase_reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": 18,
+      "guards": [
+        "G0",
+        "G2"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "455ae05d6b9c618dec2e311fa63f879431d838e1b8158a8745cb7d82f793d95b",
+            "rows": 4,
+            "bytes": 8445,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "fa43a9f56b074b14f4af43c8a1c55772d21f47fb1b1fe64b512f626062a7dadf",
+            "rows": 4,
+            "bytes": 9156,
+            "first_query": 4,
+            "last_query": 7
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "f5b1d23f1021bb97a89766462d64401a40d4fa2d34a7f79eec82b32be2171ff7",
+            "rows": 2,
+            "bytes": 5980,
+            "first_query": 8,
+            "last_query": 9
+          }
+        ],
+        "queries": 10,
+        "bytes": 23581,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 100,
+      "repair_chunks": 10,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "2973bba06605362605e52f5401efde0d44261a608094c8cbcdd219365832332a",
+            "rows": 8,
+            "bytes": 470979,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "8fd878cbd643f318d10ae40375936ddb65b24e57149c8fe975e66ffa4986a090",
+            "rows": 8,
+            "bytes": 478828,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "0e9fc058b71439eaf68a2dda5df3df4223002d8dfa089fc7288b7bba50a4b4df",
+            "rows": 4,
+            "bytes": 250565,
+            "first_query": 30,
+            "last_query": 33
+          }
+        ],
+        "queries": 20,
+        "bytes": 1200372,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_place_assist",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G3"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "9a73d9aecb66e8d51c110567",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "7ccad6a7b96a65fcecc9423710d5576b3b217df11f769c1bf6f69e483fe7847d",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 24,
+      "action_steps": 281,
+      "success": true,
+      "success_step": 281,
+      "success_within_original": true,
+      "deployment_model_queries": 24,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "455ae05d6b9c618dec2e311fa63f879431d838e1b8158a8745cb7d82f793d95b",
+            "rows": 4,
+            "bytes": 8445,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "81beba6d1f2913812c9e92441088009c43063017efb19c2b7e8c03d75489fe53",
+            "rows": 1,
+            "bytes": 4626,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13071,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "fcc35b077bf0d4b6b021aa92d142f2fe3bca6592b8610d1064b3813d5792c141",
+            "rows": 8,
+            "bytes": 470982,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "9fa31b61a41136ba887058ba45822c6e90bf723b5d2feceb200fe2c35fced416",
+            "rows": 8,
+            "bytes": 478833,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "0f2e143779488ebf9ab41456dd3a0086da9dcce9c28f9866962d8786800f854c",
+            "rows": 8,
+            "bytes": 497399,
+            "first_query": 30,
+            "last_query": 37
+          }
+        ],
+        "queries": 24,
+        "bytes": 1447214,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_full",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2",
+          "G3"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "9a73d9aecb66e8d51c110567",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "7ccad6a7b96a65fcecc9423710d5576b3b217df11f769c1bf6f69e483fe7847d",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 20,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 20,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        },
+        {
+          "guard": "G2",
+          "kind": "retract",
+          "query_index": 18,
+          "start_step": 230,
+          "steps": 50,
+          "reason": "phantom_departed",
+          "target": [
+            -0.013150929318566347,
+            0.2692746946807683,
+            0.5921698842331989
+          ],
+          "phase_reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": 18,
+      "guards": [
+        "G0",
+        "G2",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "455ae05d6b9c618dec2e311fa63f879431d838e1b8158a8745cb7d82f793d95b",
+            "rows": 4,
+            "bytes": 8445,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "fa43a9f56b074b14f4af43c8a1c55772d21f47fb1b1fe64b512f626062a7dadf",
+            "rows": 4,
+            "bytes": 9156,
+            "first_query": 4,
+            "last_query": 7
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "f5b1d23f1021bb97a89766462d64401a40d4fa2d34a7f79eec82b32be2171ff7",
+            "rows": 2,
+            "bytes": 5980,
+            "first_query": 8,
+            "last_query": 9
+          }
+        ],
+        "queries": 10,
+        "bytes": 23581,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 100,
+      "repair_chunks": 10,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "b3a8bda6ecc33f8fdeeb894b814e50dadb63f6f202e62b2a3859ed847094f44a",
+            "rows": 8,
+            "bytes": 470981,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "ae96a0b637cf41b8c490bf038e2e8e42c451af0b389b5530f749f3609e4d705b",
+            "rows": 8,
+            "bytes": 478829,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "2bb605ba4d8d5f566d9ec4b106638970a3f5a2ab3c702b14f72c0c759d46ae96",
+            "rows": 4,
+            "bytes": 250564,
+            "first_query": 30,
+            "last_query": 33
+          }
+        ],
+        "queries": 20,
+        "bytes": 1200374,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_regrasp_guard",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "9a73d9aecb66e8d51c110567",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "7ccad6a7b96a65fcecc9423710d5576b3b217df11f769c1bf6f69e483fe7847d",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 20,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 20,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        },
+        {
+          "guard": "G2",
+          "kind": "retract",
+          "query_index": 17,
+          "start_step": 220,
+          "steps": 50,
+          "reason": "phantom_departed",
+          "target": [
+            -0.015821893654393977,
+            0.2580139241816015,
+            0.5921698823962869
+          ],
+          "phase_reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": 17,
+      "guards": [
+        "G0",
+        "G2"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "455ae05d6b9c618dec2e311fa63f879431d838e1b8158a8745cb7d82f793d95b",
+            "rows": 4,
+            "bytes": 8445,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "e51d83a40190d55fbf3df13c00fec713024c7bdf364057c9b58b167d5b7c50e2",
+            "rows": 4,
+            "bytes": 9132,
+            "first_query": 4,
+            "last_query": 7
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "29d2496c41c5a5bb34761dbcbac6a52ee47a6cd9f1576ed064498540288b6aa7",
+            "rows": 2,
+            "bytes": 6108,
+            "first_query": 8,
+            "last_query": 9
+          }
+        ],
+        "queries": 10,
+        "bytes": 23685,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 100,
+      "repair_chunks": 10,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "2f4b197d7c4bc20955fbf25d962076154ef8dce3afcd3e4431665abf7ca6e795",
+            "rows": 8,
+            "bytes": 468713,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "c5e0260b7fa38ff400b3d16256847a632ebdba16f1341591bcba43ac14547829",
+            "rows": 8,
+            "bytes": 476949,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "7d54beca706efb5a7f66d6bb9173e75a5071d9c197a69c60a57210d55b91bf46",
+            "rows": 4,
+            "bytes": 246347,
+            "first_query": 30,
+            "last_query": 33
+          }
+        ],
+        "queries": 20,
+        "bytes": 1192009,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_place_assist",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G3"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "9a73d9aecb66e8d51c110567",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "7ccad6a7b96a65fcecc9423710d5576b3b217df11f769c1bf6f69e483fe7847d",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 23,
+      "action_steps": 271,
+      "success": true,
+      "success_step": 271,
+      "success_within_original": true,
+      "deployment_model_queries": 23,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "455ae05d6b9c618dec2e311fa63f879431d838e1b8158a8745cb7d82f793d95b",
+            "rows": 4,
+            "bytes": 8445,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "81beba6d1f2913812c9e92441088009c43063017efb19c2b7e8c03d75489fe53",
+            "rows": 1,
+            "bytes": 4626,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13071,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "523f37a45accfa76e598d308ed19c2192eb48c41c95b66f6c88940b70aaf4269",
+            "rows": 8,
+            "bytes": 468710,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "1aae4872d0b444816d037e9b584c56d56c12e56fd298fa41d1e3a897920d71b9",
+            "rows": 8,
+            "bytes": 476949,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "8b64654e4eb4e9775bbc0e85f1ff0b3f0772c335e02a34ba51265a90ab62656c",
+            "rows": 7,
+            "bytes": 435161,
+            "first_query": 30,
+            "last_query": 36
+          }
+        ],
+        "queries": 23,
+        "bytes": 1380820,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_full",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2",
+          "G3"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "9a73d9aecb66e8d51c110567",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 14,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "7ccad6a7b96a65fcecc9423710d5576b3b217df11f769c1bf6f69e483fe7847d",
+      "fork_action_steps": 140,
+      "original_remaining_steps": 380,
+      "window_steps": 300,
+      "queries": 20,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 20,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        },
+        {
+          "guard": "G2",
+          "kind": "retract",
+          "query_index": 17,
+          "start_step": 220,
+          "steps": 50,
+          "reason": "phantom_departed",
+          "target": [
+            -0.015821893654393977,
+            0.2580139241816015,
+            0.5921698823962869
+          ],
+          "phase_reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": 17,
+      "guards": [
+        "G0",
+        "G2",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "455ae05d6b9c618dec2e311fa63f879431d838e1b8158a8745cb7d82f793d95b",
+            "rows": 4,
+            "bytes": 8445,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "e51d83a40190d55fbf3df13c00fec713024c7bdf364057c9b58b167d5b7c50e2",
+            "rows": 4,
+            "bytes": 9132,
+            "first_query": 4,
+            "last_query": 7
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "29d2496c41c5a5bb34761dbcbac6a52ee47a6cd9f1576ed064498540288b6aa7",
+            "rows": 2,
+            "bytes": 6108,
+            "first_query": 8,
+            "last_query": 9
+          }
+        ],
+        "queries": 10,
+        "bytes": 23685,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 100,
+      "repair_chunks": 10,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "1ef5df4a7fa36addf2e0cf2878bd22b82783757547e240005c323983f2c6db41",
+            "rows": 8,
+            "bytes": 468710,
+            "first_query": 14,
+            "last_query": 21
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "98e7522476dff2a508561afe4a762c9b2495fd3a1792f8dce65598d835abe8ef",
+            "rows": 8,
+            "bytes": 476949,
+            "first_query": 22,
+            "last_query": 29
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "52cb0bb66046b8b52a754aeebd4ee074ea506cb304e73ba550ad8dd7d62864ef",
+            "rows": 4,
+            "bytes": 246348,
+            "first_query": 30,
+            "last_query": 33
+          }
+        ],
+        "queries": 20,
+        "bytes": 1192007,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_regrasp_guard",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "5f045f3935377ec274c0faaa",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "45854214b943eff7409663281ccb9955586125999d88bc80cfb7ba80f62a85c8",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 13,
+      "action_steps": 173,
+      "success": true,
+      "success_step": 173,
+      "success_within_original": false,
+      "deployment_model_queries": 13,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G2"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "196529849f9ea2bb14187c46039eaf13a94e591f606383b1c9f9896436f2c05e",
+            "rows": 4,
+            "bytes": 8518,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "95d74f0e32455d2d286e7c823b07a7bdfa7401279fa745ca95ae49d43bb883b8",
+            "rows": 1,
+            "bytes": 4630,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13148,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "c6c258142b3459e342a528098db77d1ca70c05a690d7d187b9d232ee51388ad4",
+            "rows": 8,
+            "bytes": 475366,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "706bde9035837bf8b042bdb0982f8c0b852bef864a44944f9d3195a679c955bf",
+            "rows": 5,
+            "bytes": 307696,
+            "first_query": 52,
+            "last_query": 56
+          }
+        ],
+        "queries": 13,
+        "bytes": 783062,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_place_assist",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G3"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "5f045f3935377ec274c0faaa",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "45854214b943eff7409663281ccb9955586125999d88bc80cfb7ba80f62a85c8",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 13,
+      "action_steps": 173,
+      "success": true,
+      "success_step": 173,
+      "success_within_original": false,
+      "deployment_model_queries": 13,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "196529849f9ea2bb14187c46039eaf13a94e591f606383b1c9f9896436f2c05e",
+            "rows": 4,
+            "bytes": 8518,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "95d74f0e32455d2d286e7c823b07a7bdfa7401279fa745ca95ae49d43bb883b8",
+            "rows": 1,
+            "bytes": 4630,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13148,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "c14fd37c7d004879397ae178026677cde7d654a1a9ff77fa5222a6ded3fae87e",
+            "rows": 8,
+            "bytes": 475364,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "f9afdf9396c888d4e627c72fbfdf38f44815cc2c2d101705a240271f020a8f16",
+            "rows": 5,
+            "bytes": 307694,
+            "first_query": 52,
+            "last_query": 56
+          }
+        ],
+        "queries": 13,
+        "bytes": 783058,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_full",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2",
+          "G3"
+        ]
+      },
+      "replicate": 0,
+      "event_id": "5f045f3935377ec274c0faaa",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "45854214b943eff7409663281ccb9955586125999d88bc80cfb7ba80f62a85c8",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 13,
+      "action_steps": 173,
+      "success": true,
+      "success_step": 173,
+      "success_within_original": false,
+      "deployment_model_queries": 13,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G2",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "196529849f9ea2bb14187c46039eaf13a94e591f606383b1c9f9896436f2c05e",
+            "rows": 4,
+            "bytes": 8518,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "95d74f0e32455d2d286e7c823b07a7bdfa7401279fa745ca95ae49d43bb883b8",
+            "rows": 1,
+            "bytes": 4630,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13148,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "3375e89c8c6f46f6011026b3a0b6ff8deb602d7517f253da22aec77f5097d98d",
+            "rows": 8,
+            "bytes": 475363,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "ba44d690a4426c43925132ff5303d5081c12326ea60b902a082122e589cbe7c8",
+            "rows": 5,
+            "bytes": 307695,
+            "first_query": 52,
+            "last_query": 56
+          }
+        ],
+        "queries": 13,
+        "bytes": 783058,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_regrasp_guard",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "5f045f3935377ec274c0faaa",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "45854214b943eff7409663281ccb9955586125999d88bc80cfb7ba80f62a85c8",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 14,
+      "action_steps": 188,
+      "success": true,
+      "success_step": 188,
+      "success_within_original": false,
+      "deployment_model_queries": 14,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G2"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "196529849f9ea2bb14187c46039eaf13a94e591f606383b1c9f9896436f2c05e",
+            "rows": 4,
+            "bytes": 8518,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "95d74f0e32455d2d286e7c823b07a7bdfa7401279fa745ca95ae49d43bb883b8",
+            "rows": 1,
+            "bytes": 4630,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13148,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "fa47fe2fb6f02f00e258534792f838adfbcf36e4ee8e5bf938a1ea77f36e2340",
+            "rows": 8,
+            "bytes": 474172,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "8c4b783919805aaa282adca06717c0b74c62e136a7a71d99c122ab4a96da2d26",
+            "rows": 6,
+            "bytes": 365088,
+            "first_query": 52,
+            "last_query": 57
+          }
+        ],
+        "queries": 14,
+        "bytes": 839260,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_place_assist",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G3"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "5f045f3935377ec274c0faaa",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "45854214b943eff7409663281ccb9955586125999d88bc80cfb7ba80f62a85c8",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 14,
+      "action_steps": 188,
+      "success": true,
+      "success_step": 188,
+      "success_within_original": false,
+      "deployment_model_queries": 14,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "196529849f9ea2bb14187c46039eaf13a94e591f606383b1c9f9896436f2c05e",
+            "rows": 4,
+            "bytes": 8518,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "95d74f0e32455d2d286e7c823b07a7bdfa7401279fa745ca95ae49d43bb883b8",
+            "rows": 1,
+            "bytes": 4630,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13148,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "30f2cdd8cb4693f0201e7911a8f0ac6c3c8483ade29ee4c459c5dddcb1a727eb",
+            "rows": 8,
+            "bytes": 474173,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "b0b73fa6c1aba994165b5eedfe7e5d10d9466d14ee9310ca6b38e764d7f93190",
+            "rows": 6,
+            "bytes": 365087,
+            "first_query": 52,
+            "last_query": 57
+          }
+        ],
+        "queries": 14,
+        "bytes": 839260,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "supervisor_full",
+      "control": {
+        "repair": "retract",
+        "target": "above_target",
+        "guards": [
+          "G0",
+          "G2",
+          "G3"
+        ]
+      },
+      "replicate": 1,
+      "event_id": "5f045f3935377ec274c0faaa",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "alphabet_soup_1",
+      "parent_main_id": "baf735f8d5fac5f51ee9e77e",
+      "parent_commit_sha256": "b8f65623b2e6fe46ad9dd80b37594a9310120667b5a9360e2997653ecb86edf0",
+      "snapshot_manifest_sha256": "45854214b943eff7409663281ccb9955586125999d88bc80cfb7ba80f62a85c8",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 14,
+      "action_steps": 188,
+      "success": true,
+      "success_step": 188,
+      "success_within_original": false,
+      "deployment_model_queries": 14,
+      "handback_step": 50,
+      "interventions": [
+        {
+          "guard": "G1",
+          "kind": "retract",
+          "query_index": 0,
+          "start_step": 0,
+          "steps": 50,
+          "reason": "reached"
+        }
+      ],
+      "first_extra_intervention_query": null,
+      "guards": [
+        "G0",
+        "G2",
+        "G3"
+      ],
+      "repair_kind": "retract",
+      "repair_target": [
+        -0.07597611043240667,
+        -0.12644516792659494,
+        0.5751701239605255
+      ],
+      "twin": "retract_above_target",
+      "retract_reason": "reached",
+      "shards_repair": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "196529849f9ea2bb14187c46039eaf13a94e591f606383b1c9f9896436f2c05e",
+            "rows": 4,
+            "bytes": 8518,
+            "first_query": 0,
+            "last_query": 3
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "95d74f0e32455d2d286e7c823b07a7bdfa7401279fa745ca95ae49d43bb883b8",
+            "rows": 1,
+            "bytes": 4630,
+            "first_query": 4,
+            "last_query": 4
+          }
+        ],
+        "queries": 5,
+        "bytes": 13148,
+        "queries_per_block": 4,
+        "pending_blocks_limit": 2
+      },
+      "repair_steps": 50,
+      "repair_chunks": 5,
+      "repair_reason": "reached",
+      "repair_success": false,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "a2facbedf88b90bf36806a0244beaebec0ed93690763db219c9648a8b735d527",
+            "rows": 8,
+            "bytes": 474172,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "d63d7f797eb1e5f3ea3cdf6783e719015065fd168f53d1f6360bbcab989755f6",
+            "rows": 6,
+            "bytes": 365087,
+            "first_query": 52,
+            "last_query": 57
+          }
+        ],
+        "queries": 14,
+        "bytes": 839259,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    }
+  ],
+  "invalid_pair": false,
+  "actual_model_queries": 208,
+  "candidate_queries": 0,
+  "reused_candidate_queries": 0,
+  "environment_pid": 842608,
+  "worker_job_index": 2,
+  "elapsed_seconds": 273.8952620755881
+}

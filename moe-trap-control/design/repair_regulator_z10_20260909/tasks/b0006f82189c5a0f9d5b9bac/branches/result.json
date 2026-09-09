@@ -1,0 +1,664 @@
+{
+  "status": "completed",
+  "protocol": "moe_control.repair_regulator.v3",
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "no switching: the VLA runs every chunk; a shared-control law edits each executed env step: u = (1 - a) u_VLA + a u_servo with a = 0 until the graspable-envelope gate blocks a closure (CLOSE commanded while neither the target (extent-based envelope) nor any other movable object (strict 0.07 m envelope) sits between the fingers: physical evidence of a phantom grasp; an already closed empty gripper counts the same way because the policy keeps commanding CLOSE); then a = 0.7 (alpha1 arms: 1.0) for 60 steps pulling the end effector above the nearest unsatisfied object; in hand the policy keeps authority unless the carry stalls 120 steps (pull toward the place point); OPEN executes only inside the goal region",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false,
+    "calibration": "closure envelope from 22 lifted closures in the v1 replays: horizontal <= 0.063 m, dz 0.00 to 0.10 m; gate uses max(0.07 m, object bounding radius + 0.02 m) and -0.03 to max(0.13 m, radius + 0.02 m) because handle grasps (moka pot) close farther from the body origin; a first always-on PI servo (kp 6, ki 0.3, u_max 0.5) was rejected in the smoke of 2026-09-09 because it edited every step and broke a success parent; gains fixed before the main run, not fitted to outcomes",
+    "fork_branches": "start at the v1 fork snapshots; twin = new_noise until the first modified env step",
+    "episodes": "full 520-step episodes from the parent's q0 snapshot: vla (replicate 0 must reproduce the parent bitwise), shared control always on, shared control engaged at the online kNN-20 first alarm",
+    "replay": "fork snapshots reused from the audited v1 run; no C0 replay"
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "supervisor": null,
+  "regulator": {
+    "law": "shared",
+    "alpha": 0.7,
+    "authority_steps": 60,
+    "kp_shared": 10.0,
+    "z_offset_m": 0.05,
+    "lifted_m": 0.02,
+    "carry_patience_steps": 120,
+    "close_gate_xy_m": 0.07,
+    "close_gate_dz_min_m": -0.03,
+    "close_gate_dz_max_m": 0.13,
+    "close_gate_extent_margin_m": 0.02,
+    "release_margin_xy_m": 0.02,
+    "release_margin_z_m": 0.1,
+    "body_region_radius_m": 0.06,
+    "body_region_height_m": 0.08
+  },
+  "main_id": "b0006f82189c5a0f9d5b9bac",
+  "job_kind": "branches",
+  "variant": {
+    "benchmark": "pro",
+    "suite": "libero_10",
+    "registry": "libero_10_swap",
+    "registry_index": 6,
+    "classification_id": null,
+    "task_name": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+    "base_task": "LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate",
+    "category": "Position",
+    "difficulty": null,
+    "base_task_fold": 4,
+    "horizon_steps": 520,
+    "variant_id": "0261ec673c6e9767f4fc1004"
+  },
+  "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/b0006f82189c5a0f9d5b9bac",
+  "parent_commit_sha256": "f3a6149d02f96b38ab4e7c5cd9d906c356c9900848167787a2765b2701135e8b",
+  "parent_manifest_sha256": "3a39f059474b1456c7d73930e3bcf8382a13e92306fa3ca4f1fb50d2ee375eed",
+  "model": "long",
+  "model_metadata": {
+    "protocol": "himoe-libero-v1",
+    "protocol_version": 2,
+    "backend": "himoe-vla-libero-long",
+    "observation": {
+      "observation/image": [
+        224,
+        224,
+        3
+      ],
+      "observation/wrist_image": [
+        224,
+        224,
+        3
+      ],
+      "observation/state": [
+        8
+      ],
+      "prompt": "non-empty string",
+      "flow/noise": {
+        "shape": [
+          10,
+          24
+        ],
+        "optional": true
+      },
+      "routing/capture": {
+        "type": "bool",
+        "optional": true
+      }
+    },
+    "action": {
+      "actions": [
+        10,
+        7
+      ]
+    },
+    "flow_noise_ack": {
+      "key": "flow/noise_sha256",
+      "format": "sha256-f32-c-v1"
+    },
+    "routing": {
+      "optional": true,
+      "routing/expert_ids": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/expert_weights": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/layer_indices": [
+        8
+      ],
+      "routed_experts": 32,
+      "top_k": 4
+    },
+    "suite": "long",
+    "benchmark": "libero_10",
+    "train_config": "libero_10_no_noops_lerobot_finetune",
+    "dataset_config": "libero_10_no_noops_lerobot",
+    "normalization_asset": "libero_10_no_noops",
+    "checkpoint": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10",
+    "checkpoint_bytes": 8138322389,
+    "checkpoint_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256",
+    "flow_steps": 10,
+    "predicted_action_steps": 10,
+    "internal_action_dim": 24,
+    "normalization_stats_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/libero_10_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "71d6971888eddec4febec09f696bddbbba6f0007d7a32b41027d8db6d677abe0",
+    "normalization_stats_loaded": true,
+    "normalization_action_std": [
+      0.28262342306725324,
+      0.35866097261853397,
+      0.36932027826898967,
+      0.03787003293268508,
+      0.054570646977803616,
+      0.08749407288353883,
+      0.9963353419534117
+    ],
+    "libero_wrist_layout": "checkpoint-right",
+    "libero_wrist_layout_transform_anchor": "DropStateAndImage",
+    "cuda_visible_devices": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "routing_capture_supported": true,
+    "routing_hb_layer_indices": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "routing_experts": 32,
+    "routing_top_k": 4,
+    "himoe_upstream_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "himoe_patch_sha256": {
+      "himoe-fixed-noise.patch": "d4275c5908353c6a59c178eb25dd53861455892effa41c63202c4e09239dba56",
+      "himoe-runtime.patch": "6a37331c4a09402ee4f1f323055e90c51290584148732cb272a584e1dec05428",
+      "himoe-transformers-cache.patch": "4972e8ae67cb5ee696fb28811b8f70f234966e013a8c5ec664d70e20bb607463"
+    },
+    "himoe_patches_verified_applied": true,
+    "himoe_working_tree_dirty": true,
+    "himoe_working_tree_diff_sha256": "edf3a0f702d99fa6496ef3a5c3c1812eb97dbe3609b9d09616e727a3ad6abd2c",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_memory_allocated_bytes": 18413647360,
+    "checkpoint_load_audit": {
+      "mode": "torch_mmap_meta_assign",
+      "checkpoint_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/pytorch_model.pth",
+      "upstream_root": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA",
+      "train_config": "libero_10_no_noops_lerobot_finetune",
+      "target_device": "cuda:0",
+      "mmap": true,
+      "assign": true,
+      "strict": true,
+      "state_key_count": 1581,
+      "logical_tensor_bytes": 9191385168,
+      "target_tensor_bytes": 18382770336,
+      "staged_tensor_count": 1581,
+      "staging_chunk_bytes": 67108864,
+      "chunked_tensor_count": 2,
+      "staging_copy_count": 1643,
+      "aliased_tensor_count": 1581,
+      "reconstructed_nonpersistent_buffers": [
+        "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.vision_tower.vision_model.embeddings.position_ids"
+      ]
+    },
+    "bundle_schema": "himoe-vla-five-model-gpu-bundle/v1",
+    "bundle_model": "long",
+    "bundle_physical_gpu": 4,
+    "bundle_logical_gpu": 0,
+    "bundle_port": 9098,
+    "bundle_process_pid": 1051931,
+    "isolated_process": true,
+    "isolated_models": [
+      "long"
+    ],
+    "isolated_gpu_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "cuda_memory_limit_mib": null,
+    "replica_index": 7,
+    "weights_owner_pid": 1051697,
+    "shared_cuda_parameters": true,
+    "cuda_mps_pipe_directory": "/tmp/moe-control-mps-jxkdaa77",
+    "collection_full_hb_supported": true,
+    "collection_hidden_capture": false,
+    "collection_routing_mode": "request_scoped",
+    "collection_batch_size": 1,
+    "collection_full_as_supported": true,
+    "collection_as_layers": [
+      0,
+      1,
+      16,
+      17
+    ],
+    "collection_interventions": [
+      "native",
+      "swap1_near"
+    ],
+    "collection_probability_axes": [
+      "layer",
+      "denoise",
+      "suffix_token",
+      "expert"
+    ],
+    "collection_hb_layers": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "server_instance_id": "2ee0401fdfcc47f3801fe6c5ce6bd7f0",
+    "server_pid": 1051931,
+    "server_started_unix_ns": 1788928703542293319
+  },
+  "gpu": 4,
+  "render_gpu": 4,
+  "egl_device_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+  "seed": 3364354158,
+  "init_index": 3,
+  "hidden_capture": false,
+  "main_intervention": false,
+  "main_complete": true,
+  "reused_main": true,
+  "queries": 0,
+  "action_steps": 520,
+  "success": false,
+  "first_alarm_query": null,
+  "first_knn_alarm": 33,
+  "analysis_role": "perturbation",
+  "failed": true,
+  "c0": {
+    "status": "passed",
+    "compared_queries": 0,
+    "replay_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/repair_main_20260908/tasks/b0006f82189c5a0f9d5b9bac/replay",
+    "replay_result_sha256": "3d92dae0da974d2181f2e38ec79df1c46b55621d2ee39317dd90df19b5ae1f87",
+    "replay_branch_sha256": "cafca2fa403806da1ad35c4900d7ef7ffbf6850b38d5c28a753e48423df68926"
+  },
+  "events": [
+    {
+      "event_id": "c7fef665994f37deac352c1e",
+      "timing": "mid",
+      "start_query": 34,
+      "alarm_query": 33,
+      "deployable": true,
+      "snapshot_manifest_sha256": "f64d8dcdd965cf64e73d46b6028cd180ece36b57a939c9830e0fdc82b2a381fd",
+      "action_steps_before": 340,
+      "physical_class": "untouched",
+      "target_name": "chocolate_pudding_1",
+      "physics_sha256": "14e45c24fa6b51481956a95b951e0f8fd4378697e7832f4707eae84d8391483c"
+    },
+    {
+      "event_id": "b25011d8142e5610fb900d78",
+      "timing": "late",
+      "start_query": 44,
+      "alarm_query": 33,
+      "deployable": false,
+      "snapshot_manifest_sha256": "c72940346e7c7a39cf8699a7fe1ad9d56c29b8dea9d8467d3d8a6917b8d0abd1",
+      "action_steps_before": 440,
+      "physical_class": "untouched",
+      "target_name": "chocolate_pudding_1",
+      "physics_sha256": "8acaf6c3505e8a08d6f4a3e065711a074441aafcdf20a343398f3dd85efc5c5d"
+    }
+  ],
+  "branches": [
+    {
+      "status": "completed",
+      "arm": "shared_full_z10",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 0,
+      "event_id": "c7fef665994f37deac352c1e",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 34,
+      "physical_class": "untouched",
+      "target_name": "chocolate_pudding_1",
+      "parent_main_id": "b0006f82189c5a0f9d5b9bac",
+      "parent_commit_sha256": "f3a6149d02f96b38ab4e7c5cd9d906c356c9900848167787a2765b2701135e8b",
+      "snapshot_manifest_sha256": "f64d8dcdd965cf64e73d46b6028cd180ece36b57a939c9830e0fdc82b2a381fd",
+      "fork_action_steps": 340,
+      "original_remaining_steps": 180,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 210,
+      "gate_close_steps": 13,
+      "gate_open_steps": 0,
+      "servo_effort": 57.55427287518978,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "5bdd36b03168e04cb7e649be7f8988ade4cd330f2be33d68b0bf0e6c30f97ecf",
+            "rows": 8,
+            "bytes": 495697,
+            "first_query": 34,
+            "last_query": 41
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "e227237e7a886c8cd61f2f0c1ca6e7ab2bd64c9288570365daad2cee457c970a",
+            "rows": 8,
+            "bytes": 501057,
+            "first_query": 42,
+            "last_query": 49
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "2163078bd0d025391d3d3911f680044ed5a657fa533e7c0413d900c402a023bb",
+            "rows": 8,
+            "bytes": 499964,
+            "first_query": 50,
+            "last_query": 57
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "41b69e281aaba4415d101f3e298f818b062043a1516fcadae07fa39122c0bc1a",
+            "rows": 6,
+            "bytes": 377477,
+            "first_query": 58,
+            "last_query": 63
+          }
+        ],
+        "queries": 30,
+        "bytes": 1874195,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full_z10",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 1,
+      "event_id": "c7fef665994f37deac352c1e",
+      "timing": "mid",
+      "deployable": true,
+      "start_query": 34,
+      "physical_class": "untouched",
+      "target_name": "chocolate_pudding_1",
+      "parent_main_id": "b0006f82189c5a0f9d5b9bac",
+      "parent_commit_sha256": "f3a6149d02f96b38ab4e7c5cd9d906c356c9900848167787a2765b2701135e8b",
+      "snapshot_manifest_sha256": "f64d8dcdd965cf64e73d46b6028cd180ece36b57a939c9830e0fdc82b2a381fd",
+      "fork_action_steps": 340,
+      "original_remaining_steps": 180,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 143,
+      "gate_close_steps": 4,
+      "gate_open_steps": 0,
+      "servo_effort": 49.224800765514374,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "fad821bb15213357faf97df29eeeb4ddb3e5f7cda16b206b545c232a80f9b6a0",
+            "rows": 8,
+            "bytes": 494489,
+            "first_query": 34,
+            "last_query": 41
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "df1325b6427d3ca4fe3822ec24359ea61844b8b26b407441fce69ce90433ccd2",
+            "rows": 8,
+            "bytes": 500283,
+            "first_query": 42,
+            "last_query": 49
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "a256c70a43732d5363b401e092ef6e98c75bd9d44e9519a2a41535160353bf66",
+            "rows": 8,
+            "bytes": 503259,
+            "first_query": 50,
+            "last_query": 57
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "5917834e3f07672fae6753d79b1881fe1439f797f3c5e0c766410f283bf0853d",
+            "rows": 6,
+            "bytes": 376047,
+            "first_query": 58,
+            "last_query": 63
+          }
+        ],
+        "queries": 30,
+        "bytes": 1874078,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full_z10",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 0,
+      "event_id": "b25011d8142e5610fb900d78",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "chocolate_pudding_1",
+      "parent_main_id": "b0006f82189c5a0f9d5b9bac",
+      "parent_commit_sha256": "f3a6149d02f96b38ab4e7c5cd9d906c356c9900848167787a2765b2701135e8b",
+      "snapshot_manifest_sha256": "c72940346e7c7a39cf8699a7fe1ad9d56c29b8dea9d8467d3d8a6917b8d0abd1",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 123,
+      "gate_close_steps": 5,
+      "gate_open_steps": 0,
+      "servo_effort": 55.54689660668373,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "fd8139a97f5772073a126efe1fc1830670ba9a920725f54e9169aa25dc55caf8",
+            "rows": 8,
+            "bytes": 494347,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "3b52f9d630b898e93e1e26569d2a86d8ecf4731236518d7ea336d997f3006a0f",
+            "rows": 8,
+            "bytes": 493723,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "02eebc6722db79599a75f3bdbbcad1c515aadecab0cce70f9bdeb89c2172e72d",
+            "rows": 8,
+            "bytes": 501085,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "562130b13e3592a230078e7a950790da3c5fb76895b677f28cb30aa8dad50a1b",
+            "rows": 6,
+            "bytes": 376147,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1865302,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    },
+    {
+      "status": "completed",
+      "arm": "shared_full_z10",
+      "control": {
+        "features": [
+          "close_gate",
+          "shared",
+          "carry",
+          "release_gate"
+        ],
+        "z_offset_m": 0.1
+      },
+      "replicate": 1,
+      "event_id": "b25011d8142e5610fb900d78",
+      "timing": "late",
+      "deployable": false,
+      "start_query": 44,
+      "physical_class": "untouched",
+      "target_name": "chocolate_pudding_1",
+      "parent_main_id": "b0006f82189c5a0f9d5b9bac",
+      "parent_commit_sha256": "f3a6149d02f96b38ab4e7c5cd9d906c356c9900848167787a2765b2701135e8b",
+      "snapshot_manifest_sha256": "c72940346e7c7a39cf8699a7fe1ad9d56c29b8dea9d8467d3d8a6917b8d0abd1",
+      "fork_action_steps": 440,
+      "original_remaining_steps": 80,
+      "window_steps": 300,
+      "queries": 30,
+      "action_steps": 300,
+      "success": false,
+      "success_step": null,
+      "success_within_original": false,
+      "deployment_model_queries": 30,
+      "handback_step": 0,
+      "twin": "new_noise",
+      "first_extra_intervention_query": 1,
+      "features": [
+        "close_gate",
+        "shared",
+        "carry",
+        "release_gate"
+      ],
+      "repair_steps": 0,
+      "repair_kind": "regulate",
+      "modified_steps": 125,
+      "gate_close_steps": 5,
+      "gate_open_steps": 0,
+      "servo_effort": 43.46124632656574,
+      "shards": {
+        "blocks": [
+          {
+            "path": "block_00000.npz",
+            "sha256": "f6036e043d8acf948aa523cea07a06551fdaaa950a5d9730ebe81e7d9f119a3e",
+            "rows": 8,
+            "bytes": 492351,
+            "first_query": 44,
+            "last_query": 51
+          },
+          {
+            "path": "block_00001.npz",
+            "sha256": "73e7d741080128584bf25d025a2bb4b0653c5fdec5429e13a04268a62cea377f",
+            "rows": 8,
+            "bytes": 498393,
+            "first_query": 52,
+            "last_query": 59
+          },
+          {
+            "path": "block_00002.npz",
+            "sha256": "ef9225dd5dd5f8c0e5db9f37dfaef2f0da4bd152138b7bb4cb1029548b004615",
+            "rows": 8,
+            "bytes": 499707,
+            "first_query": 60,
+            "last_query": 67
+          },
+          {
+            "path": "block_00003.npz",
+            "sha256": "2bc202a06bbcccc9c3900267c2cd507b139ef6097a3d91a2d2202fcf80cd2695",
+            "rows": 6,
+            "bytes": 380253,
+            "first_query": 68,
+            "last_query": 73
+          }
+        ],
+        "queries": 30,
+        "bytes": 1870704,
+        "queries_per_block": 8,
+        "pending_blocks_limit": 2
+      }
+    }
+  ],
+  "invalid_pair": false,
+  "actual_model_queries": 120,
+  "candidate_queries": 0,
+  "reused_candidate_queries": 0,
+  "environment_pid": 1052088,
+  "worker_job_index": 2,
+  "elapsed_seconds": 143.00264151021838
+}

@@ -1,0 +1,389 @@
+{
+  "status": "completed",
+  "protocol": "moe_control.repair_recovery.v1",
+  "contract": {
+    "trigger_mid": "frozen global Euclidean kNN-20 first alarm + 1, deployable",
+    "trigger_early": "physical grasp-verification rule evaluated online during C0: closed aperture, eef departed >= 0.10 m from the closure pose, target moved < 0.01 m since closure",
+    "trigger_late": "fixed query 44 (80 steps left)",
+    "repair": "saturated proportional task-space controller through env.step only; no model call; one switch per suffix",
+    "handback": "guard: within 0.02 m for 5 consecutive steps or 6 chunks; then native 10-step chunks with the replicate's new noise stream",
+    "endpoints": "B: success within 300 steps from the fork including repair; A: success within 520 - steps_before",
+    "internal_readouts": "full HB probs stored for every VLA query; the first post-handback query is the competence observer",
+    "same_noise_anchor": "the exact C0 replay is the same-noise continuation through every fork state",
+    "hidden_capture": false,
+    "batch_size": 1,
+    "threshold_fitting": false,
+    "training": false
+  },
+  "controller": {
+    "gain": 0.8,
+    "unit_metres": 0.05,
+    "tolerance_m": 0.02,
+    "settle_steps": 5,
+    "max_chunks": 6,
+    "open_chunks": 1,
+    "above_m": 0.1,
+    "lift_m": 0.08,
+    "grasp_close_chunks": 1,
+    "descend_max_chunks": 4,
+    "lift_max_chunks": 2
+  },
+  "main_id": "c160bf544a107e2e14557a42",
+  "job_kind": "replay",
+  "variant": {
+    "benchmark": "pro",
+    "suite": "libero_10",
+    "registry": "libero_10_task",
+    "registry_index": 7,
+    "classification_id": null,
+    "task_name": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+    "base_task": "LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket",
+    "category": "Task",
+    "difficulty": null,
+    "base_task_fold": 1,
+    "horizon_steps": 520,
+    "variant_id": "308129584ba76a7e490c3040"
+  },
+  "parent_directory": "/home/jovyan/work/himoe-vla/moe-trap-control/design/experiment_long_scale_20260908/tasks/c160bf544a107e2e14557a42",
+  "parent_commit_sha256": "be43b8c2e8e42be864ec53548695093488f2ccde97ffb39fa5fccca89895bcac",
+  "parent_manifest_sha256": "595285b2eddf020feb7c742932e736a8e51affb74aa258cfc9f4649bf1315ff1",
+  "model": "long",
+  "model_metadata": {
+    "protocol": "himoe-libero-v1",
+    "protocol_version": 2,
+    "backend": "himoe-vla-libero-long",
+    "observation": {
+      "observation/image": [
+        224,
+        224,
+        3
+      ],
+      "observation/wrist_image": [
+        224,
+        224,
+        3
+      ],
+      "observation/state": [
+        8
+      ],
+      "prompt": "non-empty string",
+      "flow/noise": {
+        "shape": [
+          10,
+          24
+        ],
+        "optional": true
+      },
+      "routing/capture": {
+        "type": "bool",
+        "optional": true
+      }
+    },
+    "action": {
+      "actions": [
+        10,
+        7
+      ]
+    },
+    "flow_noise_ack": {
+      "key": "flow/noise_sha256",
+      "format": "sha256-f32-c-v1"
+    },
+    "routing": {
+      "optional": true,
+      "routing/expert_ids": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/expert_weights": [
+        10,
+        8,
+        10,
+        4
+      ],
+      "routing/layer_indices": [
+        8
+      ],
+      "routed_experts": 32,
+      "top_k": 4
+    },
+    "suite": "long",
+    "benchmark": "libero_10",
+    "train_config": "libero_10_no_noops_lerobot_finetune",
+    "dataset_config": "libero_10_no_noops_lerobot",
+    "normalization_asset": "libero_10_no_noops",
+    "checkpoint": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10",
+    "checkpoint_bytes": 8138322389,
+    "checkpoint_sha256": "cdc2b21f9ef657ab31049cfd2b1e2086ceb193a1b8c16af0cd6688925491a256",
+    "flow_steps": 10,
+    "predicted_action_steps": 10,
+    "internal_action_dim": 24,
+    "normalization_stats_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/libero_10_no_noops/meta/stats.json",
+    "normalization_stats_sha256": "71d6971888eddec4febec09f696bddbbba6f0007d7a32b41027d8db6d677abe0",
+    "normalization_stats_loaded": true,
+    "normalization_action_std": [
+      0.28262342306725324,
+      0.35866097261853397,
+      0.36932027826898967,
+      0.03787003293268508,
+      0.054570646977803616,
+      0.08749407288353883,
+      0.9963353419534117
+    ],
+    "libero_wrist_layout": "checkpoint-right",
+    "libero_wrist_layout_transform_anchor": "DropStateAndImage",
+    "cuda_visible_devices": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "routing_capture_supported": true,
+    "routing_hb_layer_indices": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "routing_experts": 32,
+    "routing_top_k": 4,
+    "himoe_upstream_commit": "27a2c46932d8b6373ca0074eb997f299bcd4f6f5",
+    "himoe_patch_sha256": {
+      "himoe-fixed-noise.patch": "d4275c5908353c6a59c178eb25dd53861455892effa41c63202c4e09239dba56",
+      "himoe-runtime.patch": "6a37331c4a09402ee4f1f323055e90c51290584148732cb272a584e1dec05428",
+      "himoe-transformers-cache.patch": "4972e8ae67cb5ee696fb28811b8f70f234966e013a8c5ec664d70e20bb607463"
+    },
+    "himoe_patches_verified_applied": true,
+    "himoe_working_tree_dirty": true,
+    "himoe_working_tree_diff_sha256": "edf3a0f702d99fa6496ef3a5c3c1812eb97dbe3609b9d09616e727a3ad6abd2c",
+    "gpu": "NVIDIA H20-3e",
+    "gpu_memory_allocated_bytes": 18413647360,
+    "checkpoint_load_audit": {
+      "mode": "torch_mmap_meta_assign",
+      "checkpoint_path": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10/pytorch_model.pth",
+      "upstream_root": "/home/jovyan/work/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/upstream/HiMoE-VLA",
+      "train_config": "libero_10_no_noops_lerobot_finetune",
+      "target_device": "cuda:0",
+      "mmap": true,
+      "assign": true,
+      "strict": true,
+      "state_key_count": 1581,
+      "logical_tensor_bytes": 9191385168,
+      "target_tensor_bytes": 18382770336,
+      "staged_tensor_count": 1581,
+      "staging_chunk_bytes": 67108864,
+      "chunked_tensor_count": 2,
+      "staging_copy_count": 1643,
+      "aliased_tensor_count": 1581,
+      "reconstructed_nonpersistent_buffers": [
+        "paligemma_with_expert.gemma_expert.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.language_model.model.rotary_emb.inv_freq",
+        "paligemma_with_expert.paligemma.vision_tower.vision_model.embeddings.position_ids"
+      ]
+    },
+    "bundle_schema": "himoe-vla-five-model-gpu-bundle/v1",
+    "bundle_model": "long",
+    "bundle_physical_gpu": 4,
+    "bundle_logical_gpu": 0,
+    "bundle_port": 9088,
+    "bundle_process_pid": 774718,
+    "isolated_process": true,
+    "isolated_models": [
+      "long"
+    ],
+    "isolated_gpu_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+    "cuda_memory_limit_mib": null,
+    "replica_index": 5,
+    "weights_owner_pid": 774532,
+    "shared_cuda_parameters": true,
+    "cuda_mps_pipe_directory": "/tmp/moe-control-mps-qpa51sc4",
+    "collection_full_hb_supported": true,
+    "collection_hidden_capture": false,
+    "collection_routing_mode": "request_scoped",
+    "collection_batch_size": 1,
+    "collection_full_as_supported": true,
+    "collection_as_layers": [
+      0,
+      1,
+      16,
+      17
+    ],
+    "collection_interventions": [
+      "native",
+      "swap1_near"
+    ],
+    "collection_probability_axes": [
+      "layer",
+      "denoise",
+      "suffix_token",
+      "expert"
+    ],
+    "collection_hb_layers": [
+      2,
+      3,
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "server_instance_id": "90ee6aba92d24221847beb0137da0632",
+    "server_pid": 774718,
+    "server_started_unix_ns": 1788887868265598824
+  },
+  "gpu": 4,
+  "render_gpu": 4,
+  "egl_device_uuid": "GPU-ee278cde-6e76-8c35-f934-1b9cacbbbcf4",
+  "seed": 1723050523,
+  "init_index": 4,
+  "hidden_capture": false,
+  "main_intervention": false,
+  "main_complete": true,
+  "reused_main": true,
+  "queries": 0,
+  "action_steps": 520,
+  "success": false,
+  "first_alarm_query": 33,
+  "first_knn_alarm": 33,
+  "analysis_role": "perturbation",
+  "failed": true,
+  "c0": {
+    "status": "passed",
+    "start_query": 0,
+    "compared_queries": 52,
+    "starts_after_main_complete": true,
+    "parent_main_id": "c160bf544a107e2e14557a42",
+    "parent_commit_sha256": "be43b8c2e8e42be864ec53548695093488f2ccde97ffb39fa5fccca89895bcac",
+    "final_success": false,
+    "shards": {
+      "blocks": [
+        {
+          "path": "block_00000.npz",
+          "sha256": "3e570384e667b4a41c06a7d1a4bbd137f640ecf867a517265be2abe0f2906917",
+          "rows": 8,
+          "bytes": 470615,
+          "first_query": 0,
+          "last_query": 7
+        },
+        {
+          "path": "block_00001.npz",
+          "sha256": "37092d73d25eb84e8f4376ff4ed195dc416140c608686b1ebc653ff8005cbf52",
+          "rows": 8,
+          "bytes": 480042,
+          "first_query": 8,
+          "last_query": 15
+        },
+        {
+          "path": "block_00002.npz",
+          "sha256": "5cfcb0063b6dab1f726b14969f49c5f42d787bf70eb1744c9abef75b4bf1efe1",
+          "rows": 8,
+          "bytes": 478109,
+          "first_query": 16,
+          "last_query": 23
+        },
+        {
+          "path": "block_00003.npz",
+          "sha256": "03c587efa038598399cd09ad3754ce362e98c29e30aca77c6d8476572e1edfe8",
+          "rows": 8,
+          "bytes": 470734,
+          "first_query": 24,
+          "last_query": 31
+        },
+        {
+          "path": "block_00004.npz",
+          "sha256": "40170a77adad90ee433314614c79004774f6d990841b8f6e2c54caf1bd236442",
+          "rows": 8,
+          "bytes": 466170,
+          "first_query": 32,
+          "last_query": 39
+        },
+        {
+          "path": "block_00005.npz",
+          "sha256": "f7df8f2cf7afdbc0535cad56bee61f55076575e160d185f59e638dae4427a8ed",
+          "rows": 8,
+          "bytes": 472712,
+          "first_query": 40,
+          "last_query": 47
+        },
+        {
+          "path": "block_00006.npz",
+          "sha256": "d1c8bdcf710569558b5c1b753776bb4aa93fd307c8614693b288166a257c265a",
+          "rows": 4,
+          "bytes": 244613,
+          "first_query": 48,
+          "last_query": 51
+        }
+      ],
+      "queries": 52,
+      "bytes": 3082995,
+      "queries_per_block": 8,
+      "pending_blocks_limit": 2
+    },
+    "online_knn_first": 33,
+    "frozen_threshold": 2.38411808013916,
+    "early_query": null,
+    "initial_positions": {
+      "alphabet_soup_1": [
+        0.05997096155075582,
+        -0.11942095568415141,
+        0.475170123960417
+      ],
+      "cream_cheese_1": [
+        -0.14906723397458133,
+        0.04821204612512275,
+        0.44569592152000004
+      ],
+      "tomato_sauce_1": [
+        0.07852663902710494,
+        -0.2005875961813987,
+        0.47516915037869284
+      ],
+      "ketchup_1": [
+        -0.19451495509521907,
+        -0.13799329750728756,
+        0.5091798059774867
+      ],
+      "basket_1": [
+        -0.006808108469039777,
+        0.2504692937223707,
+        0.432192026650028
+      ]
+    }
+  },
+  "events": [
+    {
+      "event_id": "bb0176c2e1b9fa1a26672456",
+      "timing": "mid",
+      "start_query": 34,
+      "alarm_query": 33,
+      "deployable": true,
+      "snapshot_manifest_sha256": "b9866f272f4bbd486683846224260099626f5550b3f61c32ca9f422e53d2c548",
+      "action_steps_before": 340,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "ketchup_1",
+      "physics_sha256": "73048f42043d794ae75cb91be5298d9c829847786ca6422833648f16c0659376"
+    },
+    {
+      "event_id": "c49428f68c246b225f2c06e2",
+      "timing": "late",
+      "start_query": 44,
+      "alarm_query": 33,
+      "deployable": false,
+      "snapshot_manifest_sha256": "ead73035e9ef2139295bfe347b2f5ed71466c8bc9794fc30b669332d4c98cb97",
+      "action_steps_before": 440,
+      "physical_class": "dropped_or_tipped",
+      "target_name": "ketchup_1",
+      "physics_sha256": "f57aeb4111996f8859dbb2eab92f78061b4603bf2f6c7c2a5fa48bc366700974"
+    }
+  ],
+  "branches": [],
+  "invalid_pair": false,
+  "actual_model_queries": 52,
+  "candidate_queries": 0,
+  "reused_candidate_queries": 0,
+  "environment_pid": 774966,
+  "worker_job_index": 2,
+  "elapsed_seconds": 61.975199514999986
+}
