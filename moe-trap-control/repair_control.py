@@ -122,11 +122,12 @@ def scheduled_jobs(plan, inventory, output):
                     noise_seed=int(task["noise_seed"]), init_index=int(task["init_index"]))
         if replay_run:
             replay_directory = str(Path(replay_run) / "tasks" / parent_id / "replay")
-            jobs.append(dict(base, job_id=parent_id + "/branches", depends_on=None,
+            if plan["arms"]:
+                jobs.append(dict(base, job_id=parent_id + "/branches", depends_on=None,
                              sampling=dict(kind="branches", parent=task, arms=plan["arms"], replicates=plan["replicates"],
                                            timings=plan.get("timings"), supervisor=plan.get("supervisor"),
-                                           regulator=plan.get("regulator"), replay_directory=replay_directory,
-                                           max_output_bytes=branch_bound(plan["arms"], plan["replicates"]))))
+                                               regulator=plan.get("regulator"), replay_directory=replay_directory,
+                                               max_output_bytes=branch_bound(plan["arms"], plan["replicates"]))))
             if plan.get("episode_arms"):
                 jobs.append(dict(base, job_id=parent_id + "/episodes", depends_on=None,
                                  sampling=dict(kind="episodes", parent=task, arms=plan["episode_arms"],

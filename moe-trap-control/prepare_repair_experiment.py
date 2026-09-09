@@ -62,8 +62,8 @@ def supervisor_plan(args):
             chosen += [t for t in tasks if not t["failed"]][:1]
         tasks = chosen
     regulator = args.stage.startswith("regulator")
-    arms = list(REGULATOR_ARMS) if regulator else list(SUPERVISOR_ARMS)
-    episode_arms = list(EPISODE_ARMS) if regulator else []
+    arms = [] if args.skip_forks else list(REGULATOR_ARMS) if regulator else list(SUPERVISOR_ARMS)
+    episode_arms = list(EPISODE_ARMS) if regulator and not args.skip_episodes else []
     for task in tasks:
         task["max_output_bytes"] = 0
     bound = sum(branch_bound(arms, args.replicates) + (episode_bound(episode_arms, args.replicates) if episode_arms else 0)
@@ -188,6 +188,8 @@ if __name__ == "__main__":
     parser.add_argument("--replay-audit", default=str(HERE / "design/repair_main_audit_20260908.json"))
     parser.add_argument("--timings", nargs="+", default=["early", "mid", "late"])
     parser.add_argument("--smoke-parents", nargs="*", default=[])
+    parser.add_argument("--skip-episodes", action="store_true")
+    parser.add_argument("--skip-forks", action="store_true")
     parser.add_argument("--smoke-bases", nargs="+", default=[
         "LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket",
         "STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy"])
