@@ -276,6 +276,25 @@ u = (1 − a)·u_VLA + a·u_servo。协议 `moe_control.repair_regulator.v3`，�
 复现设计：第 2 组噪声（此前未用过）、mid 与 late 全部 91 个 fork、同一批 fork 上加一个不干预的 `vla_fork` 臂做内部对照，
 臂 = {vla_fork, shared_full_z10（复现旧结果）, shared_v4a, shared_v4b}；完整回合 {vla, shared_v4b}。
 
+**v4 结果（第 2 组全新噪声，审计通过；fork 364 条、完整回合 153 条）。**
+
+| 臂 | fork mid（42） | fork late（42） | 对 vla_fork 配对（失败 84） | 成功主轨迹 fork（7） | 完整回合 失败（42） | 完整回合 成功（9） |
+|---|---|---|---|---|---|---|
+| vla_fork / vla（不干预） | 0 | 1 | — | 5 | 4 | 7 |
+| shared_full_z10（复现） | 3 | 4 | 6 胜 0 负 | 6 | 未跑 | 未跑 |
+| shared_v4a（游荡证据 + 半闭合判定 + 快放置） | 3 | 6 | 9 胜 1 负 | 6 | 5（3 胜 2 负） | 6（0 胜 1 负） |
+| shared_v4b（v4a + 代闭合） | 1 | 1 | 2 胜 1 负 | 5 | 3（2 胜 3 负） | 4（0 胜 3 负） |
+
+- **复现成立**：z10 在没用过的噪声上 fork 7/84 对对照 1/84，6 胜 0 负，成功侧 6/7 对 5/7，与第 0、1 组（17/168，误报 12/14）同一量级、同样零毁伤。
+- **改进不成立**：v4a 在 fork 上多 2 条，但从 q0 起只有 5/42 对 4/42（3 胜 2 负），并且丢了一条成功回合（6/9 对 7/9）。
+  分阶段对比显示它确实把"没有证据"的分支推进到了后面的阶段（游荡证据触发，抬起 28 对 22），但多出来的抬起变成了"拿着悬在区域旁"（9 对 4），
+  放置阶段没有被半闭合判定和快放置解决；而时间型证据本身破坏了"只在物理矛盾时动手"的无害性。
+- **代闭合有害**：v4b fork 2/84、从 q0 起 3/42 对 4/42、成功侧 4/9 对 7/9。与 v1 阳性对照的教训一致：VLA 会松开不是它自己做出的抓取。
+
+**这一轮的结论。** 证据门控的共享控制（z10）是可复现的、零毁伤的，救回率每次 8% 到 10% 的失败 fork、从 q0 起 +7 个百分点。
+它的边界也清楚了：它只修"策略在空气里闭合"这一种错，靠 VLA 自己完成抓放。剩下的三类失败（游荡不闭合、到位不闭合、放置在区域旁）
+都不是这条律能碰的；给它加时间型证据或代闭合都会付出无害性。
+
 ## 14. 复现
 
 ```
@@ -287,6 +306,9 @@ python3 diagnose_repair_branches.py --run design/repair_main_20260908 --out desi
 python3 prepare_repair_experiment.py --stage regulator --replicates 2 --skip-forks --output design/repair_plans_20260909/regulator_episodes.json
 python3 prepare_repair_experiment.py --stage regulator --replicates 2 --skip-episodes --output design/repair_plans_20260909/regulator_forks.json
 python3 analyze_repair_regulator.py --run design/repair_regulator_forks_20260909 --extra-runs design/repair_regulator_forks_retry_20260909 design/repair_regulator_episodes_20260909 design/repair_regulator_alpha1_20260909 design/repair_regulator_z10_20260909 --out design/repair_regulator_analysis_20260909
+# v4（第 2 组噪声，内部对照 vla_fork）
+python3 analyze_repair_regulator.py --run design/repair_regulator_v4_forks_20260909 --extra-runs design/repair_regulator_v4_episodes_20260909 design/repair_regulator_v4a_episodes_20260909 --out design/repair_regulator_v4_analysis_20260909
+python3 diagnose_shared_control.py --run design/repair_regulator_v4_forks_20260909 --arms shared_full_z10 shared_v4a shared_v4b --out design/repair_regulator_v4_analysis_20260909/stages_v4_forks.json
 # v2
 python3 prepare_repair_experiment.py --stage supervisor --replicates 2 --output design/repair_plans_20260908/supervisor_main.json
 python3 audit_repair_experiment.py --run design/repair_supervisor_main_20260908 --out design/repair_supervisor_main_audit_20260908.json
