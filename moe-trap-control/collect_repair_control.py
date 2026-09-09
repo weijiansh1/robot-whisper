@@ -734,9 +734,10 @@ class RepairSession:
         spec = self.args.control
         config, main_rows = spec["regulator"], list(records(self.parent / "main"))
         self.report["episodes"] = []
-        self.report["c0"] = dict(status="running" if "vla" in spec["arms"] else "passed", kind="episodes", compared_queries=0,
+        anchored = "vla" in spec["arms"] and int(spec.get("replicate_offset", 0)) == 0
+        self.report["c0"] = dict(status="running" if anchored else "passed", kind="episodes", compared_queries=0,
                                  parent_main_id=self.args.main_id, parent_commit_sha256=self.task["parent_commit_sha256"],
-                                 fidelity_anchor="vla" in spec["arms"])
+                                 fidelity_anchor=anchored)
         for arm in spec["arms"]:
             features, engage, alpha = EPISODE_ARMS[arm]["features"], EPISODE_ARMS[arm]["engage"], EPISODE_ARMS[arm].get("alpha")
             z_offset = EPISODE_ARMS[arm].get("z_offset_m")
