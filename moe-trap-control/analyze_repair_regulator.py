@@ -72,14 +72,24 @@ def run(args):
     if plan["protocol"] != PROTOCOL_V3:
         raise ValueError("Not a regulator run")
     v1 = v1_lookup(args.v1_branches)
-    forks = fork_rows(args.run, plan)
+    forks, episodes = fork_rows(args.run, plan), episode_rows(args.run, plan)
+    for extra in args.extra_runs:
+        other = json.loads((extra / "plan.json").read_text())
+        if other["protocol"] != PROTOCOL_V3 or other["regulator"] != plan["regulator"] or other["replay_run"] != plan["replay_run"]:
+            raise ValueError("Extra run uses a different regulator protocol")
+        seen = {(r["main_id"], r["event_id"], r["replicate"], r["arm"]) for r in forks}
+        forks += [r for r in fork_rows(extra, other) if (r["main_id"], r["event_id"], r["replicate"], r["arm"]) not in seen]
+        seen_e = {(r["main_id"], r["replicate"], r["arm"]) for r in episodes}
+        episodes += [r for r in episode_rows(extra, other) if (r["main_id"], r["replicate"], r["arm"]) not in seen_e]
+        plan["arms"] = plan["arms"] or other["arms"]
+        plan["episode_arms"] = plan["episode_arms"] or other["episode_arms"]
     for r in forks:
         r["nn_window"] = v1.get((r["event_id"], r["replicate"], "new_noise"), dict(window=False))["window"]
         r["a4_window"] = v1.get((r["event_id"], r["replicate"], "retract_above_target"), dict(window=False))["window"]
-    episodes = episode_rows(args.run, plan)
     failed = [r for r in forks if r["failed"]]
     success = [r for r in forks if not r["failed"]]
-    summary = dict(protocol=PROTOCOL_V3, run=str(args.run), fork_branches=len(forks), episodes=len(episodes),
+    summary = dict(protocol=PROTOCOL_V3, run=str(args.run), extra_runs=[str(e) for e in args.extra_runs],
+                   fork_branches=len(forks), episodes=len(episodes),
                    failed_parents=len({r["main_id"] for r in failed}), success_parents=len({r["main_id"] for r in success}),
                    regulator=plan["regulator"])
     summary["fork_by_timing_arm"] = {"%s|%s" % (t, a): fork_cell([r for r in failed if r["timing"] == t and r["arm"] == a])
@@ -145,5 +155,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", type=Path, required=True)
     parser.add_argument("--v1-branches", type=Path, default=Path("design/repair_main_analysis_20260908/branches.csv"))
+    parser.add_argument("--extra-runs", type=Path, nargs="*", default=[])
     parser.add_argument("--out", type=Path, required=True)
     run(parser.parse_args())
