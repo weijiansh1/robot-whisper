@@ -26,12 +26,13 @@ import traceback
 
 import numpy as np
 
-from repair_control import (ARMS, CONTRACT, CONTRACT_V2, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL, PROTOCOL_V2,
-                            HORIZON_STEPS, SUPERVISOR_ARMS, WINDOW_STEPS, RouteRisk, early_event, noise_for, seed_for)
+from repair_control import (ARMS, CONTRACT, CONTRACT_V2, CONTRACT_V3, CONTROLLER, EPISODE_ARMS, GPUS, RENDER_GPUS,
+                            PROTOCOL, PROTOCOL_V2, PROTOCOL_V3, HORIZON_STEPS, REGULATOR_ARMS, SUPERVISOR_ARMS,
+                            WINDOW_STEPS, RouteRisk, early_event, noise_for, seed_for)
 from repair_controller import (CLOSE, CLOSE_APERTURE, DEPARTURE_M, NEAR_M, OPEN, STILL_M, CarryGuard, ContactDescent,
-                               HandState, PhantomGuard, ProportionalRetract, aperture, eef_position, goal_region,
-                               object_top_offset, physical_class, place_point, place_waypoints, resolve_target,
-                               retract_chunk, tilt_degrees)
+                               HandState, PhantomGuard, ProportionalRetract, SharedControl, aperture, eef_position,
+                               goal_region, nearest_unsatisfied_target, object_extent, object_top_offset, physical_class,
+                               place_point, place_waypoints, resolve_target, retract_chunk, tilt_degrees)
 from collect_preflight_worker import (component_digests, input_digest, restore, snapshot,
                                       valid_response, verify_egl_device)
 from collection_routes import ALL_FIELDS, CAPTURE_KEY, PROBS_KEY
@@ -151,9 +152,10 @@ class RepairSession:
             if metadata[key] != original["model_metadata"][key]:
                 raise ValueError("Model identity differs: " + key)
         args.output.mkdir(parents=True, exist_ok=False)
-        v2 = args.control.get("supervisor") is not None
-        self.report = dict(status="running", protocol=PROTOCOL_V2 if v2 else PROTOCOL, contract=CONTRACT_V2 if v2 else CONTRACT,
-            controller=CONTROLLER, supervisor=args.control.get("supervisor"),
+        v2, v3 = args.control.get("supervisor") is not None, args.control.get("regulator") is not None
+        self.report = dict(status="running", protocol=PROTOCOL_V3 if v3 else PROTOCOL_V2 if v2 else PROTOCOL,
+            contract=CONTRACT_V3 if v3 else CONTRACT_V2 if v2 else CONTRACT,
+            controller=CONTROLLER, supervisor=args.control.get("supervisor"), regulator=args.control.get("regulator"),
             main_id=args.main_id, job_kind=args.control["kind"], variant=self.row, parent_directory=str(self.parent),
             parent_commit_sha256=self.task["parent_commit_sha256"], parent_manifest_sha256=self.task["parent_manifest_sha256"],
             model=args.model, model_metadata=metadata, gpu=args.gpu, render_gpu=args.render_gpu,
@@ -201,13 +203,19 @@ class RepairSession:
             raise ValueError("Repair noise identity")
         return request, response, duration
 
-    def advance(self, obs, actions, limit, steps, replicate=None, observer=None):
+    def advance(self, obs, actions, limit, steps, replicate=None, observer=None, regulate=None):
         tick, count, success = time.monotonic(), 0, False
+        executed, logs = [], []
         for action in actions[:limit]:
             if replicate is not None:
                 seed = seed_for(self.args.main_id, replicate, steps + count, "environment")
                 random.seed(seed)
                 np.random.seed(seed)
+            action = np.asarray(action, np.float32)
+            if regulate is not None:
+                action, log = regulate(action, obs)
+                logs.append(log)
+            executed.append(np.asarray(action, np.float32))
             obs, _, done, _ = self.env.step(action.tolist())
             count += 1
             success = bool(self.env.check_success())
@@ -217,6 +225,11 @@ class RepairSession:
                 break
             if done:
                 raise ValueError("Premature termination inside the branch window")
+        self.last_executed = np.zeros((10, 7), np.float32)
+        self.last_executed[:len(executed)] = np.asarray(executed, np.float32).reshape(-1, 7)
+        self.last_logs = np.zeros((10, 6), np.float32)
+        if logs:
+            self.last_logs[:len(logs)] = np.asarray(logs, np.float32).reshape(-1, 6)
         return obs, count, success, time.monotonic() - tick
 
     @staticmethod
@@ -628,6 +641,175 @@ class RepairSession:
                       repair_success=bool(interventions and branch["success"] and branch["success_step"] <= interventions[0]["steps"]))
         return obs, steps
 
+    # ------------------------------------------------------------------ feedback regulator v3
+    def _regulator_context(self, current, features, config, obs):
+        """Target (nearest unsatisfied object to the end effector), law and goal geometry; re-resolved every chunk."""
+        target = nearest_unsatisfied_target(self.env, eef_position(obs))
+        name = target["name"]
+        if name is None:
+            return dict(name=None, regulator=None, region=None, point=None)
+        if current.get("name") != name:
+            current = dict(name=name, regulator=SharedControl(config, features, float(target["position"][2]), object_extent(self.env, name)),
+                           region=None, point=None, extent=float(object_extent(self.env, name)))
+            current["regulator"].engaged = self._regulator_engaged
+        inner = self.env.env
+        current["others"] = [(inner.obj_body_id[n], float(object_extent(self.env, n))) for n in self.movable_positions() if n != name]
+        if "carry" in features or "release_gate" in features:
+            region = goal_region(self.env, name)
+            point = None
+            if region is not None:
+                others = [np.asarray(p, np.float64) for n, p in self.movable_positions().items() if n != name]
+                point, _ = place_point(region, others)
+            current.update(region=region, point=point)
+        return current
+
+    def _regulate_callback(self, context):
+        if context["regulator"] is None:
+            return None
+        name = context["name"]
+
+        inner = self.env.env
+
+        def regulate(action, o):
+            position, unsatisfied = self._target_state(name)
+            others = [(np.asarray(inner.sim.data.body_xpos[body], np.float64), extent) for body, extent in context["others"]]
+            return context["regulator"].step(action, eef_position(o), aperture(o), position, context["region"], context["point"], unsatisfied, others)
+        return regulate
+
+    def run_regulated(self, arm, physics, obs, steps, replicate, directory, branch, q0, monitor, writer):
+        """VLA every chunk; the regulator edits each executed env step.  Twin: new_noise until the first edit."""
+        features, config = REGULATOR_ARMS[arm]["features"], self.args.control["regulator"]
+        fork_steps, context = int(steps), {}
+        self._regulator_engaged = True
+        branch.update(twin="new_noise", first_extra_intervention_query=None, features=list(features), handback_step=0,
+                      repair_steps=0, repair_kind="regulate", modified_steps=0, gate_close_steps=0, gate_open_steps=0,
+                      servo_effort=0.0)
+        while not branch["success"] and branch["action_steps"] < WINDOW_STEPS:
+            index = branch["queries"]
+            q = q0 + index
+            context = self._regulator_context(context, features, config, obs)
+            request, response, inference = self.query(obs, noise_for(self.args.main_id, replicate, index, 0))
+            branch["deployment_model_queries"] += 1
+            alarm = monitor.update(response[PROBS_KEY])
+            vector, score = self.risk.current(monitor)
+            before = np.asarray(self.env.get_sim_state(), np.float64).copy()
+            limit = min(10, WINDOW_STEPS - branch["action_steps"])
+            obs, count, success, simulation = self.advance(obs, response["actions"], limit, steps, replicate,
+                                                          regulate=self._regulate_callback(context))
+            after = np.asarray(self.env.get_sim_state(), np.float64).copy()
+            if not np.isfinite(after).all():
+                raise ValueError("Non-finite branch physics")
+            row = self.record(request, response, q, steps, count, before, after, success, alarm, inference, simulation)
+            logs = self.last_logs
+            row.update(relative_query=np.int32(index), candidate_id=np.int16(0),
+                policy_seed=np.uint32(seed_for(self.args.main_id, replicate, index, "policy", 0)),
+                environment_first_seed=np.uint32(seed_for(self.args.main_id, replicate, steps, "environment")),
+                environment_last_seed=np.uint32(seed_for(self.args.main_id, replicate, steps + count - 1, "environment")),
+                requested_action_count=np.int16(limit), knn_score=np.float32(score), knn_vector=vector,
+                steps_since_fork=np.int32(steps - fork_steps), executed_actions=self.last_executed,
+                regulator_log=logs, target_name=np.asarray(context["name"] or "", dtype="S32"))
+            writer.append(row)
+            modified = int(logs[:, 5].sum()) if len(logs) else 0
+            branch["modified_steps"] += modified
+            branch["gate_close_steps"] += int(logs[:, 2].sum()) if len(logs) else 0
+            branch["gate_open_steps"] += int(logs[:, 3].sum()) if len(logs) else 0
+            branch["servo_effort"] += float(np.abs(logs[:, :2]).sum()) if len(logs) else 0.0
+            if modified and branch["first_extra_intervention_query"] is None:
+                branch["first_extra_intervention_query"] = index + 1
+            steps += count
+            branch.update(queries=index + 1, action_steps=steps - fork_steps, success=success)
+            if success:
+                branch["success_step"] = branch["action_steps"]
+            if branch["queries"] % 8 == 0:
+                self.save()
+        return obs, steps
+
+    def episodes(self):
+        """Full 520-step episodes from the parent's q0 snapshot; replicate 0 reuses the parent's noise stream."""
+        spec = self.args.control
+        config, main_rows = spec["regulator"], list(records(self.parent / "main"))
+        self.report["episodes"] = []
+        self.report["c0"] = dict(status="running", kind="episodes", compared_queries=0, parent_main_id=self.args.main_id,
+                                 parent_commit_sha256=self.task["parent_commit_sha256"])
+        for arm in spec["arms"]:
+            features, engage = EPISODE_ARMS[arm]["features"], EPISODE_ARMS[arm]["engage"]
+            for replicate in range(int(spec["replicates"])):
+                directory = self.args.output / "episodes" / arm / ("repeat%d" % replicate)
+                directory.mkdir(parents=True, exist_ok=False)
+                self.new_env(extended=False)
+                self.rng = np.random.default_rng(self.args.seed)
+                obs = restore(self.env, load_snapshot(self.parent / "preflight_q000"), self.rng)
+                monitor, first = self.risk.monitor(), None
+                self._regulator_engaged = engage == "always"
+                episode = dict(status="running", arm=arm, engage=engage, features=list(features), replicate=replicate,
+                    parent_main_id=self.args.main_id, parent_success=bool(self.original["success"]), queries=0,
+                    action_steps=0, success=False, success_step=None, first_alarm_query=None, engaged_query=0 if engage == "always" else None,
+                    first_modified_query=None, modified_steps=0, gate_close_steps=0, gate_open_steps=0, servo_effort=0.0,
+                    fidelity=None, same_noise=replicate == 0)
+                self.report["episodes"].append(episode)
+                context, steps, writer, success = {}, 0, ShardWriter(directory / "suffix"), False
+                try:
+                    while not success and steps < HORIZON_STEPS:
+                        index = episode["queries"]
+                        if features:
+                            context = self._regulator_context(context, features, config, obs)
+                            if context["regulator"] is not None:
+                                context["regulator"].engaged = self._regulator_engaged
+                        noise = self.rng.standard_normal((10, 24)).astype(np.float32) if replicate == 0 else noise_for(self.args.main_id, replicate, index, 0)
+                        request, response, inference = self.query(obs, noise)
+                        alarm = monitor.update(response[PROBS_KEY])
+                        vector, score = self.risk.current(monitor)
+                        if first is None and score > self.risk.threshold:
+                            first = index
+                            episode["first_alarm_query"] = index
+                            if engage == "knn_alarm":
+                                self._regulator_engaged = True
+                                episode["engaged_query"] = index + 1
+                        if replicate == 0 and arm == "vla" and index < len(main_rows):
+                            expected = main_rows[index]
+                            if (str(expected["input_sha256"].astype(str)) != input_digest(request) or
+                                    not np.array_equal(np.asarray(expected["actions"], np.float32), np.asarray(response["actions"], np.float32))):
+                                raise ValueError("Episode fidelity failed at query %d" % index)
+                        before = np.asarray(self.env.get_sim_state(), np.float64).copy()
+                        limit = min(10, HORIZON_STEPS - steps)
+                        regulate = self._regulate_callback(context) if features else None
+                        obs, count, success, simulation = self.advance(obs, response["actions"], limit, steps, None, regulate=regulate)
+                        after = np.asarray(self.env.get_sim_state(), np.float64).copy()
+                        row = self.record(request, response, index, steps, count, before, after, success, alarm, inference, simulation)
+                        logs = self.last_logs if regulate is not None else np.zeros((10, 6), np.float32)
+                        row.update(relative_query=np.int32(index), candidate_id=np.int16(0),
+                            policy_seed=np.uint32(0 if replicate == 0 else seed_for(self.args.main_id, replicate, index, "policy", 0)),
+                            requested_action_count=np.int16(limit), knn_score=np.float32(score), knn_vector=vector,
+                            steps_since_fork=np.int32(steps), executed_actions=self.last_executed, regulator_log=logs,
+                            target_name=np.asarray(context.get("name") or "", dtype="S32"))
+                        writer.append(row)
+                        modified = int(logs[:, 5].sum()) if len(logs) else 0
+                        episode["modified_steps"] += modified
+                        episode["gate_close_steps"] += int(logs[:, 2].sum()) if len(logs) else 0
+                        episode["gate_open_steps"] += int(logs[:, 3].sum()) if len(logs) else 0
+                        episode["servo_effort"] += float(np.abs(logs[:, :2]).sum()) if len(logs) else 0.0
+                        if modified and episode["first_modified_query"] is None:
+                            episode["first_modified_query"] = index + 1
+                        steps += count
+                        episode.update(queries=index + 1, action_steps=steps, success=success)
+                        if success:
+                            episode["success_step"] = steps
+                        if episode["queries"] % 8 == 0:
+                            self.save()
+                    episode["shards"] = writer.close()
+                finally:
+                    writer.close()
+                if replicate == 0 and arm == "vla":
+                    episode["fidelity"] = "passed" if (episode["success"] == bool(self.original["success"]) and
+                                                       episode["queries"] == int(self.original["queries"])) else "failed"
+                    if episode["fidelity"] != "passed":
+                        raise ValueError("Episode outcome differs from the parent")
+                    self.report["c0"].update(status="passed", compared_queries=episode["queries"], final_success=episode["success"])
+                episode["status"] = "completed"
+                atomic_json(directory / "episode.json", episode)
+                self.close_env()
+                self.save()
+
     def branches(self):
         spec = self.args.control
         replay_dir = Path(spec["replay_directory"])
@@ -662,7 +844,7 @@ class RepairSession:
                     obs = restore(self.env, saved, self.rng)
                     monitor = copy.deepcopy(prefix_monitor)
                     fork_steps = int(saved["action_steps"])
-                    branch = dict(status="running", arm=arm, control=ARMS[arm] if arm in ARMS else SUPERVISOR_ARMS[arm],
+                    branch = dict(status="running", arm=arm, control=ARMS[arm] if arm in ARMS else SUPERVISOR_ARMS.get(arm) or REGULATOR_ARMS[arm],
                         replicate=replicate, event_id=event["event_id"],
                         timing=event["timing"], deployable=event["deployable"], start_query=q0,
                         physical_class=physics["physical_class"], target_name=physics["target_name"],
@@ -673,10 +855,13 @@ class RepairSession:
                         deployment_model_queries=0, handback_step=None)
                     self.report["branches"].append(branch)
                     directory.mkdir(parents=True, exist_ok=False)
-                    if arm in SUPERVISOR_ARMS:
+                    if arm in SUPERVISOR_ARMS or (spec.get("regulator") is not None and arm in REGULATOR_ARMS):
                         writer = ShardWriter(directory / "suffix")
                         try:
-                            self.run_supervised(arm, physics, obs, fork_steps, replicate, directory, branch, q0, monitor, writer)
+                            if arm in SUPERVISOR_ARMS:
+                                self.run_supervised(arm, physics, obs, fork_steps, replicate, directory, branch, q0, monitor, writer)
+                            else:
+                                self.run_regulated(arm, physics, obs, fork_steps, replicate, directory, branch, q0, monitor, writer)
                             branch["shards"] = writer.close()
                         finally:
                             writer.close()
@@ -738,6 +923,8 @@ def run(args, cache):
             session.replay()
         elif args.control["kind"] == "branches":
             session.branches()
+        elif args.control["kind"] == "episodes":
+            session.episodes()
         else:
             raise ValueError("Unknown repair job")
         session.report["status"] = "completed"

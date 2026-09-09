@@ -11,8 +11,9 @@ from pathlib import Path
 import re
 import shutil
 
-from repair_control import (ARMS, BYTES_PER_QUERY, CONTRACT, CONTRACT_V2, CONTROLLER, GPUS, RENDER_GPUS, PROTOCOL,
-                            PROTOCOL_V2, REFERENCE, PARAMETERS, SUPERVISOR, SUPERVISOR_ARMS, branch_bound, events_for,
+from repair_control import (ARMS, BYTES_PER_QUERY, CONTRACT, CONTRACT_V2, CONTRACT_V3, CONTROLLER, EPISODE_ARMS, GPUS,
+                            RENDER_GPUS, PROTOCOL, PROTOCOL_V2, PROTOCOL_V3, REFERENCE, PARAMETERS, REGULATOR,
+                            REGULATOR_ARMS, SUPERVISOR, SUPERVISOR_ARMS, branch_bound, episode_bound, events_for,
                             load_plan)
 from collection_protocol import HERE, PARAMETERS_SHA256, stable_id
 from collection_storage import atomic_json, digest
@@ -47,7 +48,7 @@ def supervisor_plan(args):
     if audit["status"] != "passed" or audit["plan_sha256"] != digest(run_dir / "plan.json") or v1["protocol"] != PROTOCOL:
         raise ValueError("Supervisor plan needs an audited v1 run")
     tasks = [dict(t) for t in v1["tasks"]]
-    if args.stage == "supervisor_smoke":
+    if args.stage in ("supervisor_smoke", "regulator_smoke"):
         wanted = {b: 0 for b in args.smoke_bases}
         chosen = []
         for task in tasks:
@@ -60,16 +61,22 @@ def supervisor_plan(args):
         if not args.smoke_parents:
             chosen += [t for t in tasks if not t["failed"]][:1]
         tasks = chosen
-    arms = list(SUPERVISOR_ARMS)
+    regulator = args.stage.startswith("regulator")
+    arms = list(REGULATOR_ARMS) if regulator else list(SUPERVISOR_ARMS)
+    episode_arms = list(EPISODE_ARMS) if regulator else []
     for task in tasks:
         task["max_output_bytes"] = 0
-    bound = sum(branch_bound(arms, args.replicates) for _ in tasks)
+    bound = sum(branch_bound(arms, args.replicates) + (episode_bound(episode_arms, args.replicates) if episode_arms else 0)
+                for _ in tasks)
     if shutil.disk_usage(HERE).free - bound < 8 * 1024**3:
-        raise ValueError("Supervisor plan exceeds conservative disk headroom: %.2f GiB" % (bound / 1024**3))
+        raise ValueError("Derived plan exceeds conservative disk headroom: %.2f GiB" % (bound / 1024**3))
     sources = [run_dir / "plan.json", audit_path, REFERENCE, PARAMETERS, HERE / "repair_control.py",
                HERE / "repair_controller.py", HERE / "collect_repair_control.py", HERE / "prepare_repair_experiment.py"]
-    plan = dict(protocol=PROTOCOL_V2, model="long", stage=args.stage, arms=arms, arms_registry=SUPERVISOR_ARMS,
-        controller=CONTROLLER, supervisor=SUPERVISOR, replicates=args.replicates, contract=CONTRACT_V2,
+    plan = dict(protocol=PROTOCOL_V3 if regulator else PROTOCOL_V2, model="long", stage=args.stage, arms=arms,
+        arms_registry=REGULATOR_ARMS if regulator else SUPERVISOR_ARMS, episode_arms=episode_arms,
+        episode_arms_registry=EPISODE_ARMS if regulator else {},
+        controller=CONTROLLER, supervisor=None if regulator else SUPERVISOR, regulator=REGULATOR if regulator else None,
+        replicates=args.replicates, contract=CONTRACT_V3 if regulator else CONTRACT_V2,
         timings=list(args.timings), replay_run=str(run_dir), replay_audit=str(audit_path),
         selection="every parent of the audited v1 run (%s); fork snapshots and physics reused; no outcome read" % v1["stage"],
         source_sha256={str(p): digest(p) for p in sources}, frozen_parameters_sha256=PARAMETERS_SHA256,
@@ -89,7 +96,7 @@ def supervisor_plan(args):
 
 
 def run(args):
-    if args.stage.startswith("supervisor"):
+    if args.stage.startswith(("supervisor", "regulator")):
         return supervisor_plan(args)
     parents, sources = [], []
     for stem in AUDITS:
@@ -176,7 +183,7 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("smoke", "main", "supervisor_smoke", "supervisor"), required=True)
+    parser.add_argument("--stage", choices=("smoke", "main", "supervisor_smoke", "supervisor", "regulator_smoke", "regulator"), required=True)
     parser.add_argument("--replay-run", default=str(HERE / "design/repair_main_20260908"))
     parser.add_argument("--replay-audit", default=str(HERE / "design/repair_main_audit_20260908.json"))
     parser.add_argument("--timings", nargs="+", default=["early", "mid", "late"])

@@ -11,7 +11,8 @@ import numpy as np
 
 from collection_routes import PROBS_KEY
 from collection_storage import atomic_json, digest, load_snapshot, records
-from repair_control import ARMS, PROTOCOL, PROTOCOL_V2, SUPERVISOR_ARMS, WINDOW_STEPS, seed_for
+from repair_control import (ARMS, EPISODE_ARMS, HORIZON_STEPS, PROTOCOL, PROTOCOL_V2, PROTOCOL_V3, REGULATOR_ARMS,
+                            SUPERVISOR_ARMS, WINDOW_STEPS, seed_for)
 
 REPAIR_REASONS = ("reached", "max_chunks", "open", "close", "", "regrasp", "release", "contact")
 
@@ -28,8 +29,42 @@ def twin_prefix_equal(directory, twin_dir, limit):
     return True
 
 
+def audit_episodes(task_dir, plan_task, plan):
+    """Full-episode jobs: vla replicate 0 reproduces the parent; regulated arms stay within the horizon."""
+    findings, path = [], task_dir / "episodes/result.json"
+    if not path.exists():
+        return ["episodes_missing"], 0, 0
+    result = json.loads(path.read_text())
+    if result["status"] != "completed":
+        findings.append("episodes_not_completed")
+    expected = {(a, r) for a in plan["episode_arms"] for r in range(plan["replicates"])}
+    seen, rows = set(), 0
+    for episode in result.get("episodes", []):
+        seen.add((episode["arm"], episode["replicate"]))
+        directory = task_dir / "episodes" / "episodes" / episode["arm"] / ("repeat%d" % episode["replicate"])
+        if episode["status"] != "completed" or json.loads((directory / "episode.json").read_text())["status"] != "completed":
+            findings.append("episode_incomplete:%s/%d" % (episode["arm"], episode["replicate"]))
+        if episode["arm"] == "vla" and episode["replicate"] == 0 and episode.get("fidelity") != "passed":
+            findings.append("episode_fidelity:%s" % plan_task["main_id"][:8])
+        steps = 0
+        for index, row in enumerate(records(directory / "suffix")):
+            rows += 1
+            steps += int(row["executed_action_count"])
+            if any("hidden" in k.lower() for k in row):
+                findings.append("hidden_capture")
+            if episode["replicate"] > 0 and int(row["policy_seed"]) != seed_for(plan_task["main_id"], episode["replicate"], index, "policy", 0):
+                findings.append("episode_policy_seed:%s" % episode["arm"])
+            if not episode["features"] and float(np.abs(np.asarray(row["regulator_log"])).sum()) != 0.0:
+                findings.append("vla_episode_modified:%s" % episode["arm"])
+        if steps != episode["action_steps"] or steps > HORIZON_STEPS or (episode["success"] and episode["success_step"] is None):
+            findings.append("episode_steps:%s/%d" % (episode["arm"], episode["replicate"]))
+    if seen != expected:
+        findings.append("missing_episodes:%d" % len(expected - seen))
+    return findings, len(seen), rows
+
+
 def audit_task(task_dir, plan_task, plan):
-    v2 = plan["protocol"] == PROTOCOL_V2
+    v2 = plan["protocol"] in (PROTOCOL_V2, PROTOCOL_V3)
     findings = []
     if v2:
         replay_dir = Path(plan["replay_run"]) / "tasks" / plan_task["main_id"] / "replay"
@@ -82,7 +117,7 @@ def audit_task(task_dir, plan_task, plan):
                     findings.append("repair_reason:%s" % row["reason"])
         if v2:
             twin = branch.get("twin")
-            if len(branch.get("interventions", [])) > plan["supervisor"]["max_interventions"]:
+            if plan.get("supervisor") and len(branch.get("interventions", [])) > plan["supervisor"]["max_interventions"]:
                 findings.append("too_many_interventions:%s/%s" % (branch["event_id"][:8], branch["arm"]))
             if twin is not None:
                 twin_dir = replay_dir.parent / "branches/branches" / branch["event_id"] / ("repeat%d" % branch["replicate"]) / twin
@@ -109,14 +144,22 @@ def audit_task(task_dir, plan_task, plan):
         findings.append("missing_branches:%d" % len(expected - seen))
     if hidden:
         findings.append("hidden_capture")
-    return dict(main_id=plan_task["main_id"], findings=findings, events=len(events), branches=len(seen),
-                suffix_rows=suffix_rows, repair_rows=repair_rows)
+    report = dict(main_id=plan_task["main_id"], findings=findings, events=len(events), branches=len(seen),
+                  suffix_rows=suffix_rows, repair_rows=repair_rows)
+    if plan.get("episode_arms"):
+        episode_findings, episodes, rows = audit_episodes(task_dir, plan_task, plan)
+        findings.extend(episode_findings)
+        report.update(episodes=episodes, episode_rows=rows)
+    return report
 
 
 def run(args):
     plan = json.loads((args.run / "plan.json").read_text())
     summary = json.loads((args.run / "summary.json").read_text())
-    if plan["protocol"] == PROTOCOL_V2:
+    if plan["protocol"] == PROTOCOL_V3:
+        if plan["arms_registry"] != REGULATOR_ARMS or plan["episode_arms_registry"] != EPISODE_ARMS:
+            raise ValueError("Wrong regulator registry")
+    elif plan["protocol"] == PROTOCOL_V2:
         if plan["arms_registry"] != SUPERVISOR_ARMS:
             raise ValueError("Wrong supervisor registry")
     elif plan["protocol"] != PROTOCOL or plan["arms_registry"] != ARMS:
@@ -126,9 +169,10 @@ def run(args):
         plan_sha256=digest(args.run / "plan.json"), summary_status=summary["status"], gpus=summary["gpus"],
         parents=len(tasks), events=sum(t["events"] for t in tasks), branches=sum(t["branches"] for t in tasks),
         suffix_rows=sum(t.get("suffix_rows", 0) for t in tasks), repair_rows=sum(t.get("repair_rows", 0) for t in tasks),
+        episodes=sum(t.get("episodes", 0) for t in tasks), episode_rows=sum(t.get("episode_rows", 0) for t in tasks),
         tasks=tasks)
     atomic_json(args.out, report)
-    print(json.dumps({k: report[k] for k in ("status", "parents", "events", "branches", "suffix_rows", "repair_rows")}))
+    print(json.dumps({k: report[k] for k in ("status", "parents", "events", "branches", "suffix_rows", "repair_rows", "episodes", "episode_rows")}))
     for t in tasks:
         if t["findings"]:
             print(t["main_id"], t["findings"][:6])

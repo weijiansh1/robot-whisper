@@ -295,3 +295,181 @@ def place_waypoints(eef, target, region, half_height, height_m, clearance_m, ris
     lower = np.array([point[0], point[1], floor + half_height + clearance_m]) + offset
     retreat = lower + np.array([0.0, 0.0, rise_m])
     return dict(rise=rise, transfer=transfer, lower=lower, retreat=retreat, offset=offset, floor=floor)
+
+
+# ---------------------------------------------------------------------------- feedback regulator v3
+def graspable(eef, target, xy_m, dz_min_m, dz_max_m):
+    """Closure gate: the target origin is inside the envelope seen at every lifted closure in the replays."""
+    eef, target = np.asarray(eef, np.float64), np.asarray(target, np.float64)
+    dz = float(eef[2] - target[2])
+    return bool(np.linalg.norm(eef[:2] - target[:2]) <= xy_m and dz_min_m <= dz <= dz_max_m)
+
+
+def inside_region(position, region, margin_xy_m, margin_z_m, body_radius_m, body_height_m):
+    """Release gate: the object is where the goal predicate can become true."""
+    position = np.asarray(position, np.float64)
+    centre, half = np.asarray(region["centre"], np.float64), np.asarray(region["half"], np.float64)
+    if float(half[:2].max()) <= 0.0:                       # body region (plate): a disc above the body origin
+        return bool(np.linalg.norm(position[:2] - centre[:2]) <= body_radius_m and
+                    -body_height_m <= position[2] - centre[2] <= body_height_m)
+    floor = centre[2] - half[2] if region["predicate"].lower() == "in" else centre[2]
+    top = centre[2] + half[2]
+    return bool(np.all(np.abs(position[:2] - centre[:2]) <= half[:2] + margin_xy_m) and
+                floor - margin_z_m <= position[2] <= top + margin_z_m)
+
+
+class Regulator:
+    """Continuous feedback on top of the VLA action: u = u_VLA + K e, plus gates on the gripper channel.
+
+    approach: PI servo of the end effector toward the target in the horizontal plane while nothing is in hand
+              (the integrator is the memory the memoryless policy lacks; it removes its constant grasp bias);
+    close_gate: CLOSE is executed only inside the graspable envelope;
+    carry: proportional pull of the held object toward the place point;
+    release_gate: OPEN is executed only when the held object is inside the goal region.
+    Actions are LIBERO OSC_POSE units; everything is a pure function of measured state.
+    """
+
+    def __init__(self, config, features, rest_z):
+        self.c, self.features = dict(config), set(features)
+        self.hand = HandState(rest_z, config["lifted_m"])
+        self.integral = np.zeros(2)
+        self.clamp = config["u_max"] / config["ki"] if config["ki"] > 0 else 0.0
+        self.engaged = True
+
+    def step(self, action, eef, ap, target, region=None, place_point=None):
+        a = np.array(action, np.float32, copy=True)
+        log = np.zeros(6, np.float32)   # u_x, u_y, gate_close, gate_open, in_hand, modified
+        if target is None:
+            return a, log
+        in_hand = self.hand.update(eef, ap, target)
+        log[4] = float(in_hand)
+        if not self.engaged:
+            return a, log
+        eef, target = np.asarray(eef, np.float64), np.asarray(target, np.float64)
+        if in_hand:
+            self.integral[:] = 0.0
+            if "carry" in self.features and place_point is not None:
+                e = np.asarray(place_point, np.float64)[:2] - target[:2]
+                u = np.clip(self.c["carry_kp"] * e, -self.c["carry_u_max"], self.c["carry_u_max"])
+                a[:2] += u.astype(np.float32)
+                log[:2] = u
+            if "release_gate" in self.features and a[6] < 0 and region is not None and not inside_region(
+                    target, region, self.c["release_margin_xy_m"], self.c["release_margin_z_m"],
+                    self.c["body_region_radius_m"], self.c["body_region_height_m"]):
+                a[6] = CLOSE
+                log[3] = 1.0
+        else:
+            if "approach" in self.features:
+                e = target[:2] - eef[:2]
+                self.integral = np.clip(self.integral + e, -self.clamp, self.clamp)
+                u = np.clip(self.c["kp"] * e + self.c["ki"] * self.integral, -self.c["u_max"], self.c["u_max"])
+                a[:2] += u.astype(np.float32)
+                log[:2] = u
+            if "close_gate" in self.features and a[6] > 0 and not graspable(
+                    eef, target, self.c["close_gate_xy_m"], self.c["close_gate_dz_min_m"], self.c["close_gate_dz_max_m"]):
+                a[6] = OPEN
+                log[2] = 1.0
+        log[5] = float(not np.array_equal(a, np.asarray(action, np.float32)))
+        return a, log
+
+
+def nearest_unsatisfied_target(env, eef):
+    """Like resolve_target, but follows the policy's revealed intention: the unsatisfied object nearest the end effector."""
+    inner = env.env
+    movable = _movable_names(inner)
+    unsatisfied = [list(state) for state in inner.parsed_problem["goal_state"] if not inner._eval_predicate(state)]
+    best = None
+    for state in unsatisfied:
+        for name in state[1:]:
+            if name not in movable:
+                continue
+            body = inner.obj_body_id[name]
+            position = np.asarray(inner.sim.data.body_xpos[body], np.float64).copy()
+            distance = float(np.linalg.norm(position - np.asarray(eef, np.float64)))
+            if best is None or distance < best["distance"]:
+                best = dict(name=name, position=position, quaternion=np.asarray(inner.sim.data.body_xquat[body], np.float64).copy(),
+                            unsatisfied=unsatisfied, articulated_pending=False, distance=distance)
+    if best is None:
+        return dict(name=None, position=None, quaternion=None, unsatisfied=unsatisfied, articulated_pending=bool(unsatisfied))
+    return best
+
+
+def object_extent(env, name, default=0.05):
+    """Largest bounding-sphere radius among the body's geoms: how far from the origin a grasp can legitimately close."""
+    inner = env.env
+    model = inner.sim.model
+    body = inner.obj_body_id[name]
+    radii = [float(model.geom_rbound[g]) for g in range(model.ngeom) if int(model.geom_bodyid[g]) == body]
+    return max(radii) if radii else float(default)
+
+
+class SharedControl:
+    """Evidence-triggered shared control: u = (1 - a) u_VLA + a u_servo, with a = 0 until physics contradicts the policy.
+
+    Evidence = a closure blocked by the graspable-envelope gate (the policy closed on nothing).  For
+    authority_steps afterwards the servo pulls the end effector to just above the nearest unsatisfied
+    object with authority alpha; in hand the authority returns to the policy.  With the carry feature the
+    same authority moves a held object toward the place point once it has been carried patience steps
+    without a goal predicate turning true; the release gate keeps OPEN from executing outside the region.
+    """
+
+    def __init__(self, config, features, rest_z, extent=0.0):
+        self.c, self.features = dict(config), set(features)
+        self.hand = HandState(rest_z, config["lifted_m"])
+        self.t, self.authority_until, self.carry = 0, -1, None
+        self.engaged = True
+        self.gate_xy_m = max(float(config["close_gate_xy_m"]), float(extent) + float(config["close_gate_extent_margin_m"]))
+        self.gate_dz_max_m = max(float(config["close_gate_dz_max_m"]), float(extent) + float(config["close_gate_extent_margin_m"]))
+
+    def _servo(self, error):
+        return np.clip(self.c["kp_shared"] * np.asarray(error, np.float64), -1.0, 1.0)
+
+    def anything_graspable(self, eef, target, others):
+        """True if the target or any other movable object sits inside the closure envelope of the end effector."""
+        if graspable(eef, target, self.gate_xy_m, self.c["close_gate_dz_min_m"], self.gate_dz_max_m):
+            return True
+        for position, _ in others or ():        # distractors: the strict envelope seen at lifted closures
+            if graspable(eef, position, self.c["close_gate_xy_m"], self.c["close_gate_dz_min_m"], self.c["close_gate_dz_max_m"]):
+                return True
+        return False
+
+    def step(self, action, eef, ap, target, region=None, place_point=None, unsatisfied=None, others=None):
+        a = np.array(action, np.float32, copy=True)
+        log = np.zeros(6, np.float32)
+        self.t += 1
+        if target is None:
+            return a, log
+        eef, target = np.asarray(eef, np.float64), np.asarray(target, np.float64)
+        in_hand = self.hand.update(eef, ap, target)
+        log[4] = float(in_hand)
+        if not self.engaged:
+            return a, log
+        alpha = self.c["alpha"]
+        if not in_hand:
+            self.carry = None
+            if "close_gate" in self.features and a[6] > 0 and not self.anything_graspable(eef, target, others):
+                a[6] = OPEN
+                log[2] = 1.0
+                if "shared" in self.features:
+                    self.authority_until = self.t + self.c["authority_steps"]
+            if "shared" in self.features and self.t <= self.authority_until:
+                goal = target + np.array([0.0, 0.0, self.c["z_offset_m"]])
+                u = self._servo(goal - eef)
+                a[:3] = ((1.0 - alpha) * a[:3] + alpha * u).astype(np.float32)
+                log[:2] = alpha * u[:2]
+        else:
+            self.authority_until = -1
+            if "carry" in self.features and unsatisfied is not None:
+                if self.carry is None or int(unsatisfied) < self.carry["unsatisfied"]:
+                    self.carry = dict(since=self.t, unsatisfied=int(unsatisfied))
+                if place_point is not None and self.t - self.carry["since"] >= self.c["carry_patience_steps"]:
+                    u = self._servo(np.asarray(place_point, np.float64)[:2] - target[:2])
+                    a[:2] = ((1.0 - alpha) * a[:2] + alpha * u).astype(np.float32)
+                    log[:2] = alpha * u
+            if "release_gate" in self.features and a[6] < 0 and region is not None and not inside_region(
+                    target, region, self.c["release_margin_xy_m"], self.c["release_margin_z_m"],
+                    self.c["body_region_radius_m"], self.c["body_region_height_m"]):
+                a[6] = CLOSE
+                log[3] = 1.0
+        log[5] = float(not np.array_equal(a, np.asarray(action, np.float32)))
+        return a, log

@@ -125,8 +125,13 @@ def scheduled_jobs(plan, inventory, output):
             jobs.append(dict(base, job_id=parent_id + "/branches", depends_on=None,
                              sampling=dict(kind="branches", parent=task, arms=plan["arms"], replicates=plan["replicates"],
                                            timings=plan.get("timings"), supervisor=plan.get("supervisor"),
-                                           replay_directory=replay_directory,
+                                           regulator=plan.get("regulator"), replay_directory=replay_directory,
                                            max_output_bytes=branch_bound(plan["arms"], plan["replicates"]))))
+            if plan.get("episode_arms"):
+                jobs.append(dict(base, job_id=parent_id + "/episodes", depends_on=None,
+                                 sampling=dict(kind="episodes", parent=task, arms=plan["episode_arms"],
+                                               replicates=plan["replicates"], regulator=plan["regulator"],
+                                               max_output_bytes=episode_bound(plan["episode_arms"], plan["replicates"]))))
             continue
         replay_id = parent_id + "/replay"
         jobs.append(dict(base, job_id=replay_id, depends_on=None,
@@ -142,14 +147,20 @@ def scheduled_jobs(plan, inventory, output):
 def load_plan(path, model="long"):
     plan = json.loads(Path(path).read_text())
     verify_frozen_alarm()
-    v2 = plan["protocol"] == PROTOCOL_V2
-    if v2:
+    v2 = plan["protocol"] in (PROTOCOL_V2, PROTOCOL_V3)
+    if plan["protocol"] == PROTOCOL_V2:
         if (plan["contract"] != CONTRACT_V2 or plan["arms_registry"] != SUPERVISOR_ARMS or plan["supervisor"] != SUPERVISOR
                 or not set(plan["arms"]) <= set(SUPERVISOR_ARMS) or not plan.get("replay_run")):
             raise ValueError("Supervisor plan contract changed")
+    elif plan["protocol"] == PROTOCOL_V3:
+        if (plan["contract"] != CONTRACT_V3 or plan["arms_registry"] != REGULATOR_ARMS or plan["regulator"] != REGULATOR
+                or plan["episode_arms_registry"] != EPISODE_ARMS or not set(plan["arms"]) <= set(REGULATOR_ARMS)
+                or not set(plan["episode_arms"]) <= set(EPISODE_ARMS) or not plan.get("replay_run")):
+            raise ValueError("Regulator plan contract changed")
+    if v2:
         audit = json.loads(Path(plan["replay_audit"]).read_text())
         if audit["status"] != "passed" or audit["plan_sha256"] != digest(Path(plan["replay_run"]) / "plan.json"):
-            raise ValueError("Supervisor plan needs an audited v1 run")
+            raise ValueError("Derived plan needs an audited v1 run")
     elif plan["protocol"] != PROTOCOL or plan["contract"] != CONTRACT or plan["arms_registry"] != ARMS:
         raise ValueError("Repair plan contract changed")
     elif not set(plan["arms"]) <= set(ARMS) or "new_noise" not in plan["arms"]:
@@ -177,3 +188,42 @@ def load_plan(path, model="long"):
         if not v2 and task["events"] != events_for(task["main_id"], task["first_alarm"], task["parent_queries"], task["failed"]):
             raise ValueError("Repair trigger positions changed")
     return plan
+
+
+# ---------------------------------------------------------------------------- feedback regulator v3
+PROTOCOL_V3 = "moe_control.repair_regulator.v3"
+REGULATOR = dict(law="shared", alpha=0.7, authority_steps=60, kp_shared=10.0, z_offset_m=0.05, lifted_m=0.02,
+                 carry_patience_steps=120, close_gate_xy_m=0.07, close_gate_dz_min_m=-0.03, close_gate_dz_max_m=0.13,
+                 close_gate_extent_margin_m=0.02,
+                 release_margin_xy_m=0.02, release_margin_z_m=0.10, body_region_radius_m=0.06, body_region_height_m=0.08)
+REGULATOR_ARMS = {
+    "gate_close": dict(features=["close_gate"]),
+    "shared_approach": dict(features=["close_gate", "shared"]),
+    "shared_full": dict(features=["close_gate", "shared", "carry", "release_gate"]),
+}
+EPISODE_ARMS = {
+    "vla": dict(features=[], engage="never"),
+    "shared_full": dict(features=["close_gate", "shared", "carry", "release_gate"], engage="always"),
+    "shared_full_alarmed": dict(features=["close_gate", "shared", "carry", "release_gate"], engage="knn_alarm"),
+}
+CONTRACT_V3 = dict(CONTRACT,
+    repair="no switching: the VLA runs every chunk; a shared-control law edits each executed env step: "
+           "u = (1 - a) u_VLA + a u_servo with a = 0 until the graspable-envelope gate blocks a closure (CLOSE commanded while "
+           "neither the target (extent-based envelope) nor any other movable object (strict 0.07 m envelope) sits between "
+           "the fingers: physical evidence of a phantom grasp); then a = 0.7 for 60 "
+           "steps pulling the end effector above the nearest unsatisfied object; "
+           "in hand the policy keeps authority unless the carry stalls 120 steps (pull toward the place point); "
+           "OPEN executes only inside the goal region",
+    calibration="closure envelope from 22 lifted closures in the v1 replays: horizontal <= 0.063 m, dz 0.00 to 0.10 m; "
+                "gate uses max(0.07 m, object bounding radius + 0.02 m) and -0.03 to max(0.13 m, radius + 0.02 m) because "
+                "handle grasps (moka pot) close farther from the body origin; a first always-on PI servo (kp 6, ki 0.3, u_max 0.5) was rejected "
+                "in the smoke of 2026-09-09 because it edited every step and broke a success parent; gains fixed before the "
+                "main run, not fitted to outcomes",
+    fork_branches="start at the v1 fork snapshots; twin = new_noise until the first modified env step",
+    episodes="full 520-step episodes from the parent's q0 snapshot: vla (replicate 0 must reproduce the parent bitwise), "
+             "shared control always on, shared control engaged at the online kNN-20 first alarm",
+    replay="fork snapshots reused from the audited v1 run; no C0 replay")
+
+
+def episode_bound(arms, replicates):
+    return (HORIZON_STEPS // 10 + 1) * len(arms) * replicates * BYTES_PER_QUERY + 8 * 1024**2

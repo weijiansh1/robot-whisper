@@ -263,3 +263,81 @@ def test_place_point_moves_to_the_empty_half():
     plate = dict(centre=np.array([0.0, -0.3, 0.44]), half=np.zeros(3), predicate="On")
     point, occupied = place_point(plate, [np.array([0.0, -0.3, 0.46])])
     np.testing.assert_allclose(point, plate["centre"])
+
+
+# ---------------------------------------------------------------------------- regulator v3 (shared control)
+def test_closure_gate_blocks_far_closures_only():
+    from repair_controller import SharedControl
+    from repair_control import REGULATOR
+    reg = SharedControl(REGULATOR, ["close_gate"], rest_z=1.0)
+    close = np.array([0, 0, 0, 0, 0, 0, 1.0], np.float32)
+    far, log = reg.step(close, [0.2, 0.0, 1.05], 0.08, [0.0, 0.0, 1.0])
+    assert far[6] == -1.0 and log[2] == 1.0 and log[5] == 1.0
+    near, log = reg.step(close, [0.03, 0.02, 1.06], 0.08, [0.0, 0.0, 1.0])
+    assert near[6] == 1.0 and log[2] == 0.0 and log[5] == 0.0
+    opened, log = reg.step(-close, [0.2, 0.0, 1.05], 0.08, [0.0, 0.0, 1.0])
+    assert opened[6] == -1.0 and log[5] == 0.0
+
+
+def test_shared_control_takes_authority_only_after_a_blocked_closure():
+    from repair_controller import SharedControl
+    from repair_control import REGULATOR
+    reg = SharedControl(REGULATOR, ["close_gate", "shared"], rest_z=1.0)
+    away = np.array([-1.0, 0, 0, 0, 0, 0, -1.0], np.float32)                 # VLA moves away, gripper open
+    target = np.array([0.2, 0.0, 1.0])
+    out, log = reg.step(away, [0.0, 0.0, 1.1], 0.08, target)
+    assert np.array_equal(out, away) and log[5] == 0.0                         # no evidence: untouched
+    close_far = np.array([-1.0, 0, 0, 0, 0, 0, 1.0], np.float32)
+    out, log = reg.step(close_far, [0.0, 0.0, 1.1], 0.08, target)            # phantom closure blocked
+    assert out[6] == -1.0 and log[2] == 1.0 and out[0] > -1.0                 # authority shifts toward the object
+    for _ in range(REGULATOR["authority_steps"]):
+        out, log = reg.step(away, [0.0, 0.0, 1.1], 0.08, target)
+        assert out[0] > away[0]
+    out, log = reg.step(away, [0.0, 0.0, 1.1], 0.08, target)
+    assert np.array_equal(out, away)                                           # authority expired
+    for i in range(12):                                                        # in hand: never edits the motion
+        held, log = reg.step(np.array([0.5, 0, 0, 0, 0, 0, 1.0], np.float32), [0.0, 0.0, 1.10 + 0.005 * i], 0.03, [0.0, 0.0, 1.05 + 0.005 * i])
+    assert log[4] == 1.0 and log[5] == 0.0
+
+
+def test_release_gate_and_carry_stall_pull():
+    from repair_controller import SharedControl, inside_region
+    from repair_control import REGULATOR
+    region = dict(centre=np.array([0.3, 0.0, 1.0]), half=np.array([0.1, 0.1, 0.05]), predicate="In")
+    reg = SharedControl(REGULATOR, ["carry", "release_gate"], rest_z=1.0)
+    hold = np.array([0, 0, 0, 0, 0, 0, 1.0], np.float32)
+    for i in range(12):
+        reg.step(hold, [0.0, 0.0, 1.10 + 0.005 * i], 0.03, [0.0, 0.0, 1.05 + 0.005 * i], region=region, place_point=region["centre"], unsatisfied=2)
+    release = np.array([0, 0, 0, 0, 0, 0, -1.0], np.float32)
+    out, log = reg.step(release, [0.0, 0.0, 1.155], 0.03, [0.0, 0.0, 1.105], region=region, place_point=region["centre"], unsatisfied=2)
+    assert out[6] == 1.0 and log[3] == 1.0 and out[0] == 0.0                  # vetoed outside; no pull before the stall
+    for _ in range(REGULATOR["carry_patience_steps"]):
+        out, log = reg.step(hold, [0.0, 0.0, 1.155], 0.03, [0.0, 0.0, 1.105], region=region, place_point=region["centre"], unsatisfied=2)
+    assert out[0] > 0                                                          # stalled carry: pulled toward +x
+    assert inside_region([0.32, 0.05, 1.0], region, 0.02, 0.10, 0.06, 0.08)
+    assert not inside_region([0.32, 0.05, 1.3], region, 0.02, 0.10, 0.06, 0.08)
+    plate = dict(centre=np.array([0.0, -0.3, 0.44]), half=np.zeros(3), predicate="On")
+    assert inside_region([0.03, -0.32, 0.47], plate, 0.02, 0.10, 0.06, 0.08) and not inside_region([0.1, -0.3, 0.47], plate, 0.02, 0.10, 0.06, 0.08)
+
+
+def test_regulator_jobs_add_episodes():
+    from repair_control import scheduled_jobs, REGULATOR
+    plan = dict(replay_run="/run/v1", arms=["gate_close"], episode_arms=["vla", "shared_full"], replicates=2,
+                timings=["mid"], regulator=REGULATOR, tasks=[dict(main_id="m1", variant_id="v1", noise_seed=3, init_index=0)])
+    jobs = scheduled_jobs(plan, {"v1": dict(benchmark="pro")}, "/out")
+    kinds = {j["job_id"]: j["sampling"]["kind"] for j in jobs}
+    assert kinds == {"m1/branches": "branches", "m1/episodes": "episodes"}
+    assert all(j["depends_on"] is None for j in jobs)
+
+
+def test_closure_gate_respects_any_object_in_the_envelope():
+    from repair_controller import SharedControl
+    from repair_control import REGULATOR
+    reg = SharedControl(REGULATOR, ["close_gate", "shared"], rest_z=1.0)
+    close = np.array([0, 0, 0, 0, 0, 0, 1.0], np.float32)
+    target = np.array([0.5, 0.0, 1.0])                                          # the unsatisfied object is far
+    held = [(np.array([0.02, 0.0, 1.0]), 0.05)]                                  # another object is between the fingers
+    out, log = reg.step(close, [0.0, 0.0, 1.03], 0.05, target, others=held)
+    assert out[6] == 1.0 and log[2] == 0.0 and log[5] == 0.0
+    out, log = reg.step(close, [0.0, 0.0, 1.03], 0.05, target, others=[(np.array([0.4, 0.0, 1.0]), 0.05)])
+    assert out[6] == -1.0 and log[2] == 1.0
