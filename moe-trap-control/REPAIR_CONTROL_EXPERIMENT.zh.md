@@ -219,9 +219,25 @@ u = (1 − a)·u_VLA + a·u_servo。协议 `moe_control.repair_regulator.v3`，�
 对 new_noise：shared_full mid 6 胜 0 负、late 6 胜 0 负；对 A4：mid 4 胜 10 负、late 4 胜 7 负。
 
 **判读。** 共享控制是三轮里第一个对误报无害的修复（误报分支 12/14 等于 new_noise，A4 是 4/14；完整回合成功侧 0 负），
-从 q0 起给失败回合净增 6/84。但从 fork 点看它比回退弱（6/84 对 12/84）：门控在 fork 时立刻把空握的夹爪张开并交出 0.7 的权限，
-可 VLA 保留的 0.3 一直在把末端拉回它自己的目标，伺服 60 步内常常到不了物体上方；A4 是权限 1.0 且走到 2 cm 内才交还。
-下一步只改一个量：a = 1.0（`shared_full_alpha1`），看能否在保持证据门控的前提下拿回 A4 的救回率。
+从 q0 起给失败回合净增 6/84。但从 fork 点看它比回退弱（6/84 对 12/84）。之后各只改一个量再跑（fork 分支，孪生仍是 new_noise）：
+
+| 变体 | early（n=20） | mid B / A（n=84） | late B / A（n=84） | 对 new_noise（mid, late） | 对 A4（mid, late） | 误报 14 条仍成功 |
+|---|---|---|---|---|---|---|
+| shared_full（a 0.7，上方 5 cm） | 0 | 6 / 4 | 8 / 0 | 6胜0负，6胜0负 | 4胜10负，4胜7负 | 12 |
+| shared_full_alpha1（a 1.0） | 1 | 4 / 3 | 9 / 2 | 4胜0负，7胜0负 | 2胜10负，6胜8负 | 12 |
+| **shared_full_z10（a 0.7，上方 10 cm）** | 2 | 5 / 3 | **12 / 0** | 5胜0负，**10胜0负** | 2胜9负，**6胜5负** | 12 |
+| A4 回退（v1，切换） | 6 | 12 / 12 | 11 / 0 | — | — | 4 |
+
+- 把权限提到 1.0 不解决问题（mid 4/84），说明差距不在权限大小。
+- 交还高度从 5 cm 提到 10 cm（A4 用的高度）后，late 救回 12/84，超过 A4 的 11/84，对 new_noise 10 胜 0 负，且第一次救回了摩卡壶（2 条）；
+  误报分支仍是 12/14。mid 仍只有 5/84。证据出现得并不晚（mid 首次修改的中位查询 2.5，late 2.0；各有 20 到 22/84 从未出现证据），
+  所以 mid 的差距不是触发延迟，更像是 mid 时刻的物理局面对"张开再靠近"不利，具体原因还没拆。
+- alpha1 的完整回合只跑了 26 条（编排器把没有 vla 锚的 episodes 作业误判为保真失败后停止派发，已修），失败侧 0/24，不作结论。
+
+**本轮结论。** 证据门控的共享控制在 late 时刻达到并略超回退（12/84 对 11/84），在 mid 时刻不及（5/84 对 12/84），
+从 q0 起常开净增 6/84；三种时刻、完整回合的成功侧全部零毁伤。它是目前唯一可以"常开"的修复，
+因为它不依赖报警精度：动作只在物理证据出现时改变。仍未解决：壶、书、奶酪盒这些物体的失败不是位置偏差，
+门控与伺服都碰不到它们的原因（靠近不闭合、放置姿态）。
 
 ## 13. 复现
 
@@ -233,7 +249,7 @@ python3 diagnose_repair_branches.py --run design/repair_main_20260908 --out desi
 # v3（磁盘余量不足时拆成 episodes / forks 两个计划先后跑，再合并分析）
 python3 prepare_repair_experiment.py --stage regulator --replicates 2 --skip-forks --output design/repair_plans_20260909/regulator_episodes.json
 python3 prepare_repair_experiment.py --stage regulator --replicates 2 --skip-episodes --output design/repair_plans_20260909/regulator_forks.json
-python3 analyze_repair_regulator.py --run design/repair_regulator_forks_20260909 --extra-runs design/repair_regulator_forks_retry_20260909 design/repair_regulator_episodes_20260909 --out design/repair_regulator_analysis_20260909
+python3 analyze_repair_regulator.py --run design/repair_regulator_forks_20260909 --extra-runs design/repair_regulator_forks_retry_20260909 design/repair_regulator_episodes_20260909 design/repair_regulator_alpha1_20260909 design/repair_regulator_z10_20260909 --out design/repair_regulator_analysis_20260909
 # v2
 python3 prepare_repair_experiment.py --stage supervisor --replicates 2 --output design/repair_plans_20260908/supervisor_main.json
 python3 audit_repair_experiment.py --run design/repair_supervisor_main_20260908 --out design/repair_supervisor_main_audit_20260908.json
