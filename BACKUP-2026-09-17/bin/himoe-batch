@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# 批推理策略服务（serve_moe_batch.py），每卡 1 个即可；端口默认 9570+gpu
+#   himoe-batch start-all <run-name|none> [n=8] [base_port=9570] [max_batch=32]
+#   himoe-batch stop [port|all] | status | log <port> [行数]
+set -u
+DATA=/home/swj/data
+ROOT=$DATA/moe-capture
+running() { pgrep -f "[s]erve_moe_batch.py .*--port $1( |$)" >/dev/null; }
+start_one() {
+  local run=$1 gpu=$2 port=$3 mb=$4 cap=""
+  running $port && { echo "port $port 已在运行"; return 0; }
+  local OUT=$ROOT/$run/server-p$port
+  [ "$run" != none ] && { mkdir -p "$OUT"; cap="--capture-out $OUT"; }
+  mkdir -p $ROOT/none; echo "$OUT" > $ROOT/.batch-out-$port
+  nohup bash -c "source $DATA/env.sh >/dev/null 2>&1; cd $DATA/srv; export OMP_NUM_THREADS=${HIMOE_SERVER_THREADS:-4} MKL_NUM_THREADS=${HIMOE_SERVER_THREADS:-4}; export PYTHONPATH=$DATA/srv/src:$DATA/srv/packages/openpi-client/src:$DATA/srv; \
+    exec $DATA/venv311/bin/python serve_moe_batch.py --host 0.0.0.0 --port $port --gpu $gpu --suite long --max-batch $mb $cap \
+    --checkpoint-dir $DATA/himoe-vla/himoe-vla-cache/himoe-libero-bridge/cache/checkpoints/HiMoE-VLA-Libero-10 \
+    --upstream-root $DATA/srv --libero-wrist-layout released-left" > "$OUT.log" 2>&1 &
+  echo "port $port (gpu $gpu) 启动中: $OUT.log"
+}
+wait_ready() {
+  local port=$1 log; log="$(cat $ROOT/.batch-out-$port).log"
+  for _ in $(seq 1 120); do
+    grep -q "serving on" "$log" && { echo "port $port 就绪"; return 0; }
+    grep -qE "Traceback|SystemExit" "$log" && { echo "port $port 失败:"; tail -8 "$log"; return 1; }
+    sleep 5
+  done; echo "port $port 超时"; return 1
+}
+case "${1:-}" in
+  start)     start_one "$2" "$3" "$4" "${5:-32}"; wait_ready "$4" ;;
+  start-all) run=$2; n=${3:-8}; base=${4:-9570}; mb=${5:-32}; for i in $(seq 0 $((n-1))); do start_one $run $i $((base+i)) $mb; done
+             rc=0; for i in $(seq 0 $((n-1))); do wait_ready $((base+i)) || rc=1; done; echo "ports: $(seq -s, $base $((base+n-1)))"; exit $rc ;;
+  stop)      if [ "${2:-all}" = all ]; then pkill -TERM -f "[s]erve_moe_batch.py" && echo "已发送停止"; else pkill -TERM -f "[s]erve_moe_batch.py .*--port $2( |$)" && echo "port $2 已发送停止"; fi ;;
+  status)    pgrep -af "[s]erve_moe_batch.py" | sed -E 's/.*--port ([0-9]+) --gpu ([0-9]+).*/port \1 gpu \2/' | sort || echo "未运行" ;;
+  log)       tail -n "${3:-30}" -f "$(cat $ROOT/.batch-out-$2).log" ;;
+  *) sed -n 2,4p "$0" >&2; exit 2 ;;
+esac

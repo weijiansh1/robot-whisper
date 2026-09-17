@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# 管理本机 HiMoE 策略服务，支持多实例（按端口区分；本机 9500 被系统服务占用，默认从 9510 起）
+#   himoe-server start [gpu] [port]   起一个实例（默认 gpu 0, port 9510）
+#   himoe-server start-all [n] [k]    在 gpu 0..n-1 各起 k 个实例（默认 1），端口 9510 + gpu*k + j
+#   himoe-server stop [port|all]      停实例
+#   himoe-server status               列出实例
+#   himoe-server log [port] [行数]
+set -u
+DATA=/home/swj/data
+RT=$DATA/libero-runtime
+running() { pgrep -f "[s]erve_with_recorder.py .*--port $1( |$)" >/dev/null; }
+start_one() {
+  local gpu=$1 port=$2
+  running $port && { echo "port $port 已在运行"; return 0; }
+  local TS OUT; TS=$(date -u +%Y%m%dT%H%M%SZ); OUT=$RT/model-local-p$port-$TS
+  echo "$OUT" > $RT/.server-out-$port
+  GPU=$gpu PORT=$port OUT=$OUT nohup bash -c "source $DATA/env.sh >/dev/null 2>&1; exec $DATA/serve.local.sh" > $OUT.log 2>&1 &
+  echo "port $port (gpu $gpu) 启动中: $OUT.log"
+}
+wait_ready() {
+  local port=$1 log; log="$(cat $RT/.server-out-$port).log"
+  for _ in $(seq 1 120); do
+    grep -q "serving on" "$log" && { echo "port $port 就绪"; return 0; }
+    grep -qE "Traceback" "$log" && { echo "port $port 失败:"; tail -5 "$log"; return 1; }
+    sleep 5
+  done; echo "port $port 超时"; return 1
+}
+case "${1:-}" in
+  start)     start_one "${2:-0}" "${3:-9510}"; wait_ready "${3:-9510}" ;;
+  start-all) n=${2:-8}; k=${3:-1}; for i in $(seq 0 $((n-1))); do for j in $(seq 0 $((k-1))); do start_one $i $((9510+i*k+j)); done; done
+             rc=0; for i in $(seq 0 $((n-1))); do for j in $(seq 0 $((k-1))); do wait_ready $((9510+i*k+j)) || rc=1; done; done
+             echo "ports: $(seq -s, 9510 $((9510+n*k-1)))"; exit $rc ;;
+  stop)      if [ "${2:-all}" = all ]; then pkill -f "[s]erve_with_recorder.py" && echo "已全部停止"; else pkill -f "[s]erve_with_recorder.py .*--port $2( |$)" && echo "port $2 已停止"; fi ;;
+  status)    pgrep -af "[s]erve_with_recorder.py" | sed -E 's/.*--port ([0-9]+).*/port \1/' | sort || echo "未运行"; nvidia-smi --query-gpu=index,memory.used,utilization.gpu --format=csv,noheader ;;
+  log)       tail -n "${3:-30}" -f "$(cat $RT/.server-out-${2:-9510}).log" ;;
+  *) sed -n 2,8p "$0" >&2; exit 2 ;;
+esac
